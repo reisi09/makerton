@@ -1411,7 +1411,7 @@ class Model(object):
         found = vision.analyze(img, float(self.board.get("ROAD_MM", 135)))
         if found is None:
             raise HttpError(422, "검은 도로를 찾지 못했습니다. 보드 전체가 보이도록 위에서 찍으면 됩니다.")
-        decision = route.decide(found["arms"])
+        decision = route.decide(found["arms"], found["sure"])
         plan = decision.pop("plan")
         dispatch = None
         if plan and body.get("go", True):
@@ -1428,7 +1428,7 @@ class Model(object):
 
     def sweep_all(self, body):
         """전체 청소: 사진 없이 네 갈래를 모두 최적 순서로 돈다. 이미 출동 중이면 409."""
-        plan = route.plan({a: {"area_mm2": route.ARM_MIN_MM2} for a in ("C",) + ARMS})
+        plan = route.plan(route.ALL)
         dispatch = self.dispatch(order=plan["order"], source="sweep")
         text = "전체 청소 → 최적 순서 %s, 약 %d초" % ("→".join(plan["order"]), plan["seconds"])
         result = {"time": time.strftime("%H:%M:%S"), "arms": None, "turns": 0,

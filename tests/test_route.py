@@ -48,6 +48,16 @@ class RouteTest(unittest.TestCase):
         self.assertEqual(p["path"][-1], [775, 250, 270])
         self.assertGreater(max(y for _, y, _ in p["path"]), 480 + 300)   # S 갈래 끝까지 내려갔다
 
+    def test_vague_amount_or_unsure_photo_sweeps_every_arm(self):
+        everything = sorted(route.plan(route.ALL)["order"])
+        for d in (route.decide(arms(N=720, E=60)),                  # E 60은 눈인지 반사인지 애매하다
+                  route.decide(arms(C=45)),
+                  route.decide(arms(), sure=False)):                 # 비스듬한 사진은 0이라도 믿지 않는다
+            self.assertTrue(d["go"])
+            self.assertEqual(sorted(d["plan"]["order"]), everything)
+            self.assertIn("전체 청소", d["text"])
+        self.assertFalse(route.decide(arms(N=14, S=7))["go"])        # 위에서 찍은 눈 없는 사진 수준
+
     def test_decide_text_names_the_order(self):
         d = route.decide(arms(N=720, W=387))
         self.assertTrue(d["go"])

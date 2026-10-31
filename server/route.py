@@ -12,9 +12,12 @@ import os
 import sys
 
 CAR_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pico", "car")
-ARM_MIN_MM2 = 100      # 갈래 눈이 이보다 크면 치우러 간다(위에서 찍은 눈 없는 사진은 갈래당 30 이하였다)
+ARM_MIN_MM2 = 100      # 갈래 눈이 이 이상이면 치우러 간다
+ARM_VAGUE_MM2 = 30     # 이 이상 ARM_MIN_MM2 미만은 눈인지 반사인지 애매하다 → 전체 청소(위에서 찍은 눈 없는 사진은 갈래당 14 이하)
 REAL_FACTOR = 1.14     # 실기는 루프 지연으로 계산보다 느리다(2026-10-31 모터 시험 스텝 1.37ms / 설정 1.2ms)
 PATH_POINTS = 240      # 화면 애니메이션용으로 남기는 자세 수
+NAMES = {"C": "교차로", "N": "N 갈래", "E": "E 갈래", "S": "S 갈래", "W": "W 갈래"}
+ALL = {a: {"area_mm2": ARM_MIN_MM2} for a in NAMES}    # 전체 청소: 네 갈래 모두
 
 
 def _load(name):
@@ -79,8 +82,15 @@ def plan(arms):
             "tried": len(ranked), "path": path(best)}
 
 
-def decide(arms):
-    """출동 여부와 화면·로그 문구. plan이 None이면 출동하지 않는다."""
+def decide(arms, sure=True):
+    """출동 여부와 화면·로그 문구. 판단이 애매하면(믿기 어려운 사진, 기준 근처의 눈) 전체 청소로 다 치운다."""
+    vague = [a for a in NAMES if ARM_VAGUE_MM2 <= arms[a]["area_mm2"] < ARM_MIN_MM2]
+    if not sure or vague:
+        p = plan(ALL)
+        why = ("사진이 비스듬하거나 노란 코트가 안 보여 판단이 애매함" if not sure else
+               "눈이 덮인 면적이 기준 근처여서 판단이 애매함(%s)" % ", ".join("%s %dmm²" % (NAMES[a], arms[a]["area_mm2"]) for a in vague))
+        return {"go": True, "text": "%s → 전체 청소, 최적 순서 %s, 약 %d초" % (why, "→".join(p["order"]), p["seconds"]),
+                "plan": p}
     p = plan(arms)
     if p is None:
         return {"go": False, "text": "도로에 치울 눈이 없음", "plan": None}

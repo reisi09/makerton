@@ -2,11 +2,14 @@
 출동 여부와 도는 순서는 server/route.py가 정한다.
 
 기준 사진도, 모서리 찍기도, 학습 데이터도 없다. 도로는 '꽉 찬 검정'이라 점박이 바닥 타일과 갈리고,
-눈은 도로 안의 흰 점이다. 중앙선 점선 위 투명 테이프가 빛을 받으면 눈처럼 하얗게 찍히므로
-중앙선 띠와 도로 방향으로 길쭉한 반사는 뺀다. 축척은 도로 폭(board.json ROAD_MM)으로 잡는다.
+눈은 도로 안의 흰 점이다. 노란 페인트(중앙선 점선·교차로 테두리) 위 투명 테이프가 빛을 받으면 눈처럼
+하얗게 찍히므로 도로 방향으로 길쭉한 반사, 도로 가운데 띠, 노란 페인트 바로 옆은 뺀다.
+중앙선은 손으로 붙여 도로 가운데에서 비켜 있을 수 있어 가운데 띠만으로는 모자란다(IMG_1887).
+축척은 도로 폭(board.json ROAD_MM)으로 잡는다.
 사진 방향은 노란 코트가 교차로 왼쪽 아래에 오도록 돌려 맞춘다(그래서 N은 늘 공원·큰 건물 쪽 도로).
-2026-10-31 모형 사진: 위에서 찍은 눈 없는 사진은 갈래당 30mm² 이하, 눈 사진은 눈 있는 갈래가 100mm² 이상.
-낮은 각도로 비스듬히 찍은 1885 한 장만 반사로 640mm²가 나왔다. 패드는 위에서 내려다보게 둔다.
+코트가 안 보이거나 가로·세로 도로 폭이 크게 다르면(비스듬히 찍음) sure=False로 알린다.
+2026-10-31 모형 사진 42장(도로가 보이는 40장): 위에서 찍은 눈 없는 사진은 갈래당 14mm² 이하. 눈 사진 19장 중 18장은 어느 갈래든
+100mm² 이상이고, 눈이 몇 알뿐인 1892는 S 갈래 44mm²였다(route.py가 애매하다고 보고 전체 청소).
 """
 
 import base64
@@ -22,6 +25,8 @@ SOLID = 0.8            # 주변이 이 비율 넘게 검어야 도로(바닥 타
 SNOW_MIN = 140         # 도로 안에서 RGB가 모두 이보다 밝으면 눈
 CENTER_FRAC = 0.12     # 도로 폭의 이 비율만큼 중앙선 띠는 보지 않는다(점선·투명 테이프 반사)
 STREAK = 3.0           # 이 비율 넘게 길쭉하고 10mm 넘게 긴 흰 덩어리는 반사로 본다
+PAINT_MM = 8           # 노란 페인트에서 이 거리 안의 흰 점은 그 위 테이프 반사로 본다
+SQUARE = 1.25          # 위에서 찍으면 가로·세로 도로 폭이 같다. 이 배 넘게 다르면 비스듬히 찍은 사진
 ARMS = ("C", "N", "S", "E", "W")
 
 
@@ -35,7 +40,7 @@ def decode_image(data_url):
 
 
 def _masks(img):
-    """(도로, 눈, 노란 코트) 마스크. 도로를 못 찾으면 None."""
+    """(도로, 눈, 노란 코트, 도로 위 노란 페인트) 마스크. 도로를 못 찾으면 None."""
     a = img.astype(int)
     mx, mn = a.max(2), a.min(2)
     k = max(9, a.shape[1] // 60)
@@ -52,7 +57,8 @@ def _masks(img):
     snow = ndi.binary_erosion(road, structure=np.ones((5, 5))) & (mn > SNOW_MIN) & ~yellow
     snow = ndi.binary_opening(snow, structure=np.ones((2, 2)))      # 한 픽셀 반짝임은 뺀다
     court = ndi.binary_opening(yellow & ~road, structure=np.ones((9, 9)))   # 얇은 중앙선은 빠진다
-    return road, snow, court
+    paint = yellow & ndi.binary_dilation(road, iterations=3)
+    return road, snow, court, paint
 
 
 def _cross(road):
@@ -111,18 +117,23 @@ def _drop_streaks(snow, px_mm):
 
 
 def analyze(img, road_mm):
-    """사진 → {"arms": {갈래: {area_mm2, far_mm}}, "turns", "view"} 또는 도로가 없으면 None."""
+    """사진 → {"arms": {갈래: {area_mm2, far_mm}}, "turns", "sure", "view"} 또는 도로가 없으면 None.
+    sure가 False면 갈래 이름이나 면적을 믿을 수 없다(코트가 안 보여 방향을 모르거나 비스듬히 찍음)."""
     m = _masks(img)
     if m is None:
         return None
-    road, snow, court = m
+    road, snow, court, paint = m
     k = _turns(road, court)
-    img, road, snow = np.rot90(img, k), np.rot90(road, k), np.rot90(snow, k)
+    img, road, snow, paint = (np.rot90(a, k) for a in (img, road, snow, paint))
     cross = _cross(road)
     x0, x1, y0, y1 = cross
     cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
-    px_mm = ((x1 - x0 + 1) + (y1 - y0 + 1)) / 2.0 / road_mm
-    snow = _drop_streaks(snow & ~_center_band(road, cross), px_mm)
+    wide, tall = x1 - x0 + 1, y1 - y0 + 1
+    px_mm = (wide + tall) / 2.0 / road_mm
+    sure = bool(court.any()) and 1 / SQUARE <= wide / tall <= SQUARE
+    near_paint = ndi.binary_dilation(paint, iterations=max(1, int(round(PAINT_MM * px_mm))))
+    # 길쭉한 반사는 띠·페인트 둘레로 잘리기 전에 통째로 봐야 짧은 조각으로 남지 않는다
+    snow = _drop_streaks(snow, px_mm) & ~_center_band(road, cross) & ~near_paint
     ys, xs = np.nonzero(snow)
     in_h = (ys >= y0) & (ys <= y1)
     in_v = (xs >= x0) & (xs <= x1)
@@ -134,7 +145,7 @@ def analyze(img, road_mm):
         sel = arm == name
         arms[name] = {"area_mm2": int(round(sel.sum() / px_mm ** 2)),
                       "far_mm": int(round(dist[sel].max())) if sel.any() else 0}
-    return {"arms": arms, "turns": k, "view": _overlay(img, road, snow, (cx, cy), (x0, x1, y0, y1))}
+    return {"arms": arms, "turns": k, "sure": sure, "view": _overlay(img, road, snow, (cx, cy), (x0, x1, y0, y1))}
 
 
 def _overlay(img, road, snow, center, cross):

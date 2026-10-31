@@ -19,15 +19,18 @@ N_SNOW = [(560, 100), (610, 160), (545, 230), (625, 300), (548, 60), (560, 350)]
 E_SNOW = [(720, 440), (800, 520), (860, 470)]
 
 
-def board(snow=(), glare=False):
-    """실측 모형(925×910mm, 1px=1mm): 십자 도로·노란 중앙선·왼쪽 아래 노란 코트·축구장."""
+def board(snow=(), glare=False, lane=580, tape=False):
+    """실측 모형(925×910mm, 1px=1mm): 십자 도로·노란 중앙선·왼쪽 아래 노란 코트·축구장.
+    lane은 세로 도로 중앙선의 x(실물은 손으로 붙여 가운데에서 비켜 있다), tape는 점선마다 옆에 생기는 짧은 테이프 반사."""
     img = Image.new("RGB", (925, 910), (226, 231, 237))
     d = ImageDraw.Draw(img)
     d.rectangle([515, 0, 650, 910], fill=(38, 40, 42))
     d.rectangle([0, 404, 925, 552], fill=(38, 40, 42))
     for v in range(0, 910, 40):
-        d.rectangle([580, v, 585, v + 20], fill=(235, 200, 60))
+        d.rectangle([lane, v, lane + 5, v + 20], fill=(235, 200, 60))
         d.rectangle([v, 476, v + 20, 481], fill=(235, 200, 60))
+        if tape and v < 380:
+            d.rectangle([lane + 7, v + 4, lane + 10, v + 14], fill=(240, 238, 232))
     d.rectangle([0, 560, 360, 711], fill=(250, 210, 60))
     d.rectangle([383, 560, 508, 752], fill=(60, 150, 70))
     if glare:
@@ -78,6 +81,17 @@ class VisionTest(unittest.TestCase):
         found = vision.analyze(photo(board(glare=True)), 135.0)
         total = sum(a["area_mm2"] for a in found["arms"].values())
         self.assertLess(total, 40, found["arms"])
+
+    def test_tape_glare_beside_an_off_center_centerline_is_not_snow(self):
+        # 2026-10-31 IMG_1887: 중앙선이 도로 가운데에서 20mm 비켜 있어 점선 옆 반사가 S 갈래 154mm²로 잡혔다
+        found = vision.analyze(photo(board(lane=600, tape=True)), 135.0)
+        self.assertLess(found["arms"]["N"]["area_mm2"], 30, found["arms"])
+
+    def test_top_down_photo_is_sure_and_a_squashed_one_is_not(self):
+        shot = photo(board())
+        self.assertTrue(vision.analyze(shot, 135.0)["sure"])
+        squashed = np.asarray(Image.fromarray(shot).resize((PHOTO[0], int(PHOTO[1] * 0.6))))
+        self.assertFalse(vision.analyze(squashed, 135.0)["sure"], "낮은 각도로 찍으면 가로 도로만 얇아진다")
 
     def test_rotated_photo_still_names_the_arms_by_the_yellow_court(self):
         found = vision.analyze(np.ascontiguousarray(np.rot90(photo(board(snow=N_SNOW)), -1)), 135.0)
