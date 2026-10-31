@@ -11,7 +11,7 @@
 
 | 항목 | 상태 |
 |---|---|
-| 자동 시험 | Python 229개(`python3 -m unittest discover -s tests`), 웹 1개(`cd web && npm test`) 통과 |
+| 자동 시험 | Python 231개(`python3 -m unittest discover -s tests`, 가상 제설차 통합 시험 포함), 웹 1개(`cd web && npm test`) 통과 |
 | 출동 판단 | 사진 인식(`server/vision.py`) + 최적 경로(`server/route.py`). 날씨 예보 모델은 화면 참고용이고 출동을 정하지 않는다 |
 | 조작 화면 | Next.js 정적 사이트 한 장. 맥 서버가 `/app`에서 낸다. 사진 출동, 네 갈래를 최적 순서로 도는 '전체 청소'(`/api/sweep`), 정지 버튼, 실측 지도 위 경로. 예시 사진 데모는 뺐다 |
 | 사진 출동 | 사진 한 장 → 검은 도로 위 흰 알갱이를 갈래별로 센다 → 눈이 100mm² 넘는 갈래를 최적 순서로 출동. 눈 있음/없음은 실제 모형 사진 26장 중 25장을 맞혔다(낮은 각도로 비스듬히 찍은 1장이 반사로 오탐) |
@@ -85,7 +85,7 @@ makerton/
   server/              gosaek_server.py · vision.py(사진 눈 인식) · route.py(최적 경로) · board.json(보드 실측) · static/
   pico/car/            config.py · car_core.py · main.py · hwtest.py · sweep_test.py
   pico/sensors/        config.py · sensor_core.py · main.py · hwtest.py · ssd1306.py · lcd1602.py
-  tools/               pico.py(Pico 업로드) · fetch_asos.py·export_demo.py(날씨 모델용)
+  tools/               pico.py(Pico 업로드) · sim_car.py(Pico 없이 펌웨어 돌리기) · fetch_asos.py·export_demo.py(날씨 모델용)
   web/                 Next.js 조작 화면(/, 예전 주소 /vision도 같은 화면) · components/BoardMap.tsx(실측 지도)
   tests/               python3 -m unittest discover -s tests
 ```
@@ -144,6 +144,18 @@ cd web && npm run build:app      # 서버가 /app 에서 내는 패드용 화면
 - '전체 청소'는 사진 없이 네 갈래를 모두 최적 순서로 돈다(`POST /api/sweep`, 출동 중이면 409).
 - '바로 출동'을 끄면 판정만 보고 보내지 않는다. 출동 중에는 화면 위쪽 '정지' 버튼으로 멈춘다.
 - 차 길이가 정해지면 `pico/car/config.py`와 `server/board.json`의 `BASE_X`(`BASE_XY`)·`ARM_OUT_MM`만 고친다(중심→보드 끝 − 차 반길이 − 날 10 − 여유 10). 펌웨어를 바꾸면 `tools/pico.py put car --wifi`로 다시 올린다.
+
+### Pico 없이 확인하기
+
+```
+python3 tools/sim_car.py --speed 20   # 서버를 켠 맥에서. Ctrl+C로 끝낸다
+```
+
+- 실제 `pico/car/main.py`를 맥에서 돌린다. 핀·Wi-Fi·시계만 가짜이고 UDP는 진짜라서, 서버와 조작 화면에는 '제설차 연결'로 보이고 사진 출동·전체 청소·정지·복귀가 실물과 같은 길로 오간다.
+- 코일 핀 출력에서 바퀴 회전을 거꾸로 읽어 차 위치를 따로 적분한다. 계획이 끝날 때마다 차고까지 남은 오차, 도로를 벗어난 점 수, 펌웨어 추측 위치와의 차이를 찍는다.
+- 같은 검사를 `tests/test_sim_car.py`가 자동으로 한다(전체 청소 왕복, 갈래 중간 정지 뒤 복귀).
+- 실물 Pico를 붙일 때는 가상 차를 끈다. 둘 다 켜 두면 서버가 마지막으로 패킷을 보낸 쪽에 명령을 보낸다.
+- 바퀴 미끄러짐, 실제 바퀴 지름·윤거 오차, 모터 토크는 확인하지 못한다. 그건 실물 보정(T4·T6)의 몫이다.
 
 ### 5. GitHub Pages
 
