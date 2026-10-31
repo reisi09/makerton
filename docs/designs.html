@@ -55,10 +55,9 @@
 <header>
   <div class="wrap">
     <h1>고색고 ICE-ZERO 사거리 자동 제설 모형</h1>
-    <p>2026 수원고교 피지컬 AI 메이커톤. 우드락 도시의 사거리에 눈 조각이 쌓이거나 결빙 예측 모델이 위험을 알리면 병뚜껑 바퀴를 단 제설차가 사거리의 눈을 한 번 밀고 돌아온다.</p>
+    <p>2026 수원고교 피지컬 AI 메이커톤. 우드락 도시의 사거리 모형을 패드로 한 장 찍으면 맥이 도로 위 눈을 갈래별로 찾고, 북동쪽 제설 기지의 제설차가 가장 빠른 순서로 눈을 밀고 돌아온다.</p>
     <div class="btns">
-      <a class="btn primary" href="index.html">모델 동작 보기</a>
-      <a class="btn ghost" href="사거리_제설차_설계도.pdf">최신 설계도 PDF</a>
+      <a class="btn primary" href="index.html">조작 화면 보기</a>
       <a class="btn ghost" href="https://github.com/reisi09/makerton">GitHub 저장소</a>
     </div>
   </div>
@@ -68,18 +67,19 @@
   <section>
     <h2>어떻게 움직이나</h2>
     <div class="steps">
-      <div class="step"><b>눈 감지</b>광장 바닥의 조도 센서를 우드락 눈 조각이 덮으면 센서에 닿는 빛이 줄어든다. 센서 기지의 Pico가 이를 맥북 서버에 알린다.</div>
-      <div class="step"><b>출동 판단</b>서버가 눈 감지를 확인하거나 ICE-ZERO 모델의 예측 동결 확률이 0.5 이상임을 확인하면 제설차를 출동시킨다.</div>
-      <div class="step"><b>사거리 왕복</b>제설차가 광장 남쪽 끝에서 북쪽으로 420 mm 이동하며 눈을 밀고 같은 길을 후진해 돌아온다. 회전 없이 약 45초가 걸린다.</div>
-      <div class="step"><b>완료 확인</b>센서가 다시 밝은 상태를 감지하면 제설을 완료한다. 눈이 남아 있으면 10초 뒤 한 번 더 왕복한다.</div>
+      <div class="step"><b>사진 한 장</b>패드로 보드를 위에서 찍으면 맥 서버가 검은 도로만 찾고, 그 위의 흰 알갱이를 교차로와 N·E·S·W 갈래별로 센다. 기준 사진이나 학습 자료는 쓰지 않는다.</div>
+      <div class="step"><b>최적 순서</b>눈이 덮인 면적이 100 mm²를 넘는 갈래만 고른다. 제설차 펌웨어의 경로 계획에 따라 기지에서 그 갈래들을 도는 모든 순서(최대 24가지)의 소요 시간을 계산해 가장 빠른 순서를 고른다.</div>
+      <div class="step"><b>출동</b>제설차가 북동쪽 제설 기지의 서쪽 출입구로 나와 N 도로를 따라 교차로로 간다. 갈래마다 끝까지 눈을 밀고 같은 길로 후진해 돌아온다. 제설을 모두 마치면 차고로 후진해 들어간다.</div>
+      <div class="step"><b>전체 청소·정지</b>'전체 청소'를 누르면 사진 없이 네 갈래를 모두 가장 빠른 순서로 돈다. 출동 중에는 화면의 정지 버튼으로 내린 명령이 항상 우선한다. 날씨 예보 모델은 참고용이며 출동 여부를 정하는 데 쓰지 않는다.</div>
     </div>
   </section>
 
   <section>
     <h2>설계도 PDF</h2>
+    <p class="note">PDF는 출동 방식과 기지 위치를 바꾸기 전에 만든 설계다. 차체와 배선은 참고하되, 출동 방식과 치수는 이 페이지와 README를 따른다.</p>
     <div class="docs">
       <div class="doc latest">
-        <span class="tag">최신 · 제작 중</span>
+        <span class="tag">차체 참고</span>
         <h3>사거리 왕복 제설차 설계도</h3>
         <p>병뚜껑 4개 · 제설 날 · 조도 센서로 눈 감지 · 실물 부품 배선도 · 조립도 · 바꾼 코드 · 시험 순서 (17쪽)</p>
         <a class="open" href="사거리_제설차_설계도.pdf">PDF 열기 →</a>
@@ -112,14 +112,13 @@
   </section>
 
   <section>
-    <h2>그림 (최신 설계)</h2>
+    <h2>그림</h2>
+    <p class="note">보드 구조도가 최신이다. 차체·배선 그림은 이전 안에서 그대로 가져와 지금은 쓰지 않는 서보·초음파·조도 센서가 들어 있다.</p>
     <div class="gallery">
-      <figure><a href="img/sweep_system.svg"><img src="img/sweep_system.svg" alt="시스템 흐름" loading="lazy"></a><figcaption>시스템 흐름</figcaption></figure>
+      <figure><a href="img/board_measured.png"><img src="img/board_measured.png" alt="보드 실측 구조도" loading="lazy"></a><figcaption>보드 실측 구조도 (925×910 mm)</figcaption></figure>
       <figure><a href="img/sweep_car_assembly.svg"><img src="img/sweep_car_assembly.svg" alt="제설차 조립도" loading="lazy"></a><figcaption>제설차 조립도</figcaption></figure>
       <figure><a href="img/sweep_car_wiring.svg"><img src="img/sweep_car_wiring.svg" alt="제설차 배선도" loading="lazy"></a><figcaption>제설차 배선도 (14가닥)</figcaption></figure>
-      <figure><a href="img/sweep_base_wiring.svg"><img src="img/sweep_base_wiring.svg" alt="센서 기지 배선도" loading="lazy"></a><figcaption>센서 기지 배선도</figcaption></figure>
-      <figure><a href="img/sweep_route.svg"><img src="img/sweep_route.svg" alt="사거리와 주행" loading="lazy"></a><figcaption>사거리와 주행</figcaption></figure>
-      <figure><a href="img/sweep_snow.svg"><img src="img/sweep_snow.svg" alt="눈 조각과 조도 센서" loading="lazy"></a><figcaption>눈 조각과 조도센서</figcaption></figure>
+      <figure><a href="img/sweep_base_wiring.svg"><img src="img/sweep_base_wiring.svg" alt="센서 기지 배선도" loading="lazy"></a><figcaption>센서 기지 배선도 (선택)</figcaption></figure>
       <figure><a href="img/sweep_wheels.svg"><img src="img/sweep_wheels.svg" alt="병뚜껑 바퀴" loading="lazy"></a><figcaption>병뚜껑 바퀴</figcaption></figure>
       <figure><a href="img/sweep_parts.svg"><img src="img/sweep_parts.svg" alt="부품 도감" loading="lazy"></a><figcaption>부품 도감</figcaption></figure>
       <figure><a href="img/sweep_power.svg"><img src="img/sweep_power.svg" alt="제설차 전원" loading="lazy"></a><figcaption>차 전원</figcaption></figure>
@@ -128,7 +127,7 @@
 
   <section>
     <h2>모니터 화면</h2>
-    <figure><img src="img/monitor.png" alt="모니터 화면 캡처" loading="lazy" style="aspect-ratio:auto"><figcaption>맥북 서버의 /monitor (제설차와 기지를 모의 실행해 캡처)</figcaption></figure>
+    <figure><img src="img/monitor.png" alt="모니터 화면 캡처" loading="lazy" style="aspect-ratio:auto"><figcaption>맥북 서버의 /monitor (가상 제설차로 전체 청소를 돌리며 캡처)</figcaption></figure>
     <p class="note">이 페이지는 설계도를 보여 주는 정적 사이트다. 실제 모니터 화면은 맥북에서 <code>python3 server/gosaek_server.py</code>를 실행한 뒤 같은 Wi-Fi에서 <code>http://&lt;맥 IP&gt;:8000/monitor</code>로 연다.</p>
   </section>
 
@@ -140,8 +139,8 @@
         <tr><td>보조 배터리 5,000 mAh (5 V 2 A) 또는 충전기 + 멀티탭 + 막대</td><td>1</td><td>차 전원</td></tr>
         <tr><td>병뚜껑</td><td>4</td><td>바퀴</td></tr>
         <tr><td>대나무 꼬치 + 빨대</td><td>각 1</td><td>뒷바퀴 축</td></tr>
-        <tr><td>우드락</td><td>-</td><td>하판 · 제설 날 · 높이 조각 · 눈 조각</td></tr>
-        <tr><td>검은 절연테이프 또는 은박지</td><td>1</td><td>눈 조각 밑면</td></tr>
+        <tr><td>우드락</td><td>-</td><td>하판 · 제설 날 · 높이 조각 · 눈 알갱이</td></tr>
+        <tr><td>아이패드(또는 카메라가 있는 휴대폰)</td><td>1</td><td>보드 사진 · 조작 화면</td></tr>
         <tr><td>글루건 · 양면테이프 · 고무줄 · 커터</td><td>-</td><td>고정</td></tr>
       </table>
     </div>
@@ -149,7 +148,7 @@
 
   <section>
     <h2>모델</h2>
-    <p class="note">ICE-ZERO 경량 모델(XGBoost)이 +1·3·6시간 뒤의 관측소 지면 온도를 예측하고 이를 동결 확률로 바꾼다. 학교에서 0.4 km 떨어진 수원 관측소(119)의 2020–2025년 겨울(11·12·1·2월) 자료로 학습했다(≤2024 학습, 2025 시험). 센서 결측 표시(-9.0)가 있는 값과 한 시간만 튀는 값은 학습 전에 걸러 냈다. 화면에 표시된 값은 결빙 여부를 확정한 결과가 아니라 예측 동결 확률이다.</p>
+    <p class="note">날씨 모델은 출동을 정하지 않는다. 아래 예측값은 모니터 화면에 참고로 보여 준다. ICE-ZERO 경량 모델(XGBoost)이 +1·3·6시간 뒤의 관측소 지면 온도를 예측하고 이를 동결 확률로 바꾼다. 학교에서 0.4 km 떨어진 수원 관측소(119)의 2020–2025년 겨울(11·12·1·2월) 자료로 학습했다(≤2024 학습, 2025 시험). 센서 결측 표시(-9.0)가 있는 값과 한 시간만 튀는 값은 학습 전에 걸러 냈다. 화면에 표시된 값은 결빙 여부를 확정한 결과가 아니라 예측 동결 확률이다.</p>
     <div class="tablewrap">
       <table>
         <tr><th>2025 시험 (수원 119)</th><th>+0h</th><th>+1h</th><th>+3h</th><th>+6h</th></tr>
@@ -163,7 +162,7 @@
 </main>
 
 <footer>
-  <div class="wrap">makerton · 2026 수원고교 피지컬 AI 메이커톤 · 치수는 사진으로 추정한 값이며 실물 주행은 현장에서 보정한다.</div>
+  <div class="wrap">makerton · 2026 수원고교 피지컬 AI 메이커톤 · 보드 치수는 2026-10-31 사진 실측 기준으로 925×910 mm이며, 제설차의 주행 거리는 현장에서 보정한다.</div>
 </footer>
 </body>
 </html>

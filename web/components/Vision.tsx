@@ -7,6 +7,7 @@ import { ARM_NAMES, padUrl } from "@/lib/vision";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 보내지 않는다)
+const PHASE: Record<string, string> = { depart: "기지에서 나가는 중", turn: "방향 바꾸는 중", out: "눈 미는 중", back: "교차로로 후진 중", home: "기지로 돌아가는 중" };
 
 interface Result {
   view?: string; time: string; arms: Record<string, Arm> | null;
@@ -16,7 +17,8 @@ interface Result {
 }
 interface ServerState {
   monitor_url?: string;
-  car?: { ok: boolean };
+  vision?: Result | null;
+  car?: { ok: boolean; tel?: { x: number | null; y: number | null; h: number | null; state?: string; phase?: string; arm?: string | null } };
   execution?: { state?: string; plan_id?: string };
 }
 
@@ -63,7 +65,7 @@ export default function Vision() {
         .then((s: ServerState) => { if (alive) { setState(s); setApi("ok"); } })
         .catch(() => { if (alive) setApi((a) => (a === "ok" ? a : "missing")); });
     poll();
-    const id = setInterval(poll, 2000);
+    const id = setInterval(poll, 1000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 
@@ -91,6 +93,10 @@ export default function Vision() {
   const stop = () => fetch("/api/car/stop", { method: "POST" }).catch(() => setError("정지 명령을 보내지 못했습니다."));
 
   const running = state.execution?.state === "running";
+  const shown = result ?? state.vision ?? null;       // 새로고침해도 서버가 기억하는 마지막 판정을 보여 준다
+  const tel = state.car?.ok ? state.car.tel : undefined;
+  const live: Pose | undefined = tel && tel.x != null && tel.y != null ? [tel.x, tel.y, tel.h ?? 270] : undefined;
+  const moving = tel && (tel.state === "run" || tel.state === "pause") && tel.phase ? PHASE[tel.phase] : undefined;
   const picker = (ref: React.RefObject<HTMLInputElement | null>, capture: boolean) => (
     <input ref={ref} type="file" accept="image/*" hidden {...(capture ? { capture: "environment" as const } : {})}
       onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
@@ -146,27 +152,28 @@ export default function Vision() {
               <p className="empty" role="status">{busy}</p>
             ) : error ? (
               <p className="verr" role="alert">{error}</p>
-            ) : result ? (
-              <p className={`vdecide ${result.decision.go ? "go" : ""}`} role="status">
-                {result.decision.text}
-                {result.dispatch?.plan_id && ` · ${result.dispatch.plan_id} ${result.dispatch.mode === "car" ? "제설차" : "모의 실행"}`}
-                {result.dispatch?.error && ` · ${result.dispatch.error}`}
-                {result.decision.go && !result.dispatch && " · 바로 출동 기능이 꺼져 있어 제설차를 출동시키지 않았습니다."}
+            ) : shown ? (
+              <p className={`vdecide ${shown.decision.go ? "go" : ""}`} role="status">
+                {shown.decision.text}
+                {shown.dispatch?.plan_id && ` · ${shown.dispatch.plan_id} ${shown.dispatch.mode === "car" ? "제설차" : "모의 실행"}`}
+                {shown.dispatch?.error && ` · ${shown.dispatch.error}`}
+                {shown.decision.go && !shown.dispatch && " · 바로 출동 기능이 꺼져 있어 제설차를 출동시키지 않았습니다."}
               </p>
-            ) : (
+            ) : running ? null : (
               <p className="empty">제설차는 북동쪽 제설 기지에서 기다리고 있습니다.</p>
             )}
-            {result?.view && <img className="vimg" src={result.view} alt="도로와 눈 인식 결과" />}
-            <BoardMap arms={result?.arms ?? undefined} path={result?.route?.path} order={result?.route?.order} />
-            {result?.arms && (
+            {shown?.view && <img className="vimg" src={shown.view} alt="도로와 눈 인식 결과" />}
+            {moving && <p className="sub" role="status">제설차 {tel?.arm ? `${ARM_NAMES[tel.arm] ?? tel.arm} ` : ""}{moving}{tel?.state === "pause" ? " (일시 정지)" : ""}</p>}
+            <BoardMap arms={shown?.arms ?? undefined} path={shown?.route?.path} order={shown?.route?.order} car={live} />
+            {shown?.arms && (
               <table>
                 <tbody>
-                  {Object.entries(result.arms).map(([name, a]) => (
+                  {Object.entries(shown.arms).map(([name, a]) => (
                     <tr key={name}>
                       <td className="t1 nowrap">{ARM_NAMES[name] ?? name}</td>
                       <td className="nowrap">{a.area_mm2} mm²</td>
                       <td className="far">{a.far_mm ? `중심에서 ${a.far_mm} mm까지` : "–"}</td>
-                      <td><span className="tag">{result.route?.order.includes(name) ? `${result.route.order.indexOf(name) + 1}번째 제설` : name === "C" ? "갈래 순회 중 눈이 밀려남" : "제설 기준 미달"}</span></td>
+                      <td><span className="tag">{shown.route?.order.includes(name) ? `${shown.route.order.indexOf(name) + 1}번째 제설` : name === "C" ? "갈래 순회 중 눈이 밀려남" : "제설 기준 미달"}</span></td>
                     </tr>
                   ))}
                 </tbody>

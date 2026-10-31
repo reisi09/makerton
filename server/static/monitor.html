@@ -180,23 +180,23 @@
   }
   function boardOf(st) {
     var b = st.board || {};
-    var plaza = b.PLAZA_MM || [297, 420];
-    var ends = b.ARM_END_MM || {N: 340, E: 470, W: 500, S: 395};
-    var baseSize = b.BASE_MM || [320, 230];
+    var ends = b.ARM_END_MM || {N: 480, E: 343, W: 582, S: 430};
+    var base = b.BASE_XY || [775, 250];
     return {
-      cx: Number(b.CENTER_X) || 480,
-      cy: Number(b.CENTER_Y) || 340,
-      road: Number(b.ROAD_MM) || 150,
-      pw: Number(plaza[0]) || 297,
-      ph: Number(plaza[1]) || 420,
-      nEnd: Number(ends.N) || 340,
-      eEnd: Number(ends.E) || 470,
-      wEnd: Number(ends.W) || 500,
-      sEnd: Number(ends.S) || 395,
-      dist: Number(b.BASE_DIST_MM) || 500,
-      bw: Number(baseSize[0]) || 320,
-      bh: Number(baseSize[1]) || 230
+      cx: Number(b.CENTER_X) || 582,
+      cy: Number(b.CENTER_Y) || 480,
+      road: Number(b.ROAD_MM) || 135,
+      nEnd: Number(ends.N) || 480,
+      eEnd: Number(ends.E) || 343,
+      wEnd: Number(ends.W) || 582,
+      sEnd: Number(ends.S) || 430,
+      bx: Number(base[0]) || 775,
+      by: Number(base[1]) || 250,
+      bh: (b.BASE_H === undefined || b.BASE_H === null) ? 270 : Number(b.BASE_H)
     };
+  }
+  function garageOf(B) {
+    return {x: B.bx - 85, y: B.by - 70, w: 160, h: 140};
   }
   function levelOf(armId, armData, treated) {
     if (treated && treated[armId]) return 'done';
@@ -208,47 +208,31 @@
     var B = boardOf(st);
     var x0 = B.cx - B.wEnd, x1 = B.cx + B.eEnd;
     var y0 = B.cy - B.nEnd, y1 = B.cy + B.sEnd;
-    var baseY = y1;
+    var r = B.road / 2;
+    var G = garageOf(B);
     var out = [];
 
     // 도로
-    out.push('<rect x="' + (B.cx - B.road / 2) + '" y="' + y0 + '" width="' + B.road +
+    out.push('<rect x="' + (B.cx - r) + '" y="' + y0 + '" width="' + B.road +
              '" height="' + (y1 - y0) + '" fill="#013a63"/>');
-    out.push('<rect x="' + x0 + '" y="' + (B.cy - B.road / 2) + '" width="' + (x1 - x0) +
+    out.push('<rect x="' + x0 + '" y="' + (B.cy - r) + '" width="' + (x1 - x0) +
              '" height="' + B.road + '" fill="#013a63"/>');
-    // 광장
-    out.push('<rect x="' + (B.cx - B.pw / 2) + '" y="' + (B.cy - B.ph / 2) + '" width="' + B.pw +
-             '" height="' + B.ph + '" fill="#01497c" stroke="#468faf" stroke-width="2"/>');
-    // 차선
+    // 차선(교차로 안은 비운다)
     var dash = ' stroke="#61a5c2" stroke-width="3" stroke-dasharray="22 16"';
-    out.push('<line x1="' + B.cx + '" y1="' + y0 + '" x2="' + B.cx + '" y2="' +
-             (B.cy - B.ph / 2) + '"' + dash + '/>');
-    out.push('<line x1="' + B.cx + '" y1="' + (B.cy + B.ph / 2) + '" x2="' + B.cx + '" y2="' +
-             y1 + '"' + dash + '/>');
-    out.push('<line x1="' + x0 + '" y1="' + B.cy + '" x2="' + (B.cx - B.pw / 2) + '" y2="' +
-             B.cy + '"' + dash + '/>');
-    out.push('<line x1="' + (B.cx + B.pw / 2) + '" y1="' + B.cy + '" x2="' + x1 + '" y2="' +
-             B.cy + '"' + dash + '/>');
+    out.push('<line x1="' + B.cx + '" y1="' + y0 + '" x2="' + B.cx + '" y2="' + (B.cy - r) + '"' + dash + '/>');
+    out.push('<line x1="' + B.cx + '" y1="' + (B.cy + r) + '" x2="' + B.cx + '" y2="' + y1 + '"' + dash + '/>');
+    out.push('<line x1="' + x0 + '" y1="' + B.cy + '" x2="' + (B.cx - r) + '" y2="' + B.cy + '"' + dash + '/>');
+    out.push('<line x1="' + (B.cx + r) + '" y1="' + B.cy + '" x2="' + x1 + '" y2="' + B.cy + '"' + dash + '/>');
 
-    // 제설기지(외곽·차고·관제실)
-    var baseX = B.cx - B.bw / 2;
-    out.push('<rect x="' + baseX + '" y="' + baseY + '" width="' + B.bw + '" height="' + B.bh +
+    // 제설 기지(북동쪽 건물): 차고는 BASE_XY, 출입구는 서쪽 면이고 N 도로로 이어진다
+    out.push('<rect x="' + (B.cx + r) + '" y="' + (B.by - 40) + '" width="' + (G.x - B.cx - r) +
+             '" height="80" fill="#013a63"/>');
+    out.push('<rect x="' + G.x + '" y="' + G.y + '" width="' + G.w + '" height="' + G.h +
              '" rx="6" fill="#01497c" stroke="#89c2d9" stroke-width="3"/>');
-    var bayX = B.cx - 70, bayY = baseY + 10;
-    out.push('<rect x="' + bayX + '" y="' + bayY + '" width="140" height="190" fill="#012a4a" ' +
-             'stroke="#468faf" stroke-width="2"/>');
-    out.push('<line x1="' + bayX + '" y1="' + bayY + '" x2="' + (bayX + 16) + '" y2="' + baseY +
-             '" stroke="#468faf" stroke-width="2"/>');
-    out.push('<line x1="' + (bayX + 140) + '" y1="' + bayY + '" x2="' + (bayX + 124) + '" y2="' +
-             baseY + '" stroke="#468faf" stroke-width="2"/>');
-    out.push('<rect x="' + (B.cx + 78) + '" y="' + bayY + '" width="72" height="150" ' +
-             'fill="#013a63" stroke="#468faf" stroke-width="2"/>');
-    out.push('<text x="' + (B.cx + 114) + '" y="' + (bayY + 130) + '" font-size="16" ' +
-             'font-weight="700" fill="#a9d6e5" text-anchor="middle">관제실</text>');
-    out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 30) + '" font-size="22" ' +
-             'font-weight="800" fill="#eaf6fb">제설기지</text>');
-    out.push('<text x="' + B.cx + '" y="' + (baseY + 214) + '" font-size="18" font-weight="700" ' +
-             'fill="#89c2d9" text-anchor="middle">차고</text>');
+    out.push('<line x1="' + G.x + '" y1="' + (B.by - 40) + '" x2="' + G.x + '" y2="' + (B.by + 40) +
+             '" stroke="#01497c" stroke-width="6"/>');
+    out.push('<text x="' + (G.x + G.w / 2) + '" y="' + (G.y + G.h + 28) + '" font-size="22" ' +
+             'font-weight="800" fill="#eaf6fb" text-anchor="middle">제설 기지</text>');
 
     // 나침반
     out.push('<text x="' + B.cx + '" y="' + (y0 + 22) + '" font-size="22" font-weight="800" ' +
@@ -257,12 +241,10 @@
   }
 
   function drawBase(st) {
-    var B = boardOf(st);
+    var G = garageOf(boardOf(st));
     var base = st.base || {};
-    var baseY = B.cy + B.sEnd;
-    var baseX = B.cx - B.bw / 2;
     var out = [];
-    var bx = B.cx + 114, by = baseY + 34;
+    var bx = G.x + G.w - 16, by = G.y + 16;
     out.push('<circle cx="' + bx + '" cy="' + by + '" r="9" fill="' +
              (base.beacon ? '#a9d6e5' : '#014986') + '" stroke="#89c2d9" stroke-width="2"/>');
     if (base.beacon) {
@@ -270,16 +252,11 @@
                'stroke="#a9d6e5" stroke-width="3"/>');
     }
     var dock = base.dock;
-    out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 62) + '" font-size="19" ' +
-             'font-weight="800" fill="' + (dock ? '#a9d6e5' : '#89c2d9') + '">도킹 ' +
-             (dock === null || dock === undefined ? '—' : (dock ? '✓' : '이탈')) + '</text>');
     var refills = (base.refills === null || base.refills === undefined) ? '—' : base.refills;
-    out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 88) + '" font-size="19" ' +
-             'font-weight="800" fill="#eaf6fb">보충 ' + refills + '</text>');
-    if (base.refilling) {
-      out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 112) + '" font-size="15" ' +
-               'font-weight="700" fill="#a9d6e5">보충 중…</text>');
-    }
+    out.push('<text x="' + (G.x + G.w / 2) + '" y="' + (G.y + G.h + 54) + '" font-size="17" ' +
+             'font-weight="800" fill="' + (dock ? '#a9d6e5' : '#89c2d9') + '" text-anchor="middle">도킹 ' +
+             (dock === null || dock === undefined ? '—' : (dock ? '✓' : '이탈')) + ' · 보충 ' + refills +
+             (base.refilling ? ' (보충 중)' : '') + '</text>');
     document.getElementById('baseLayer').innerHTML = out.join('');
   }
 
@@ -291,7 +268,7 @@
     var out = [];
 
     function card(armId, x, y) {
-      var w = 300, h = 210;
+      var w = 300, h = 200;
       var a = arms[armId] || {};
       var level = levelOf(armId, a, treated);
       var color = LEVEL_COLOR[level] || LEVEL_COLOR.off;
@@ -309,14 +286,14 @@
       var fg = dark ? '#012a4a' : '#eaf6fb';
       var cx = x + w / 2;
       var lines = [
-        [armId + ' ' + shortName(a.name), 22, 40],
-        [num(a.p_max, 2), 50, 104],
-        [LEVEL_MARK[level] + ' ' + LEVEL_KR[level], 22, 138],
-        ['+3h ' + num((a.t_eff || {}).h3) + '℃', 20, 168],
+        [armId + ' ' + shortName(a.name), 22, 36],
+        [num(a.p_max, 2), 50, 96],
+        [LEVEL_MARK[level] + ' ' + LEVEL_KR[level], 22, 128],
+        ['+3h ' + num((a.t_eff || {}).h3) + '℃', 20, 156],
         [treated[armId] ? ('✓ 처리 ' + String(treated[armId]).slice(11, 16) + '까지')
                         : (idx >= 0 ? ((idx + 1) + '순위 출동')
                                     : ('현장 ' + (a.local_dt === null || a.local_dt === undefined
-                                                 ? '0.0' : num(a.local_dt)) + '℃')), 20, 196]
+                                                 ? '0.0' : num(a.local_dt)) + '℃')), 20, 184]
       ];
       lines.forEach(function (line) {
         out.push('<text x="' + cx + '" y="' + (y + line[2]) + '" font-size="' + line[1] +
@@ -325,11 +302,11 @@
       });
     }
 
-    // 카드는 도로 밖 네 모퉁이에 둔다(차·도로를 가리지 않게).
-    card('N', 20, 30);
-    card('E', 660, 30);
-    card('W', 20, 470);
-    card('S', 660, 470);
+    // 카드는 도로 밖 네 모퉁이에 둔다. 북동쪽은 기지 차고 위에 둔다(차·도로·차고를 가리지 않게).
+    card('N', 20, -25);
+    card('E', 655, -25);
+    card('W', 20, 580);
+    card('S', 655, 580);
     document.getElementById('armsLayer').innerHTML = out.join('');
   }
 
@@ -337,15 +314,11 @@
     var B = boardOf(st);
     var base = st.base || {};
     var car = (st.car || {}).tel || {};
-    var dockY = B.cy + B.dist;
-    var cx = (car.x === null || car.x === undefined) ? B.cx : Number(car.x);
-    var cy = (car.y === null || car.y === undefined) ? dockY : Number(car.y);
-    var docked = base.dock && (car.state === 'idle' || car.state === 'done' || !car.state);
-    if (docked) {
-      cx = B.cx;
-      cy = dockY;
-    }
-    var ch = (car.h === null || car.h === undefined) ? 0 : Number(car.h);
+    var known = car.x !== null && car.x !== undefined && car.y !== null && car.y !== undefined;
+    var docked = !known || (base.dock && (car.state === 'idle' || car.state === 'done' || !car.state));
+    var cx = docked ? B.bx : Number(car.x);
+    var cy = docked ? B.by : Number(car.y);
+    var ch = (docked || car.h === null || car.h === undefined) ? B.bh : Number(car.h);
     var moving = (car.state === 'run' || car.state === 'pause');
     var fill = moving ? '#a9d6e5' : '#89c2d9';
     var out = [];
@@ -355,9 +328,11 @@
              '<polygon points="0,-80 16,-56 -16,-56" fill="' + fill + '"/>' +
              (car.spray ? '<circle cx="0" cy="0" r="58" fill="none" stroke="#a9d6e5" stroke-width="5"/>' : '') +
              '</g>');
-    out.push('<text x="' + cx + '" y="' + (cy + 82) + '" font-size="19" font-weight="800" ' +
-             'fill="#eaf6fb" text-anchor="middle">' +
-             esc(PHASE_KR[car.phase] || car.phase || '대기') + '</text>');
+    if (Math.abs(cx - B.bx) > 5 || Math.abs(cy - B.by) > 5) {      // 차고 안에서는 기지 글씨와 겹치지 않게 뺀다
+      out.push('<text x="' + cx + '" y="' + (cy + 82) + '" font-size="19" font-weight="800" ' +
+               'fill="#eaf6fb" text-anchor="middle">' +
+               esc(PHASE_KR[car.phase] || car.phase || '대기') + '</text>');
+    }
     document.getElementById('carLayer').innerHTML = out.join('');
   }
 

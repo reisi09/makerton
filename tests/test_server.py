@@ -533,7 +533,8 @@ class HttpTest(ServerBase):
 
         status, raw = self.request(port, "/monitor")
         monitor = raw.decode("utf-8")
-        self.assertIn("제설기지", monitor)
+        self.assertIn("제설 기지", monitor)
+        self.assertIn("BASE_XY", monitor)                 # 기지·차고 위치는 board.json에서 읽는다
         self.assertIn("beacon", monitor)
         self.assertIn("depart", monitor)
 
