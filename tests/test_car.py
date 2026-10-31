@@ -122,24 +122,24 @@ def sim_mission(order, pose=None):
 class GeometryTest(unittest.TestCase):
     def test_mm_to_steps(self):
         self.assertEqual(car_core.mm_to_steps(0), 0)
-        self.assertEqual(car_core.mm_to_steps(500), 10029)      # 중심까지
-        self.assertEqual(car_core.mm_to_steps(515), 10330)      # 귀환 후진
-        self.assertEqual(car_core.mm_to_steps(380), 7622)       # E
-        self.assertEqual(car_core.mm_to_steps(400), 8023)       # W
-        self.assertEqual(car_core.mm_to_steps(250), 5015)       # N
-        self.assertEqual(car_core.mm_to_steps(-360), 7221)      # 거리는 절댓값
+        # 병뚜껑 바퀴 Ø30: 1스텝 = π·30/4096 mm
+        self.assertEqual(car_core.mm_to_steps(250), 10865)      # 대기 칸 → 중심
+        self.assertEqual(car_core.mm_to_steps(170), 7388)       # N(광장 북쪽 끝)
+        self.assertEqual(car_core.mm_to_steps(380), 16515)      # E
+        self.assertEqual(car_core.mm_to_steps(400), 17384)      # W
+        self.assertEqual(car_core.mm_to_steps(-360), 15646)     # 거리는 절댓값
 
     def test_deg_to_steps(self):
         self.assertEqual(car_core.deg_to_steps(0), 0)
-        self.assertEqual(car_core.deg_to_steps(45), 827)
-        self.assertEqual(car_core.deg_to_steps(90), 1654)
-        self.assertEqual(car_core.deg_to_steps(180), 3308)
-        self.assertEqual(car_core.deg_to_steps(270), 4962)
-        self.assertEqual(car_core.deg_to_steps(-90), 1654)
+        self.assertEqual(car_core.deg_to_steps(45), 1843)
+        self.assertEqual(car_core.deg_to_steps(90), 3686)
+        self.assertEqual(car_core.deg_to_steps(180), 7373)
+        self.assertEqual(car_core.deg_to_steps(270), 11059)
+        self.assertEqual(car_core.deg_to_steps(-90), 3686)
 
     def test_one_step_units(self):
-        self.assertAlmostEqual(car_core.MM_PER_STEP, 0.04985, places=4)
-        self.assertAlmostEqual(car_core.DEG_PER_STEP, 0.05441, places=4)
+        self.assertAlmostEqual(car_core.MM_PER_STEP, 0.02301, places=4)
+        self.assertAlmostEqual(car_core.DEG_PER_STEP, 0.02441, places=4)
 
     def test_dock_is_south_of_center(self):
         self.assertEqual(car_core.DOCK_X, config.CENTER_X)
@@ -182,13 +182,13 @@ class PlanTest(unittest.TestCase):
     def test_depart_arms_return(self):
         segs = car_core.plan_for_order(["E"], car_core.Pose())
         self.assertEqual([s["phase"] for s in segs],
-                         ["depart", "turn", "out", "turn", "back", "home", "home"])
+                         ["depart", "turn", "out", "back", "home", "home"])
         self.assertEqual([s["steps"] for s in segs],
-                         [10029, 1654, 7622, 3308, 7622, 1654, 10330])
-        self.assertEqual([s["dir"] for s in segs], [1, 1, 1, 1, 1, 1, -1])  # 마지막만 후진
-        # 귀환 회전은 서쪽(270도)에서 북쪽으로 도는 +90도다
+                         [10865, 3686, 16515, 16515, 3686, 10865])
+        # 갈래에서는 돌지 않고 같은 길을 후진으로 되짚는다. 귀환 회전은 동쪽(90도)에서 북쪽으로 도는 −90도다
+        self.assertEqual([s["dir"] for s in segs], [1, 1, 1, -1, -1, -1])
         self.assertEqual([bool(s["spray"]) for s in segs],
-                         [False, False, True, False, False, False, False])
+                         [False, False, True, False, False, False])
 
     def test_depart_reaches_center(self):
         segs = car_core.plan_for_order(["E"], car_core.Pose())
@@ -218,6 +218,7 @@ class PlanTest(unittest.TestCase):
             self.assertEqual(out["mode"], "dist")
             back = [s for s in segs if s["phase"] == "back"][0]
             self.assertEqual(back["steps"], out["steps"])      # 같은 거리를 돌아온다
+            self.assertEqual(back["dir"], -1)                  # 후진으로 되짚는다
             self.assertFalse(back["spray"])
 
     def test_return_reverses_into_base(self):
@@ -284,23 +285,31 @@ class PlanTest(unittest.TestCase):
         arms = [e[1] for e in events if e[0] == car_core.EV_ARM_DONE]
         self.assertEqual(arms, ["S", "W"])
 
-    def test_arm_start_follows_return_heading(self):
-        # E를 돌고 나면 서쪽을 보고 돌아오므로 W로 가는 회전이 필요 없다
+    def test_next_arm_turns_from_last_bearing(self):
+        # E에서 후진으로 돌아오면 여전히 동쪽을 보므로, W로 가려면 180도 돈다
         segs = car_core.plan_for_order(["E", "W"], car_core.Pose())
         self.assertEqual([s["steps"] for s in segs],
-                         [10029, 1654, 7622, 3308, 7622, 8023, 3308, 8023, 1654, 10330])
+                         [10865, 3686, 16515, 16515, 7373, 17384, 17384, 3686, 10865])
         self.assertEqual(segs[5]["arm"], "W")
         self.assertEqual(segs[5]["phase"], "out")
 
     def test_estimate_seconds(self):
+        # 사거리 왕복(N): 출발 250 + 북쪽 170 + 후진 170 + 귀환 후진 250, 회전 없음 → 약 44초
+        self.assertAlmostEqual(car_core.estimate_seconds(["N"]),
+                               36506 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["S"]),
-                               20359 * config.STEP_US / 1000000.0)
+                               21730 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["E", "W"]),
-                               61573 * config.STEP_US / 1000000.0)
+                               104273 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["S", "W"]),
-                               43021 * config.STEP_US / 1000000.0)
+                               63870 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["N", "E", "S", "W"]),
-                               74911 * config.STEP_US / 1000000.0)
+                               119049 * config.STEP_US / 1000000.0)
+
+    def test_sweep_has_no_turns(self):
+        segs = car_core.plan_for_order(["N"], car_core.Pose())
+        self.assertEqual([s["kind"] for s in segs], ["drive"] * 4)
+        self.assertEqual([s["dir"] for s in segs], [1, 1, -1, -1])
 
     def test_plan_home_from_mid_arm(self):
         pose = car_core.Pose(x=config.CENTER_X + config.ARM_OUT_MM["E"],
@@ -623,6 +632,8 @@ class DeviceTest(unittest.TestCase):
 
     def test_obstacle_stops_and_aborts(self):
         with fake_pico() as (dev, world, core_mod, cfg):
+            cfg.SONAR_ENABLED = True                  # 기본값은 꺼짐(초음파 없음)
+            dev.sonar = dev.sonar.__class__(cfg)
             inject(world, {"t": "plan", "seq": 1, "order": ["S"]})
             run_ms(dev, world, 200)
             world.sonar_cm(4.0)

@@ -149,34 +149,39 @@ class StateTest(ServerBase):
 
 
 class AutoDispatchTest(ServerBase):
-    def test_auto_dispatch_arm_done_treated_then_next(self):
-        """재생 → 자동 출동 → arm_done → treated 제외 → 다음 출동."""
+    def test_auto_dispatch_sweeps_once_then_waits_for_snow(self):
+        """모델 권고 → 사거리 왕복(N) → 처리 효과 동안 모델로는 다시 안 감 → 눈 감지면 다시 간다."""
         model = self.make_model(night=NIGHT, budget=1, auto=True)
         self.attach_fake_car(model)
         self.assertTrue(model.snapshot()["step"]["dispatch"]["recommend"])
 
-        first = wait_for(lambda: model.execution["plan_id"] if model.execution["order"] == ["E"] else None)
-        self.assertIsNotNone(first, "자동 출동이 일어나지 않았습니다")
-        self.assertEqual(first, "P1")
+        first = wait_for(lambda: model.execution["plan_id"] if model.execution["order"] == srv.SWEEP_ORDER else None)
+        self.assertEqual(first, "P1", "자동 출동이 일어나지 않았습니다")
         self.assertEqual(model.execution["mode"], "car")
 
-        # 차가 arm_done 을 보내면 treated[E] = 재생 시각 + 3시간
-        self.assertIsNotNone(wait_for(lambda: model.treated.get("E")))
-        self.assertEqual(model.treated["E"], "2025-01-09T21:00:00")
+        # 차가 arm_done 을 보내면 treated[N] = 재생 시각 + 3시간
+        self.assertIsNotNone(wait_for(lambda: model.treated.get("N")))
+        self.assertEqual(model.treated["N"], "2025-01-09T21:00:00")
+        self.assertIsNotNone(wait_for(lambda: model.execution["state"] == "done"))
 
-        # 처리된 갈래는 다음 step 에서 제외되고, 다음 출동은 남은 W 로 간다
-        wait_for(lambda: (model.step or {}).get("arms", {}).get("E", {}).get("level") == "done")
-        self.assertEqual(model.step["arms"]["E"]["level"], "done")
-        self.assertFalse(model.step["arms"]["E"]["candidate"])
-        second = wait_for(lambda: model.execution["plan_id"] == "P2" and model.execution["order"] == ["W"])
-        self.assertIsNotNone(second, "처리된 갈래를 뺀 다음 출동이 없습니다")
+        # 다른 갈래 확률이 여전히 높아도(권고 참) 사거리 처리 효과가 남아 있으면 다시 가지 않는다
+        time.sleep(0.4)
+        self.assertTrue(model.step["dispatch"]["recommend"])
+        self.assertEqual(model.execution["plan_id"], "P1", "처리 효과가 남았는데 다시 출동했습니다")
 
-        # 두 갈래가 다 처리되면 더 출동하지 않는다
-        self.assertIsNotNone(wait_for(lambda: model.treated.get("W")))
-        wait_for(lambda: (model.step or {}).get("dispatch", {}).get("recommend") is False)
-        self.assertFalse(model.step["dispatch"]["recommend"])
-        self.assertEqual(model.step["dispatch"]["order"], [])
-        self.assertEqual(model.execution["plan_id"], "P2")
+        # 눈 조각이 조도센서를 덮으면(젖음 입력 참) 바로 다시 간다
+        self.enable_base(model, dock=True, wet=True)
+        self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"] == "P2"), "눈 감지 출동이 없습니다")
+        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
+
+    def test_snow_dispatches_without_model_recommend(self):
+        model = self.make_model(night=NIGHT, auto=True)
+        with model.lock:
+            model.step = dict(model.step or {}, dispatch={"recommend": False, "order": []})
+        self.attach_fake_car(model)
+        self.enable_base(model, dock=True, wet=True)
+        self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"]), "눈 감지 출동이 없습니다")
+        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
 
     def test_estop_turns_auto_off(self):
         model = self.make_model(night=NIGHT, auto=True)
@@ -256,7 +261,7 @@ class BaseTest(ServerBase):
         board = model.snapshot()["board"]
         self.assertEqual(board["CENTER_X"], 480)
         self.assertEqual(board["CENTER_Y"], 340)
-        self.assertEqual(board["BASE_DIST_MM"], 500)
+        self.assertEqual(board["BASE_DIST_MM"], 250)
         self.assertEqual(board["ROAD_MM"], 150)
         self.assertEqual(board["PLAZA_MM"], [297, 420])
         self.assertEqual(board["ARM_END_MM"]["N"], 340)
@@ -309,7 +314,7 @@ class BaseTest(ServerBase):
         # 도킹되면 곧바로 자동 출동한다
         self.enable_base(model, dock=True)
         self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"]))
-        self.assertEqual(model.execution["order"], ["E", "W"])
+        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
 
     def test_beacon_only_while_running(self):
         model = self.make_model(night=NIGHT, auto=False)

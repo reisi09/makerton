@@ -61,12 +61,13 @@ BOARD_DEFAULTS = {
     "ROAD_MM": 150, "PLAZA_MM": [297, 420],
     "PLAZA_EDGE_MM": {"N": 243, "S": 176, "W": 157, "E": 140},
     "ARM_END_MM": {"N": 340, "E": 470, "W": 500, "S": 395},
-    "ARM_OUT_MM": {"N": 250, "E": 380, "W": 400, "S": 390},
-    "SPRAY_WIN": {"N": [100, 250], "E": [100, 380], "S": [100, 390], "W": [100, 400]},
+    "ARM_OUT_MM": {"N": 170, "E": 380, "W": 400, "S": 390},
+    "SPRAY_WIN": {"N": [100, 170], "E": [100, 380], "S": [100, 240], "W": [100, 400]},
     "BASE_MM": [320, 230],
     "WET_ARM": "W",
 }
-AUTO_COOLDOWN_S = 1.0   # 출동이 끝난 뒤 자동 출동을 다시 판단하기까지
+AUTO_COOLDOWN_S = 10.0  # 출동이 끝난 뒤 자동 출동을 다시 판단하기까지(눈이 남아 있으면 한 번 더)
+SWEEP_ORDER = ["N"]     # 사거리 왕복: 대기 칸 → 광장 북쪽 끝 → 같은 길 후진
 
 
 class HttpError(Exception):
@@ -1324,15 +1325,17 @@ class Model(object):
                 return
             if time.time() < self._auto_cooldown:
                 return
+            # 눈 감지(기지 조도센서 = 젖음 입력)면 바로, 아니면 모델이 출동을 권할 때만.
+            # 모델 출동은 사거리를 이미 처리해 효과가 남아 있으면 다시 하지 않는다.
+            tel = self.sensor_state.get("tel") or {}
+            snow = self.sensor_fresh_locked() and bool(tel.get("wet"))
             dispatch = self.step.get("dispatch") or {}
-            if not dispatch.get("recommend"):
-                return
-            order = _arms_of(dispatch.get("order"))
-            # 방금 처리된 갈래가 step 에 아직 반영되지 않았을 수 있다. 한 번 더 걸러 낸다.
-            active = self._treated_now_locked()
-            order = [a for a in order if a not in active]
-            if not order:
-                return
+            if not snow:
+                if not dispatch.get("recommend"):
+                    return
+                if set(SWEEP_ORDER) & self._treated_now_locked():
+                    return
+            order = list(SWEEP_ORDER)
             if not self.car_idle_locked():
                 return
             if not self.base_gate_locked():

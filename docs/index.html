@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>makerton 설계도</title>
+<meta name="description" content="고색고 ICE-ZERO 사거리 자동 제설 모형 — 설계도 PDF와 실물 부품 그림">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  :root {
+    --deep: #012a4a; --yale: #013a63; --yale2: #01497c; --yale3: #014f86; --rich: #2a6f97;
+    --cer: #2c7da0; --afb: #468faf; --steel: #61a5c2; --sky: #89c2d9; --light: #a9d6e5;
+    --bg: #f4f8fb; --card: #ffffff; --text: #0f172a; --muted: #475569; --line: #c7dce8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6;
+         font-family: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', sans-serif; }
+  a { color: var(--yale3); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  header { background: linear-gradient(135deg, var(--deep), var(--yale2)); color: #fff; padding: 48px 0 40px; }
+  header h1 { margin: 0 0 8px; font-size: clamp(26px, 4vw, 40px); line-height: 1.25; }
+  header p { margin: 0; color: var(--light); font-size: 17px; max-width: 760px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .btn { display: inline-block; padding: 10px 18px; border-radius: 999px; text-decoration: none; font-weight: 700; }
+  .btn.primary { background: var(--sky); color: var(--deep); }
+  .btn.ghost { border: 1.5px solid var(--sky); color: #fff; }
+  section { padding: 36px 0 8px; }
+  h2 { font-size: 24px; margin: 0 0 16px; color: var(--deep); }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; counter-reset: s; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .step b { display: block; color: var(--yale3); margin-bottom: 4px; }
+  .step b::before { counter-increment: s; content: counter(s) ". "; }
+  .docs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .doc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .doc.latest { border: 2px solid var(--cer); }
+  .tag { align-self: flex-start; font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; background: var(--light); color: var(--deep); }
+  .doc.latest .tag { background: var(--cer); color: #fff; }
+  .doc h3 { margin: 4px 0 0; font-size: 18px; }
+  .doc p { margin: 0; color: var(--muted); font-size: 14px; flex: 1; }
+  .doc a.open { margin-top: 8px; font-weight: 700; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  figure a { display: block; background: #fff; }
+  figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9.5; object-fit: contain; }
+  figcaption { padding: 10px 14px; font-weight: 700; color: var(--deep); border-top: 1px solid var(--line); font-size: 15px; }
+  .note { background: #eef6fa; border-left: 6px solid var(--cer); border-radius: 10px; padding: 12px 16px; color: var(--muted); font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--light); color: var(--deep); }
+  .tablewrap { overflow-x: auto; }
+  footer { padding: 32px 0 48px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>고색고 ICE-ZERO 사거리 자동 제설 모형</h1>
+    <p>2026 수원고교 피지컬 AI 메이커톤. 우드락 도시의 사거리에 눈 조각이 쌓이거나 결빙 예측 모델이 위험을 알리면, 병뚜껑 바퀴 제설차가 사거리를 한 번 밀고 돌아온다.</p>
+    <div class="btns">
+      <a class="btn primary" href="사거리_제설차_설계도.pdf">최신 설계도 PDF 열기</a>
+      <a class="btn ghost" href="https://github.com/reisi09/makerton">GitHub 저장소</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>어떻게 움직이나</h2>
+    <div class="steps">
+      <div class="step"><b>눈 감지</b>광장 바닥의 조도센서를 우드락 눈 조각이 덮으면 어두워진다. 센서 기지 Pico가 맥북 서버로 알린다.</div>
+      <div class="step"><b>출동 판단</b>서버가 눈 감지, 또는 ICE-ZERO 모델의 예측 동결확률 0.5 이상을 확인하면 출동시킨다.</div>
+      <div class="step"><b>사거리 왕복</b>제설차가 광장 남쪽 끝에서 북쪽으로 420mm 밀고, 같은 길을 후진해 돌아온다. 회전 없이 약 45초.</div>
+      <div class="step"><b>완료 확인</b>센서가 다시 밝아지면 제설 완료. 눈이 남아 있으면 10초 뒤 한 번 더 간다.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>설계도 PDF</h2>
+    <div class="docs">
+      <div class="doc latest">
+        <span class="tag">최신 · 지금 만드는 것</span>
+        <h3>사거리 왕복 제설차 설계도</h3>
+        <p>병뚜껑 4개 · 제설 날 · 조도센서 눈 감지 · 실물 부품 배선도 · 조립도 · 바꾼 코드 · 시험 순서 (17쪽)</p>
+        <a class="open" href="사거리_제설차_설계도.pdf">PDF 열기 →</a>
+      </div>
+      <div class="doc">
+        <span class="tag">이전 안</span>
+        <h3>단순 제설차 · 센서 기지 설계도</h3>
+        <p>갈래마다 왕복하는 단순 설계. 살포 컵 · 바퀴 세 가지 · 유선 전원 (17쪽)</p>
+        <a class="open" href="단순_제설차_설계도.pdf">PDF 열기 →</a>
+      </div>
+      <div class="doc">
+        <span class="tag">참고</span>
+        <h3>실물 부품 배선도 · 조립도</h3>
+        <p>키트 부품을 실제 모양으로 그린 첫 설계의 배선도와 조립도</p>
+        <a class="open" href="실물부품_배선도_조립도.pdf">PDF 열기 →</a>
+      </div>
+      <div class="doc">
+        <span class="tag">참고</span>
+        <h3>라즈베리파이 시스템 설계도</h3>
+        <p>모델 · 서버 · 두 Pico의 전체 구조와 통신</p>
+        <a class="open" href="라즈베리파이_시스템_설계도.pdf">PDF 열기 →</a>
+      </div>
+      <div class="doc">
+        <span class="tag">참고</span>
+        <h3>제설기지 · 제설차 제작 가이드</h3>
+        <p>차고 · 사일로 자동 보충이 있던 첫 설계</p>
+        <a class="open" href="제설기지_제설차_제작가이드.pdf">PDF 열기 →</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>그림 (최신 설계)</h2>
+    <div class="gallery">
+      <figure><a href="img/sweep_system.svg"><img src="img/sweep_system.svg" alt="시스템 흐름" loading="lazy"></a><figcaption>시스템 흐름</figcaption></figure>
+      <figure><a href="img/sweep_car_assembly.svg"><img src="img/sweep_car_assembly.svg" alt="제설차 조립도" loading="lazy"></a><figcaption>제설차 조립도</figcaption></figure>
+      <figure><a href="img/sweep_car_wiring.svg"><img src="img/sweep_car_wiring.svg" alt="제설차 배선도" loading="lazy"></a><figcaption>제설차 배선도 (14가닥)</figcaption></figure>
+      <figure><a href="img/sweep_base_wiring.svg"><img src="img/sweep_base_wiring.svg" alt="센서 기지 배선도" loading="lazy"></a><figcaption>센서 기지 배선도</figcaption></figure>
+      <figure><a href="img/sweep_route.svg"><img src="img/sweep_route.svg" alt="사거리와 주행" loading="lazy"></a><figcaption>사거리와 주행</figcaption></figure>
+      <figure><a href="img/sweep_snow.svg"><img src="img/sweep_snow.svg" alt="눈 조각과 조도센서" loading="lazy"></a><figcaption>눈 조각과 조도센서</figcaption></figure>
+      <figure><a href="img/sweep_wheels.svg"><img src="img/sweep_wheels.svg" alt="병뚜껑 바퀴" loading="lazy"></a><figcaption>병뚜껑 바퀴</figcaption></figure>
+      <figure><a href="img/sweep_parts.svg"><img src="img/sweep_parts.svg" alt="부품 도감" loading="lazy"></a><figcaption>부품 도감</figcaption></figure>
+      <figure><a href="img/sweep_power.svg"><img src="img/sweep_power.svg" alt="차 전원" loading="lazy"></a><figcaption>차 전원</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>모니터 화면</h2>
+    <figure><img src="img/monitor.png" alt="모니터 화면 캡처" loading="lazy" style="aspect-ratio:auto"><figcaption>맥북 서버의 /monitor (가짜 차 · 기지로 캡처)</figcaption></figure>
+    <p class="note">이 페이지는 설계도를 보여 주는 정적 사이트다. 실제 모니터 화면은 맥북에서 <code>python3 server/gosaek_server.py</code>를 실행한 뒤 같은 Wi-Fi에서 <code>http://&lt;맥 IP&gt;:8000/monitor</code>로 연다.</p>
+  </section>
+
+  <section>
+    <h2>부품 (키트 밖)</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>부품</th><th>수량</th><th>쓰는 곳</th></tr>
+        <tr><td>보조배터리 5,000mAh (5V 2A), 또는 충전기 + 멀티탭 + 막대</td><td>1</td><td>차 전원</td></tr>
+        <tr><td>병뚜껑</td><td>4</td><td>바퀴</td></tr>
+        <tr><td>대나무 꼬치 + 빨대</td><td>각 1</td><td>뒷바퀴 축</td></tr>
+        <tr><td>우드락</td><td>-</td><td>하판 · 제설 날 · 높이 조각 · 눈 조각</td></tr>
+        <tr><td>검은 절연테이프 또는 은박지</td><td>1</td><td>눈 조각 밑면</td></tr>
+        <tr><td>글루건 · 양면테이프 · 고무줄 · 커터</td><td>-</td><td>고정</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>모델</h2>
+    <p class="note">ICE-ZERO 경량 모델(XGBoost)이 관측소 지면온도를 +1·3·6시간 예측하고 동결확률로 바꾼다. 지금 저장소의 모델은 서울(108) 자료로 학습했고, 학교에서 0.4km 떨어진 수원 관측소(119)의 2020–2025 겨울 자료로 다시 학습할 예정이다. 화면 값은 결빙 확정이 아니라 예측 동결확률이다.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">makerton · 2026 수원고교 피지컬 AI 메이커톤 · 치수는 사진 추정값이며 실물 주행은 현장에서 보정한다.</div>
+</footer>
+</body>
+</html>

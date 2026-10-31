@@ -178,9 +178,9 @@ def plan_for_order(order, pose=None):
         segs.append(_turn_seg(shortest_delta(bearing, heading), PHASE_TURN, arm))
         segs.append(_drive_seg(dist, PHASE_OUT, arm, True,
                                config.SPRAY_WIN[arm], "dist"))
-        segs.append(_turn_seg(180.0, PHASE_TURN, arm))
-        segs.append(_drive_seg(dist, PHASE_BACK, arm))
-        heading = norm_deg(bearing + 180.0)
+        # 같은 길을 후진으로 되짚는다. 갈 때 생긴 방향 오차가 돌아올 때 상쇄된다.
+        segs.append(_drive_seg(dist, PHASE_BACK, arm, reverse=True))
+        heading = float(bearing)
     segs.extend(_return_leg(heading))
     return _drop_empty(segs)
 
