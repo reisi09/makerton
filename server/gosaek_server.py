@@ -30,6 +30,7 @@ ROOT = os.path.dirname(HERE)
 STATIC_DIR = os.path.join(HERE, "static")
 INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
 MONITOR_PATH = os.path.join(STATIC_DIR, "monitor.html")
+BOARD_PATH = os.path.join(HERE, "board.json")
 EVENTS_PATH = os.environ.get("GOSAEK_EVENTS", os.path.join(HERE, "events.jsonl"))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -44,13 +45,27 @@ MOCK_ARM_S = 3.0         # 차가 없을 때 갈래당 모의 실행 시간(계�
 CAR_FRESH_S = 5.0        # 차 링크가 살아 있다고 보는 시간(계약 7절 LINK_TIMEOUT_MS)
 PING_S = 1.0             # 차로 보내는 ping 주기(계약 5절)
 PLAN_ARM_TIMEOUT_S = 90.0  # 차가 arm_done 을 보내주지 않으면 계획을 접는다
-FAKE_ARM_S = 0.4         # --car fake: 갈래당 짧은 실행 시간
+PLAN_DONE_TIMEOUT_S = 30.0  # 마지막 갈래 뒤 기지 도킹(plan_done)을 기다리는 한계
+FAKE_ARM_S = 0.8         # --car fake: 구간당 시간(시연에서 움직임이 보이게)
 FAKE_TEL_S = 2.0         # --sensors-serial fake: @@TEL 주기(계약 6절 2초)
 SHOW_RESEND_S = 2.0      # @@SHOW 를 같은 내용으로 다시 보내는 주기
 MAX_EVENT_LINES = 80
 DEFAULT_BUDGET = 2
 DEFAULT_SEC_PER_HOUR = 6.0
 TICK_S = 0.1
+
+# board.json 이 없을 때 쓰는 기본값(계약 7·8·9절). 모두 사진 추정값이다.
+BOARD_DEFAULTS = {
+    "note": "사진 추정값. 줄자로 재서 pico/car/config.py 와 함께 고친다.",
+    "CENTER_X": 480, "CENTER_Y": 340, "BASE_DIST_MM": 500, "DOCK_OVERDRIVE_MM": 15,
+    "ROAD_MM": 150, "PLAZA_MM": [297, 420],
+    "PLAZA_EDGE_MM": {"N": 243, "S": 176, "W": 157, "E": 140},
+    "ARM_END_MM": {"N": 340, "E": 470, "W": 500, "S": 395},
+    "ARM_OUT_MM": {"N": 250, "E": 380, "W": 400, "S": 390},
+    "SPRAY_WIN": {"N": [100, 250], "E": [100, 380], "S": [100, 390], "W": [100, 400]},
+    "BASE_MM": [320, 230],
+    "WET_ARM": "W",
+}
 AUTO_COOLDOWN_S = 1.0   # 출동이 끝난 뒤 자동 출동을 다시 판단하기까지
 
 
@@ -89,6 +104,25 @@ def _bool(value):
     if isinstance(value, str):
         return value.strip().lower() in ("1", "true", "yes", "on", "y")
     return False
+
+
+def load_board(path=None):
+    """server/board.json 을 읽는다. 없거나 깨졌으면 기본값에 사유를 붙여 돌려준다."""
+    board = json.loads(json.dumps(BOARD_DEFAULTS))
+    path = path or BOARD_PATH
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if isinstance(raw, dict):
+            for key, value in raw.items():
+                board[key] = value
+        else:
+            board["note"] = "board.json 형식이 객체가 아닙니다: %s" % path
+    except OSError:
+        board["note"] = "board.json 이 없어 기본값(사진 추정)을 씁니다: %s" % path
+    except ValueError as e:
+        board["note"] = "board.json 을 읽지 못했습니다(%s). 기본값을 씁니다." % str(e)[:60]
+    return board
 
 
 def _arm(value):
@@ -167,16 +201,23 @@ def find_serial_ports():
 
 
 class FakeSensorSerial(object):
-    """시리얼 대신 쓰는 가짜 센서 Pico. pyserial 과 같은 readline/write/flush/close 를 흉내 낸다.
+    """시리얼 대신 쓰는 가짜 기지 Pico(#1).
 
-    2초마다 @@TEL 을 내보낸다. E 갈래 기온은 서서히 내려가 기준값과의 차이(dt)가 생긴다.
+    pyserial 과 같은 readline/write/flush/close 를 흉내 낸다. 2초마다 @@TEL 을 내보내고,
+    E 갈래 기온은 서서히 내려가 기준값과의 차이(dt)가 생긴다.
+    model 을 주면 차 상태에 맞춰 dock 을 바꾸고, 귀환할 때마다 refills 를 하나 늘린다.
     """
 
-    def __init__(self, period=FAKE_TEL_S, wet=True, drift=0.35, beats=9):
+    def __init__(self, period=FAKE_TEL_S, wet=True, drift=0.35, beats=9, model=None):
         self.period = period
         self.wet = wet
         self.drift = drift
         self.beats = beats
+        self.model = model
+        self.refills = 3
+        self.refilling = False
+        self._docked = None
+        self._refill_left = 0
         self._rx = []
         self._tx = []
         self._lock = threading.Lock()
@@ -193,6 +234,30 @@ class FakeSensorSerial(object):
             self._push("@@TEL " + json.dumps(self.payload(), ensure_ascii=False))
             self._stop.wait(self.period)
 
+    def _dock(self):
+        """차가 차고에 있으면 도킹으로 본다."""
+        if self.model is None:
+            return True
+        state = (getattr(self.model, "car_state", None) or {}).get("state")
+        return state in ("idle", "done", "home", None)
+
+    def _base_state(self):
+        dock = self._dock()
+        if self._docked is None:
+            self._docked = dock
+        elif dock and not self._docked:
+            self._docked = True
+            self.refills += 1
+            self._refill_left = 2      # 두 번의 텔레메트리 동안 보충 중으로 보인다
+        elif not dock and self._docked:
+            self._docked = False
+        if self._refill_left > 0:
+            self.refilling = True
+            self._refill_left -= 1
+        else:
+            self.refilling = False
+        return {"dock": dock, "refills": self.refills, "refilling": self.refilling}
+
     def payload(self):
         self._n += 1
         if self._n <= self.beats:
@@ -200,7 +265,7 @@ class FakeSensorSerial(object):
         t_map = {}
         for arm in ARMS:
             t_map[arm] = self.t[arm] if self._n > 1 else None
-        return {
+        body = {
             "t": t_map,
             "rh": {a: self.rh[a] for a in ARMS},
             "ok": {a: True for a in ARMS},
@@ -210,6 +275,8 @@ class FakeSensorSerial(object):
             "warn": bool(self.wet),
             "up": int(time.time()) % 100000,
         }
+        body.update(self._base_state())
+        return body
 
     def _push(self, text):
         with self._lock:
@@ -239,17 +306,19 @@ class FakeSensorSerial(object):
 class FakeCar(object):
     """프로세스 안 가짜 제설차.
 
-    계약 7절 순서를 그대로 흉내 낸다: ack → evt plan_start → evt arm_start → spray_on …
-    중복 seq 와 실행 중 plan 은 ack(ok=false)로 거절하고, home 은 진행 중 계획을 대체한다.
+    계약 7절 순서를 흉내 낸다: ack → plan_start → (기지 출발) → arm_start → spray_on …
+    기지에서 북쪽으로 나가 갈래를 돌고, 다시 기지로 후진해 들어온다. x·y 는 board.json 기준 mm다.
     """
 
     mode = "fake"
+    BEARING = {"N": 0, "E": 90, "S": 180, "W": 270}
 
     def __init__(self, model, arm_s=FAKE_ARM_S):
         self.model = model
         self.arm_s = arm_s
         self.seq = 0
-        self.state = {"state": "idle", "phase": "idle", "arm": None, "x": 450, "y": 450,
+        self.state = {"state": "idle", "phase": "idle", "arm": None,
+                      "x": self._num("CENTER_X", 480), "y": self._dock_y(),
                       "h": 0, "spray": False, "obst_cm": None, "up": 0}
         self._cancel = threading.Event()
         self._seen_seq = set()
@@ -302,10 +371,30 @@ class FakeCar(object):
             with self._lock:
                 self._running = False
             self._emit("plan_done", None)
-            self._state(state="idle", phase="home", x=450, y=450, h=0, spray=False, arm=None)
+            self._state(state="idle", phase="home", x=self._num("CENTER_X", 480),
+                        y=self._dock_y(), h=0, spray=False, arm=None)
         elif kind == "ping":
             self._tel()
         return True
+
+    # -- 좌표 --------------------------------------------------------------
+    def _num(self, key, default):
+        board = getattr(self.model, "board", None) or {}
+        try:
+            return float(board.get(key, default))
+        except (TypeError, ValueError):
+            return float(default)
+
+    def _dock_y(self):
+        return self._num("CENTER_Y", 340) + self._num("BASE_DIST_MM", 500)
+
+    def _arm_out(self, arm):
+        board = getattr(self.model, "board", None) or {}
+        table = board.get("ARM_OUT_MM") or {}
+        try:
+            return float(table.get(arm, 380))
+        except (TypeError, ValueError):
+            return 380.0
 
     # -- 내부 --------------------------------------------------------------
     def _ack(self, seq, ok, reason):
@@ -325,35 +414,82 @@ class FakeCar(object):
         self.state.update(kw)
         self._tel()
 
-    def _wait(self):
-        return self._cancel.wait(self.arm_s)
+    def _travel(self, x0, y0, x1, y1, **kw):
+        """짧은 간격으로 tel 을 내보내며 직선 보간한다."""
+        steps = 4
+        for i in range(1, steps + 1):
+            if self._cancel.is_set():
+                return False
+            frac = float(i) / steps
+            self._state(x=round(x0 + (x1 - x0) * frac),
+                        y=round(y0 + (y1 - y0) * frac), **kw)
+            if self._cancel.wait(self.arm_s / steps):
+                return False
+        return True
 
     def _run(self, order):
+        cx = self._num("CENTER_X", 480)
+        cy = self._num("CENTER_Y", 340)
+        dock_y = self._dock_y()
         self._emit("plan_start", None)
-        for arm in order:
+        s_on_way = "S" in order
+
+        # 1) 출발: 기지 → 중심. order 에 S 가 있으면 이 길에서 살포한다.
+        if s_on_way:
+            self._emit("arm_start", "S")
+        self._state(state="run", phase="depart", arm=("S" if s_on_way else None),
+                    h=0, spray=False)
+        if not self._travel(cx, dock_y, cx, cy, phase="depart",
+                            arm=("S" if s_on_way else None), h=0, spray=False):
+            return
+        if s_on_way:
+            self._emit("spray_on", "S")
+            self._state(phase="depart", spray=True)
+            if self._cancel.wait(self.arm_s):
+                return
+            self._emit("spray_off", "S")
+            self._state(phase="depart", spray=False, arm=None)
+            self._emit("arm_done", "S")
+
+        # 2) 갈래: 회전 → 나가며 살포 → 복귀
+        for arm in [a for a in order if a != "S"]:
             if self._cancel.is_set():
                 return
+            heading = self.BEARING.get(arm, 0)
+            out = self._arm_out(arm)
+            if arm == "E":
+                tx, ty = cx + out, cy
+            elif arm == "W":
+                tx, ty = cx - out, cy
+            elif arm == "S":
+                tx, ty = cx, cy + out
+            else:
+                tx, ty = cx, cy - out
             self._emit("arm_start", arm)
-            self._state(state="run", phase="turn", arm=arm, spray=False)
-            if self._wait():
+            self._state(state="run", phase="turn", arm=arm, h=heading, spray=False)
+            if self._cancel.wait(self.arm_s):
                 return
-            self._state(phase="out", spray=False)
-            if self._wait():
+            if not self._travel(cx, cy, tx, ty, phase="out", arm=arm, h=heading, spray=False):
                 return
             self._emit("spray_on", arm)
             self._state(phase="out", spray=True)
-            if self._wait():
+            if self._cancel.wait(self.arm_s):
                 return
             self._emit("spray_off", arm)
             self._state(phase="back", spray=False)
-            if self._wait():
+            if not self._travel(tx, ty, cx, cy, phase="back", arm=arm, h=heading, spray=False):
                 return
             self._emit("arm_done", arm)
-            self._state(phase="home", arm=None, spray=False)
+            self._state(phase="back", arm=None, spray=False)
+
+        # 3) 귀환: 중심 → 기지(후진)
+        self._state(state="run", phase="home", h=0, spray=False, arm=None)
+        if not self._travel(cx, cy, cx, dock_y, phase="home", h=0, spray=False, arm=None):
+            return
         self._emit("plan_done", None)
         with self._lock:
             self._running = False
-        self._state(state="idle", phase="idle", x=450, y=450, h=0, spray=False, arm=None)
+        self._state(state="idle", phase="idle", x=cx, y=dock_y, h=0, spray=False, arm=None)
 
 
 # ---------------------------------------------------------------------------
@@ -405,12 +541,15 @@ class SensorLink(threading.Thread):
         self._stop_flag.set()
 
 
-def open_sensor_serial(spec):
-    """--sensors-serial auto|<포트>|none|fake. (port, path, mode) 를 돌려준다."""
+def open_sensor_base_serial(spec, model=None):
+    """--sensors-serial auto|<포트>|none|fake. (port, path, mode) 를 돌려준다.
+
+    fake 는 기지 상태(dock·refills)를 차 상태와 맞추려고 model 을 넘겨받는다.
+    """
     if spec in ("none", "", None):
         return None, "", "none"
     if spec == "fake":
-        return FakeSensorSerial(), "가짜 센서", "fake"
+        return FakeSensorSerial(model=model), "가짜 기지", "fake"
     target = ""
     if spec == "auto":
         ports = find_serial_ports()
@@ -546,6 +685,7 @@ class Model(object):
     def __init__(self, engine=None, station=None, engine_error=None, events_path=None,
                  night=None, budget=DEFAULT_BUDGET, auto=True, mode="replay",
                  car_link=None, sensor_link=None, monitor_url=None,
+                 board=None, wet_arm=None,
                  mock_arm_s=MOCK_ARM_S, baseline_s=BASELINE_S, sensor_fresh_s=SENSOR_FRESH_S,
                  car_fresh_s=CAR_FRESH_S, tick_s=TICK_S, auto_cooldown_s=AUTO_COOLDOWN_S):
         self.lock = threading.RLock()
@@ -557,6 +697,8 @@ class Model(object):
         self.events_path = events_path or EVENTS_PATH
         self.monitor_url = monitor_url or ""
         self.mode = "live" if mode == "live" else "replay"
+        self.board = board if isinstance(board, dict) else load_board()
+        self.wet_arm = _arm(wet_arm) or _arm(self.board.get("WET_ARM")) or "W"
 
         self.car_link = car_link
         self.sensor_link = sensor_link
@@ -585,19 +727,27 @@ class Model(object):
         self._run_id = 0
         self._estop_flag = False
         self._auto_cooldown = 0.0
+        self._plan_done_seq = 0
         self._dirty = True
         self._step_cache = {}
         self.series = {}
         self._series_busy = set()
 
         self.sensor_state = {"mode": "none", "port": "", "tel": None, "seen": 0.0, "received": 0}
+        self.base_state = {"dock": None, "refills": None, "refilling": None}
         self.baseline = {"ready": False, "started": time.time(), "at": None,
                          "arms": {a: None for a in ARMS}}
         self.samples = {a: [] for a in ARMS}
         self._last_show = None
         self._last_show_at = 0.0
 
-        self.car_state = {"state": "idle", "phase": "idle", "arm": None, "x": 450, "y": 450,
+        # 차의 초기 추측 자세는 기지 도킹 위치다(계약 7절).
+        try:
+            dock_x = float(self.board.get("CENTER_X", 480))
+            dock_y = float(self.board.get("CENTER_Y", 340)) + float(self.board.get("BASE_DIST_MM", 500))
+        except (TypeError, ValueError):
+            dock_x, dock_y = 480.0, 840.0
+        self.car_state = {"state": "idle", "phase": "idle", "arm": None, "x": dock_x, "y": dock_y,
                           "h": 0, "spray": False, "obst_cm": None, "up": 0}
         self.car_seen = 0.0
         self.car_id = ""
@@ -868,9 +1018,18 @@ class Model(object):
             "warn": _bool(body.get("warn")),
             "up": _int_or_none(body.get("up")),
         }
+        base = {
+            "dock": _bool(body.get("dock")) if body.get("dock") is not None else None,
+            "refills": _int_or_none(body.get("refills")),
+            "refilling": (_bool(body.get("refilling"))
+                          if body.get("refilling") is not None else None),
+        }
         with self.lock:
             prev = (self.sensor_state.get("tel") or {}).get("warn")
+            prev_dock = self.base_state.get("dock")
+            prev_refills = self.base_state.get("refills")
             self.sensor_state["tel"] = tel
+            self.base_state = base
             self.sensor_state["seen"] = now
             self.sensor_state["received"] += 1
             self._dirty = True
@@ -883,6 +1042,11 @@ class Model(object):
                     self._finish_baseline_locked(now)
         if prev is not None and prev != tel["warn"]:
             self.event("sensor", "현장 경고 %s" % ("켜짐" if tel["warn"] else "꺼짐"))
+        if prev_dock is not None and base["dock"] is not None and prev_dock != base["dock"]:
+            self.event("base", "제설차 %s" % ("도킹" if base["dock"] else "기지 이탈"))
+        if (prev_refills is not None and base["refills"] is not None
+                and base["refills"] > prev_refills):
+            self.event("base", "제설제 보충 %d회째" % base["refills"])
 
     def _finish_baseline_locked(self, now=None):
         tel = self.sensor_state.get("tel") or {}
@@ -926,7 +1090,7 @@ class Model(object):
                 dt = 0.0
                 if value is not None and base is not None:
                     dt = round(max(-6.0, min(3.0, float(value) - float(base))), 3)
-                wet = wet_now and arm == "E"
+                wet = wet_now and arm == self.wet_arm
                 if dt != 0.0 or wet:
                     local[arm] = {"dt": dt, "wet": wet}
             return local
@@ -950,7 +1114,7 @@ class Model(object):
                              "rh": rh_map.get(arm) if fresh else None,
                              "ok": bool(ok_map.get(arm)) if fresh else False,
                              "dt": dt,
-                             "wet": bool(tel.get("wet")) and arm == "E" if fresh else False}
+                             "wet": bool(tel.get("wet")) and arm == self.wet_arm if fresh else False}
             return rows
 
     def push_show(self, force=False):
@@ -958,7 +1122,8 @@ class Model(object):
         link = self.sensor_link
         if link is None:
             return False
-        payload = {"arms": self.arm_modes(), "msg": self.show_message()}
+        payload = {"arms": self.arm_modes(), "msg": self.show_message(),
+                   "beacon": self.show_beacon()}
         line = "@@SHOW " + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         now = time.time()
         with self.lock:
@@ -975,6 +1140,11 @@ class Model(object):
             self._last_show = line
             self._last_show_at = now
         return True
+
+    def show_beacon(self):
+        """출동 중이면 기지 지붕 경광등을 돌린다(계약 5·6절)."""
+        with self.lock:
+            return self.execution.get("state") == "running"
 
     def arm_modes(self):
         """센서 Pico 로 보낼 갈래 상태: risk1~3 | plan | done | off."""
@@ -999,7 +1169,7 @@ class Model(object):
                 return "STOP"
             if ex.get("state") == "running":
                 current = ex.get("current") or ""
-                return ("SPRAY %s" % current).strip()[:16]
+                return ("RUN %s" % current).strip()[:16]
             if not self.auto:
                 return "AUTO OFF"
             order = list((self.step or {}).get("dispatch", {}).get("order") or [])
@@ -1018,6 +1188,21 @@ class Model(object):
             return bool(link.ok())
         except Exception:
             return False
+
+    def _treated_now_locked(self):
+        """아직 효과가 남아 있는(재생 시각 기준) 처리됨 갈래."""
+        ts = self.current_ts() or ""
+        active = set()
+        for arm, end in self.treated.items():
+            if not ts or str(end) > ts:
+                active.add(arm)
+        return active
+
+    def base_gate_locked(self):
+        """기지 링크가 살아 있으면 dock 이 참일 때만 자동 출동한다(계약 5절)."""
+        if self.sensor_state["mode"] in ("none", "") or not self.sensor_fresh_locked():
+            return True
+        return bool(self.base_state.get("dock"))
 
     def car_idle_locked(self):
         if not self._car_fresh_locked():
@@ -1072,6 +1257,9 @@ class Model(object):
             if name == "arm_done" and arm:
                 self.arm_done(arm, via="car")
             elif name == "plan_done":
+                with self.lock:
+                    self._plan_done_seq += 1
+                    self.cond.notify_all()
                 self.event("car", "계획 실행 완료 신호")
             elif name == "stopped":
                 self.event("car", "제설차가 정지했습니다")
@@ -1140,9 +1328,14 @@ class Model(object):
             if not dispatch.get("recommend"):
                 return
             order = _arms_of(dispatch.get("order"))
+            # 방금 처리된 갈래가 step 에 아직 반영되지 않았을 수 있다. 한 번 더 걸러 낸다.
+            active = self._treated_now_locked()
+            order = [a for a in order if a not in active]
             if not order:
                 return
             if not self.car_idle_locked():
+                return
+            if not self.base_gate_locked():
                 return
         try:
             self.dispatch(order=order, source="auto")
@@ -1166,6 +1359,7 @@ class Model(object):
             plan_id = "P%d" % self._plan_counter
             self._seq += 1
             seq = self._seq
+            self._plan_done_seq = 0
             self.execution = {"state": "running", "mode": mode, "plan_id": plan_id,
                               "order": order, "current": None, "done": [], "seq": seq,
                               "message": "제설차 출동" if mode == "car" else "모의 실행(차 링크 없음)",
@@ -1242,7 +1436,21 @@ class Model(object):
                                       "%s 갈래 완료를 %d초 안에 받지 못했습니다(시간초과)"
                                       % (arm, int(PLAN_ARM_TIMEOUT_S)))
                     return
+        if mode == "car" and not self._wait_plan_done(run_id):
+            self.event("dispatch", "%s: 도킹 완료 신호가 늦어 계획을 먼저 닫습니다" % plan_id)
         self._finish_plan(run_id, "done", "계획 실행 완료")
+
+    def _wait_plan_done(self, run_id):
+        """마지막 갈래 뒤 차가 기지로 돌아와 plan_done 을 보낼 때까지 기다린다."""
+        deadline = time.time() + PLAN_DONE_TIMEOUT_S
+        with self.lock:
+            while time.time() < deadline:
+                if self._run_id != run_id or self._estop_flag:
+                    return False
+                if self._plan_done_seq:
+                    return True
+                self.cond.wait(0.05)
+        return False
 
     def _finish_plan(self, run_id, state, message):
         with self.lock:
@@ -1371,6 +1579,17 @@ class Model(object):
                            if series else {"ready": False, "note": "계산 중"}),
                 "budget": self.budget,
                 "auto": self.auto,
+                "board": json.loads(json.dumps(self.board)),
+                "wet_arm": self.wet_arm,
+                "base": {
+                    "ok": bool(sensor_ok and self.sensor_state["mode"] != "none"),
+                    "dock": self.base_state.get("dock"),
+                    "refills": self.base_state.get("refills"),
+                    "refilling": self.base_state.get("refilling"),
+                    "beacon": self.execution.get("state") == "running",
+                    "age": sensor_age,
+                    "wet_arm": self.wet_arm,
+                },
                 "treated": dict(self.treated),
                 "execution": json.loads(json.dumps(self.execution)),
                 "sensor": {
@@ -1554,6 +1773,17 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, html, "text/html; charset=utf-8")
         elif path == "/api/state":
             self._send(200, self.model.snapshot())
+        elif path.startswith("/static/fonts/"):
+            name = path[len("/static/fonts/"):]
+            target = os.path.join(STATIC_DIR, "fonts", name)
+            # 이 경로만 허용한다(디렉터리 밖으로 나가는 이름은 거절).
+            if not name or os.path.basename(name) != name or not os.path.isfile(target):
+                self._send(404, {"error": "폰트 파일이 없습니다: %s" % name})
+                return
+            with open(target, "rb") as f:
+                data = f.read()
+            ctype = "font/woff2" if name.endswith(".woff2") else "application/octet-stream"
+            self._send(200, data, ctype)
         elif path == "/favicon.ico":
             self._send(204, b"", "image/x-icon")
         else:
@@ -1655,6 +1885,9 @@ def build_parser():
     p.add_argument("--auto", dest="auto", action="store_true", help="자동 출동 켜기(기본)")
     p.add_argument("--no-auto", dest="auto", action="store_false", help="자동 출동 끄기")
     p.add_argument("--events", default=None, help="이벤트 기록 파일(기본 server/events.jsonl)")
+    p.add_argument("--board", default=None, help="보드 치수 파일(기본 server/board.json)")
+    p.add_argument("--wet-arm", default=None, choices=("N", "E", "S", "W"),
+                   help="젖음 센서를 붙일 갈래(기본 board.json 의 WET_ARM)")
     p.set_defaults(auto=True)
     return p
 
@@ -1671,9 +1904,10 @@ def main(argv=None):
         print("[엔진]", error)
     else:
         print("[엔진] 지점 %s 준비 완료" % station["id"])
+    board = load_board(args.board)
     model = Model(engine=engine, station=station, engine_error=error,
                   events_path=args.events, night=args.night, budget=DEFAULT_BUDGET,
-                  auto=args.auto, mode=args.mode)
+                  auto=args.auto, mode=args.mode, board=board, wet_arm=args.wet_arm)
 
     car_link = None
     if args.car == "fake":
@@ -1692,7 +1926,7 @@ def main(argv=None):
         print("[차] 링크 없음 — 출동하면 모의 실행으로 표시합니다")
     model.car_link = car_link
 
-    port, path, smode = open_sensor_serial(args.sensors_serial)
+    port, path, smode = open_sensor_base_serial(args.sensors_serial, model)
     sensor_link = None
     if port is not None:
         sensor_link = SensorLink(model, port, path)
@@ -1717,7 +1951,11 @@ def main(argv=None):
         len(model.timeline), model.current_ts() or "—"))
     if model.nights:
         print("  후보 밤: %s" % ", ".join(model.nights[:5]))
-    print("  센서 링크: %s" % (path if port is not None else "없음"))
+    print("  기지 링크: %s / 젖음 갈래 %s" % (
+        path if port is not None else "없음", model.wet_arm))
+    print("  보드: 중심 (%s, %s) · 기지 %smm · %s" % (
+        model.board.get("CENTER_X"), model.board.get("CENTER_Y"),
+        model.board.get("BASE_DIST_MM"), model.board.get("note") or ""))
     print("  차 링크: %s" % ("가짜 제설차" if args.car == "fake"
                              else ("UDP %d" % args.udp_port if args.car == "udp" else "없음(모의 실행)")))
     print("  자동 출동: %s / 예산 %d갈래" % ("켜짐" if model.auto else "꺼짐", model.budget))

@@ -38,11 +38,12 @@ def wait_for(predicate, timeout=6.0, interval=0.01):
     return None
 
 
-def telemetry(t_map, rh_map=None, ok=True, wet=False):
+def telemetry(t_map, rh_map=None, ok=True, wet=False, dock=True, refills=3, refilling=False):
     rh_map = rh_map or {a: 80 for a in ARMS}
     return {"t": dict(t_map), "rh": dict(rh_map), "ok": {a: bool(ok) for a in ARMS},
             "wet_raw": 900 if wet else 2400, "wet": bool(wet), "light_raw": 1200,
-            "warn": bool(wet), "up": 7}
+            "warn": bool(wet), "dock": bool(dock), "refills": refills,
+            "refilling": bool(refilling), "up": 7}
 
 
 class StubSensor(object):
@@ -82,6 +83,18 @@ class ServerBase(unittest.TestCase):
         model.car_link = car
         self.addCleanup(car.stop)
         return car
+
+    def enable_base(self, model, dock=True, refills=3, wet=False):
+        """기지 Pico(#1) 텔레메트리가 살아 있는 상태로 만든다."""
+        with model.lock:
+            model.sensor_state["mode"] = "fake"
+        model.sensor_telemetry(telemetry({"N": 0.0, "E": 0.0, "S": 0.0, "W": 0.0},
+                                         dock=dock, refills=refills, wet=wet))
+        return model
+
+    def last_show(self, stub):
+        shows = [line for line in stub.lines if line.startswith("@@SHOW")]
+        return json.loads(shows[-1][len("@@SHOW "):])
 
     def start_http(self, model):
         httpd = srv.serve(model, "127.0.0.1", 0)
@@ -205,13 +218,15 @@ class SensorTest(ServerBase):
         model.sensor_telemetry(telemetry({"N": 1.0, "E": -3.0, "S": 2.0, "W": 0.0}, wet=True))
         local = model.snapshot()["sensor"]["local"]
         self.assertEqual(local["E"]["dt"], -2.5)
-        self.assertTrue(local["E"]["wet"])
+        self.assertFalse(local["E"]["wet"])
+        self.assertTrue(local["W"]["wet"])    # 젖음 센서는 WET_ARM(기본 W) 갈래
         self.assertNotIn("N", local)          # dt 0 이고 젖지 않은 갈래는 넣지 않는다
 
         model.refresh_step()
         arm = model.snapshot()["step"]["arms"]["E"]
         self.assertEqual(arm["local_dt"], -2.5)
-        self.assertTrue(arm["wet"])
+        self.assertFalse(arm["wet"])
+        self.assertTrue(model.snapshot()["step"]["arms"]["W"]["wet"])
         self.assertAlmostEqual(arm["t_eff"]["h3"], round(model.step["forecast"]["h3"] - 2.5 - 2.5, 3), places=3)
 
         # 센서가 조용해지면 local 을 비운다(계약 5절: 10초)
@@ -233,6 +248,139 @@ class SensorTest(ServerBase):
         self.assertLessEqual(len(payload["msg"]), 16)
         self.assertEqual(payload["msg"], payload["msg"].encode("ascii", "ignore").decode("ascii"))
         self.assertEqual(payload["arms"]["E"], model.step["arms"]["E"]["level"])
+
+
+class BaseTest(ServerBase):
+    def test_board_json_loaded(self):
+        model = self.make_model()
+        board = model.snapshot()["board"]
+        self.assertEqual(board["CENTER_X"], 480)
+        self.assertEqual(board["CENTER_Y"], 340)
+        self.assertEqual(board["BASE_DIST_MM"], 500)
+        self.assertEqual(board["ROAD_MM"], 150)
+        self.assertEqual(board["PLAZA_MM"], [297, 420])
+        self.assertEqual(board["ARM_END_MM"]["N"], 340)
+        self.assertEqual(board["ARM_END_MM"]["E"], 470)
+        self.assertEqual(board["ARM_END_MM"]["W"], 500)
+        self.assertEqual(board["ARM_END_MM"]["S"], 395)
+        self.assertEqual(board["WET_ARM"], "W")
+        self.assertIn("추정", board["note"])
+
+    def test_wet_arm_default_and_option(self):
+        model = self.make_model()
+        self.assertEqual(model.wet_arm, "W")
+        model.sensor_telemetry(telemetry({"N": 0.0, "E": 0.0, "S": 0.0, "W": 0.0}))
+        model.sensor_baseline()
+        model.sensor_telemetry(telemetry({"N": 0.0, "E": 0.0, "S": 0.0, "W": 0.0}, wet=True))
+        state = model.snapshot()
+        self.assertTrue(state["sensor"]["local"]["W"]["wet"])
+        self.assertFalse(state["sensor"]["local"].get("E", {}).get("wet", False))
+        self.assertTrue(state["sensor"]["rows"]["W"]["wet"])
+        self.assertFalse(state["sensor"]["rows"]["E"]["wet"])
+
+        other = self.make_model(wet_arm="E")
+        other.sensor_telemetry(telemetry({"N": 0.0, "E": 0.0, "S": 0.0, "W": 0.0}))
+        other.sensor_baseline()
+        other.sensor_telemetry(telemetry({"N": 0.0, "E": 0.0, "S": 0.0, "W": 0.0}, wet=True))
+        self.assertEqual(other.wet_arm, "E")
+        self.assertTrue(other.snapshot()["sensor"]["local"]["E"]["wet"])
+
+    def test_base_state_parsed(self):
+        model = self.make_model()
+        self.enable_base(model, dock=False, refills=5)
+        model.sensor_telemetry(telemetry({"N": 0.0, "E": 0.0, "S": 0.0, "W": 0.0},
+                                         dock=True, refills=6, refilling=True))
+        base = model.snapshot()["base"]
+        self.assertTrue(base["ok"])
+        self.assertEqual(base["dock"], True)
+        self.assertEqual(base["refills"], 6)
+        self.assertTrue(base["refilling"])
+        self.assertFalse(base["beacon"])
+        self.assertEqual(base["wet_arm"], "W")
+
+    def test_dock_false_blocks_auto_dispatch(self):
+        model = self.make_model(night=NIGHT, auto=True)
+        self.attach_fake_car(model)
+        self.enable_base(model, dock=False)
+        self.assertTrue(model.step["dispatch"]["recommend"])
+        time.sleep(0.4)
+        self.assertIsNone(model.execution["plan_id"], "도킹 전인데 출동했습니다")
+
+        # 도킹되면 곧바로 자동 출동한다
+        self.enable_base(model, dock=True)
+        self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"]))
+        self.assertEqual(model.execution["order"], ["E", "W"])
+
+    def test_beacon_only_while_running(self):
+        model = self.make_model(night=NIGHT, auto=False)
+        stub = StubSensor()
+        model.sensor_link = stub
+        model.push_show(force=True)
+        self.assertFalse(self.last_show(stub)["beacon"])
+
+        car = self.attach_fake_car(model, arm_s=0.2)
+        model.dispatch(order=["E"])
+        self.assertIsNotNone(wait_for(lambda: model.execution["state"] == "running"))
+        model.push_show(force=True)
+        self.assertTrue(self.last_show(stub)["beacon"])
+        self.assertTrue(model.snapshot()["base"]["beacon"])
+
+        self.assertIsNotNone(wait_for(lambda: model.execution["state"] == "done"))
+        model.push_show(force=True)
+        self.assertFalse(self.last_show(stub)["beacon"])
+        self.assertFalse(model.snapshot()["base"]["beacon"])
+        car.stop()
+
+
+class FakeBaseTest(ServerBase):
+    def test_fake_car_departs_and_docks(self):
+        model = self.make_model(night=NIGHT, auto=False)
+        car = self.attach_fake_car(model, arm_s=0.08)
+        board = model.board
+        dock_y = board["CENTER_Y"] + board["BASE_DIST_MM"]
+        seen = {"depart": False, "home": False, "ys": set(), "xs": set()}
+        stop = threading.Event()
+
+        def watch():
+            while not stop.is_set():
+                tel = dict(model.car_state)
+                if tel.get("phase") == "depart":
+                    seen["depart"] = True
+                if tel.get("phase") == "home":
+                    seen["home"] = True
+                if tel.get("y") is not None:
+                    seen["ys"].add(tel["y"])
+                if tel.get("x") is not None:
+                    seen["xs"].add(tel["x"])
+                time.sleep(0.005)
+
+        self.addCleanup(stop.set)
+        threading.Thread(target=watch, daemon=True).start()
+        model.dispatch(order=["E", "S"])
+        self.assertIsNotNone(wait_for(lambda: model.execution["state"] == "done"))
+        self.assertIsNotNone(wait_for(lambda: model.car_state["state"] == "idle"))
+        stop.set()
+        car.stop()
+        self.assertTrue(seen["depart"], "기지 출발 단계가 없습니다")
+        self.assertTrue(seen["home"], "기지 귀환 단계가 없습니다")
+        self.assertGreater(len(seen["ys"]), 2, "차가 y 축으로 움직이지 않았습니다")
+        self.assertGreater(len(seen["xs"]), 1, "차가 x 축으로 움직이지 않았습니다")
+        self.assertEqual(model.car_state["x"], board["CENTER_X"])
+        self.assertEqual(model.car_state["y"], dock_y)
+
+    def test_fake_base_follows_car_and_refills(self):
+        model = self.make_model(night=NIGHT, auto=False)
+        fake = srv.FakeSensorSerial(model=model, period=5.0, beats=0)
+        self.addCleanup(fake.close)
+        self.assertTrue(fake.payload()["dock"])
+        self.assertEqual(fake.refills, 3)
+
+        model.car_state["state"] = "run"
+        self.assertFalse(fake.payload()["dock"])
+        model.car_state["state"] = "idle"
+        body = fake.payload()
+        self.assertTrue(body["dock"])
+        self.assertTrue(body["refills"] >= 4, "귀환했는데 보충 횟수가 늘지 않았습니다")
 
 
 class StationTest(ServerBase):
@@ -330,6 +478,35 @@ class HttpTest(ServerBase):
         status, _raw = self.request(port, "/%EC%97%86%EB%8A%94%EA%B2%BD%EB%A1%9C")
         self.assertEqual(status, 404)
 
+    def test_font_route_and_pretendard(self):
+        model = self.make_model(night=NIGHT)
+        port = self.start_http(model)
+
+        url = "http://127.0.0.1:%d/static/fonts/PretendardVariable.woff2" % port
+        with urllib.request.urlopen(url, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get("Content-Type"), "font/woff2")
+            self.assertGreater(len(response.read()), 1000)
+
+        # 이 경로 밖으로는 나가지 못한다
+        status, _raw = self.request(port, "/static/fonts/..%2F..%2Fboard.json")
+        self.assertEqual(status, 404)
+
+        for path in ("/", "/monitor"):
+            status, raw = self.request(port, path)
+            self.assertEqual(status, 200)
+            html = raw.decode("utf-8")
+            self.assertIn("@font-face", html)
+            self.assertIn("Pretendard Variable", html)
+            self.assertIn("/static/fonts/PretendardVariable.woff2", html)
+            self.assertNotIn("cdn.", html.lower())
+
+        status, raw = self.request(port, "/monitor")
+        monitor = raw.decode("utf-8")
+        self.assertIn("제설기지", monitor)
+        self.assertIn("beacon", monitor)
+        self.assertIn("depart", monitor)
+
     def test_api_auto_budget_and_stop(self):
         model = self.make_model(night=NIGHT, auto=True)
         self.attach_fake_car(model)
@@ -421,7 +598,9 @@ class FakeCarTest(ServerBase):
         # 차는 arm_done 뒤에 plan_done 과 유휴 텔레메트리를 한 번 더 보낸다.
         self.assertIsNotNone(wait_for(lambda: model.car_state["state"] == "idle"))
         self.assertEqual(model.car_state["state"], "idle")
-        self.assertEqual(model.car_state["x"], 450)
+        self.assertEqual(model.car_state["x"], model.board["CENTER_X"])
+        self.assertEqual(model.car_state["y"],
+                         model.board["CENTER_Y"] + model.board["BASE_DIST_MM"])
         self.assertEqual(model.car_state["arm"], None)
         car.stop()
         self.assertTrue(any("갈래 살포 완료" in e["text"] for e in model.events))

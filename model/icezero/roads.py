@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-"""고색고 주변 OSM 도로·교량·건물·하천으로 구간 위험도와 4방위 교차로 갈래를 만든다.
+"""[참고 분석] 고색고 주변 실제 OSM 도로·교량·건물·하천으로 구간 위험도와 4방위 교차로 갈래를 만든다.
+
+모형 보드의 도로는 임의 도로다(사용자 결정). 엔진·서버가 쓰는 갈래는 손으로 정한 `data/roads/cross_arms.json`이고,
+이 스크립트는 그것을 덮어쓰지 않는다. 실제 도로 분석 결과는 `cross_arms_osm.json`에 따로 남긴다.
 
 `python3 -m model.icezero.roads [--refresh]` 한 번이면
   data/roads/overpass_*.json   Overpass 캐시(처음 받을 때만, --refresh면 다시 받음)
                               endpoint는 overpass-api.de → kumi.systems 순, User-Agent 지정.
                               맥 python3.9(LibreSSL)가 TLS 협상을 못 해 urllib 실패 시 curl로 보낸다.
   data/roads/gosaek_roads.geojson
-  data/roads/cross_arms.json
+  data/roads/cross_arms_osm.json  (참고용, 모형 갈래 파일과 별개)
   docs/img/gosaek_map.svg
 를 만든다. 표준 라이브러리만 쓴다(matplotlib 없음).
 
@@ -980,7 +983,7 @@ def run(refresh=False, do_fetch=True):
 
     os.makedirs(DATA_DIR, exist_ok=True)
     out_geo = os.path.join(DATA_DIR, "gosaek_roads.geojson")
-    out_arms = os.path.join(DATA_DIR, "cross_arms.json")
+    out_arms = os.path.join(DATA_DIR, "cross_arms_osm.json")  # 모형 갈래(cross_arms.json)는 덮어쓰지 않는다
     out_svg = os.path.join(IMG_DIR, "gosaek_map.svg")
     nfeat = write_geojson(segs, out_geo)
     write_cross_arms(payload, out_arms)

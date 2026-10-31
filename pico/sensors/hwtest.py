@@ -1,4 +1,5 @@
-# 센서 Pico #1 하드웨어 점검. 부품을 하나씩 붙여 가며 이 순서로 확인한다.
+# 기지 Pico #1 하드웨어 점검. 부품을 하나씩 붙여 가며 이 순서로 확인한다.
+# (DHT11 4 → 젖음·조도 → OLED → 3색 LED·부저 → 링 → 1602 LCD → 도킹 스위치·보충 게이트)
 #   마이크로파이썬 REPL에서:  import hwtest  →  hwtest.main()
 #   (업로드 뒤에는 파일을 main.py로 바꾸지 말고 파일명 hwtest.py 그대로 두고 부른다.)
 import time
@@ -12,6 +13,7 @@ except ImportError:
     neopixel = None
 
 import config
+import lcd1602
 import sensor_core
 import ssd1306
 
@@ -163,8 +165,51 @@ def test_ring():
     ring.write()
 
 
+def test_lcd():
+    """1602 LCD 두 줄. 안 보이면 주소(0x27/0x3F)와 백팩 가변저항(명암)을 본다."""
+    print("")
+    print("== 1602 LCD ==")
+    if not config.LCD:
+        print("LCD 없음(config.LCD=False)")
+        return
+    i2c = machine.I2C(config.I2C_ID, sda=machine.Pin(config.PIN_SDA),
+                      scl=machine.Pin(config.PIN_SCL), freq=config.I2C_FREQ)
+    found = i2c.scan()
+    print("I2C 주소:", found)
+    if config.LCD_ADDR not in found:
+        print("0x%02X가 없습니다. 0x3F인 모듈도 있으니 확인하세요." % config.LCD_ADDR)
+        return
+    lcd = lcd1602.LCD1602(i2c, config.LCD_ADDR, config.LCD_COLS, config.LCD_ROWS)
+    lcd.show("ICE-ZERO BASE", "N12 E11 S12 W10")
+    print("LCD에 두 줄을 썼습니다: ICE-ZERO BASE / N12 E11 S12 W10")
+    sleep_ms(1500)
+
+
+def test_dock_gate():
+    """도킹 스위치 raw를 읽고, 보충 게이트 SG90을 열었다 닫는다."""
+    print("")
+    print("== 도킹 스위치·보충 게이트 ==")
+    dock = machine.Pin(config.PIN_DOCK, machine.Pin.IN, machine.Pin.PULL_UP)
+    print("도킹 스위치 GP%d = %d (0=눌림, 1=안 눌림). 손으로 눌러 보세요." % (config.PIN_DOCK, dock.value()))
+    for _ in range(5):
+        sleep_ms(200)
+        print("  raw", dock.value())
+    pwm = machine.PWM(machine.Pin(config.PIN_GATE))
+    pwm.freq(config.GATE_FREQ)
+    closed = sensor_core.servo_duty(config.GATE_CLOSED_DEG, config.GATE_DUTY_MIN, config.GATE_DUTY_MAX)
+    opened = sensor_core.servo_duty(config.GATE_OPEN_DEG, config.GATE_DUTY_MIN, config.GATE_DUTY_MAX)
+    pwm.duty_u16(closed)
+    print("게이트 닫힘(%d도)" % config.GATE_CLOSED_DEG)
+    sleep_ms(600)
+    pwm.duty_u16(opened)
+    print("게이트 열림(%d도) — 사일로 출구를 확인하세요" % config.GATE_OPEN_DEG)
+    sleep_ms(1200)
+    pwm.duty_u16(closed)
+    print("게이트 닫힘")
+
+
 def main():
-    print("ICE-ZERO 센서 Pico 하드웨어 점검")
+    print("ICE-ZERO 기지 Pico 하드웨어 점검")
     print("갈래 순서:", config.ARM_ORDER, " DHT11 핀:", config.DHT_PINS)
     dhts = make_dhts()
     test_dht(dhts)
@@ -172,5 +217,7 @@ def main():
     test_oled()
     test_led_buzzer()
     test_ring()
+    test_lcd()
+    test_dock_gate()
     print("")
     print("점검 끝. 모두 정상이면 main.py를 실행하세요.")

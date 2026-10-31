@@ -36,7 +36,7 @@ sensor_core = load_module("sensor_core", "sensor_core.py")
 def fake_pico():
     """가짜 모듈을 끼우고 main을 새로 읽어 setup까지 부른다."""
     world, mods = fake_mpy_sensors.build()
-    names = ("main", "config", "sensor_core", "ssd1306", "machine", "dht", "neopixel")
+    names = ("main", "config", "sensor_core", "ssd1306", "lcd1602", "machine", "dht", "neopixel")
     saved = {}
     for k in names:
         saved[k] = sys.modules.get(k)
@@ -47,6 +47,7 @@ def fake_pico():
     try:
         sys.modules["config"] = load_module("config", "config.py")
         sys.modules["ssd1306"] = load_module("ssd1306", "ssd1306.py")
+        sys.modules["lcd1602"] = load_module("lcd1602", "lcd1602.py")
         main = load_module("main", "main.py")
         sys.modules["main"] = main
         out = io.StringIO()
@@ -107,6 +108,16 @@ class FakeOled:
         self.shows += 1
 
 
+class FakeLcd:
+    """main.draw_lcd가 쓴 두 줄을 모으는 대역."""
+
+    def __init__(self):
+        self.shown = []
+
+    def show(self, line1, line2=""):
+        self.shown.append((line1, line2))
+
+
 # ---------------------------------------------------------------- 순수 로직: 젖음
 class WetTest(unittest.TestCase):
     def test_when_low(self):
@@ -135,10 +146,16 @@ class WarnConditionTest(unittest.TestCase):
         rh = {"N": 80, "E": 84, "S": 50, "W": 50}
         self.assertFalse(sensor_core.warn_condition(t, rh, False, 3.0, 85))
 
-    def test_wet_with_cold_warns(self):
-        t = {"N": 20.0, "E": 2.5, "S": 20.0, "W": 20.0}
+    def test_wet_with_cold_w_warns(self):
+        # 젖음 센서는 W 갈래에 있다. W가 차가우면 젖음만으로도 경고다
+        t = {"N": 20.0, "E": 20.0, "S": 20.0, "W": 2.5}
         rh = {"N": 50, "E": 50, "S": 50, "W": 50}
         self.assertTrue(sensor_core.warn_condition(t, rh, True, 3.0, 85))
+
+    def test_wet_with_cold_e_does_not_warn(self):
+        t = {"N": 20.0, "E": 2.5, "S": 20.0, "W": 20.0}
+        rh = {"N": 50, "E": 50, "S": 50, "W": 50}
+        self.assertFalse(sensor_core.warn_condition(t, rh, True, 3.0, 85))
 
     def test_wet_alone_does_not_warn(self):
         t = {"N": 4.0, "E": 4.0, "S": 4.0, "W": 4.0}
@@ -284,6 +301,18 @@ class ParseShowTest(unittest.TestCase):
     def test_bad_msg_rejects(self):
         self.assertIsNone(sensor_core.parse_show_line('@@SHOW {"arms":{},"msg":5}'))
 
+    def test_beacon_flag(self):
+        self.assertTrue(sensor_core.parse_show_line('@@SHOW {"arms":{},"beacon":true}')["beacon"])
+        self.assertFalse(sensor_core.parse_show_line('@@SHOW {"arms":{}}')["beacon"])
+        self.assertIsNone(sensor_core.parse_show_line('@@SHOW {"arms":{},"beacon":1}'))
+        self.assertIsNone(sensor_core.parse_show_line('@@SHOW {"arms":{},"beacon":"true"}'))
+
+    def test_non_ascii_msg_kept_then_sanitized_at_render(self):
+        got = sensor_core.parse_show_line('@@SHOW {"arms":{},"msg":"북쪽"}')
+        self.assertEqual(got["msg"], "북쪽")          # 파싱은 그대로 둔다
+        lines = sensor_core.oled_lines({"N": 1.0}, {}, False, False, got["msg"], 0)
+        self.assertEqual(lines[0], "??")              # OLED/LCD에서 ASCII로 바꾼다
+
     def test_malformed(self):
         self.assertIsNone(sensor_core.parse_show_line("@@SHOW {망가진 json"))
         self.assertIsNone(sensor_core.parse_show_line("@@SHOW "))
@@ -372,8 +401,8 @@ class OledTest(unittest.TestCase):
     def test_msg_replaces_header(self):
         t = {"N": 1.0, "E": 1.0, "S": 1.0, "W": 1.0}
         ok = {"N": True, "E": True, "S": True, "W": True}
-        lines = sensor_core.oled_lines(t, ok, False, False, "E 살포중", 5)
-        self.assertEqual(lines[0], "E 살포중")
+        lines = sensor_core.oled_lines(t, ok, False, False, "E SPRAY NOW", 5)
+        self.assertEqual(lines[0], "E SPRAY NOW")
 
 
 class TelemetryTest(unittest.TestCase):
@@ -381,11 +410,12 @@ class TelemetryTest(unittest.TestCase):
         t = {"N": -3.14, "E": None, "S": 2.0, "W": 1.0}
         rh = {"N": 80, "E": None, "S": 90, "W": 70}
         ok = {"N": True, "E": False, "S": True, "W": True}
-        return sensor_core.telemetry(t, rh, ok, 12345, True, None, True, 42)
+        return sensor_core.telemetry(t, rh, ok, 12345, True, None, True, True, 3, False, 42)
 
     def test_keys_and_types(self):
         tel = self.make()
-        self.assertEqual(set(tel), {"t", "rh", "ok", "wet_raw", "wet", "light_raw", "warn", "up"})
+        self.assertEqual(set(tel), {"t", "rh", "ok", "wet_raw", "wet", "light_raw", "warn",
+                                    "dock", "refills", "refilling", "up"})
         self.assertEqual(set(tel["t"]), {"N", "E", "S", "W"})
         self.assertEqual(tel["t"]["N"], -3.1)
         self.assertIsNone(tel["t"]["E"])
@@ -397,10 +427,13 @@ class TelemetryTest(unittest.TestCase):
         self.assertTrue(tel["wet"])
         self.assertIsNone(tel["light_raw"])
         self.assertTrue(tel["warn"])
+        self.assertTrue(tel["dock"])
+        self.assertEqual(tel["refills"], 3)
+        self.assertFalse(tel["refilling"])
         self.assertEqual(tel["up"], 42)
 
     def test_wet_raw_none_becomes_zero(self):
-        tel = sensor_core.telemetry({}, {}, {}, None, False, 111, False, 0)
+        tel = sensor_core.telemetry({}, {}, {}, None, False, 111, False, False, 0, False, 0)
         self.assertEqual(tel["wet_raw"], 0)
         self.assertEqual(tel["light_raw"], 111)
         self.assertIsNone(tel["t"]["N"])
@@ -417,6 +450,172 @@ class TelemetryTest(unittest.TestCase):
         self.assertIsInstance(obj["wet"], bool)
         self.assertIsInstance(obj["warn"], bool)
         self.assertIsInstance(obj["wet_raw"], int)
+        self.assertIsInstance(obj["dock"], bool)
+        self.assertIsInstance(obj["refills"], int)
+        self.assertIsInstance(obj["refilling"], bool)
+
+
+# ---------------------------------------------------------------- 순수 로직: 도킹 디바운스·보충
+class DebounceTest(unittest.TestCase):
+    def test_short_glitch_ignored(self):
+        db = sensor_core.Debouncer(50)
+        self.assertFalse(db.update(True, 0))
+        self.assertFalse(db.update(True, 30))          # 아직 50ms가 안 됐다
+        self.assertFalse(db.update(False, 40))         # 튀는 값이 사라지면 처음부터
+        self.assertFalse(db.update(True, 1000))
+        self.assertTrue(db.update(True, 1050))         # 50ms 유지 → 인정
+
+    def test_stable_change(self):
+        db = sensor_core.Debouncer(50, initial=True)
+        self.assertTrue(db.update(True, 0))
+        self.assertTrue(db.update(False, 10))          # 아직 50ms 전
+        self.assertTrue(db.update(False, 59))
+        self.assertFalse(db.update(False, 60))         # 50ms 유지 → 바뀐다
+        self.assertFalse(db.value)
+
+    def test_initial_value(self):
+        self.assertFalse(sensor_core.Debouncer(50).value)
+        self.assertTrue(sensor_core.Debouncer(50, initial=True).value)
+
+
+class RefillTest(unittest.TestCase):
+    def make(self, auto=True):
+        return sensor_core.RefillController(auto, 800, 1000, 20000)
+
+    def test_auto_waits_for_settle_then_opens_once(self):
+        r = self.make()
+        self.assertIsNone(r.update(True, 0))           # 도킹 시작, 정착 대기
+        self.assertIsNone(r.update(True, 999))
+        self.assertEqual(r.update(True, 1000), 800)    # 정착 → 연다
+        self.assertEqual(r.count, 1)
+        self.assertTrue(r.refilling())
+        self.assertIsNone(r.update(True, 3000))        # 같은 도킹에서 다시 열지 않는다
+        self.assertEqual(r.count, 1)
+
+    def test_tick_closes_after_ms(self):
+        r = self.make()
+        r.update(True, 0)
+        r.update(True, 1000)
+        self.assertFalse(r.tick(1799))
+        self.assertTrue(r.tick(1800))
+        self.assertFalse(r.refilling())
+        self.assertFalse(r.tick(1900))
+
+    def test_cooldown_blocks_quick_redock(self):
+        r = self.make()
+        r.update(True, 0)
+        r.update(True, 1000)
+        r.tick(2000)
+        r.update(False, 3000)                          # 도킹 해제
+        r.update(True, 4000)                           # 곧바로 다시 도킹
+        self.assertIsNone(r.update(True, 5000))         # 쿨다운 20초 전
+        self.assertEqual(r.count, 1)
+
+    def test_next_docking_after_cooldown(self):
+        r = self.make()
+        r.update(True, 0)
+        r.update(True, 1000)
+        r.update(False, 2000)
+        r.update(True, 30000)
+        self.assertEqual(r.update(True, 31000), 800)
+        self.assertEqual(r.count, 2)
+
+    def test_auto_off(self):
+        r = self.make(auto=False)
+        r.update(True, 0)
+        self.assertIsNone(r.update(True, 5000))
+        self.assertEqual(r.count, 0)
+
+    def test_manual_only_when_docked(self):
+        r = self.make()
+        res = r.request(500, 0)
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["reason"], "not_docked")
+        r.update(True, 0)
+        res = r.request(500, 10)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["ms"], 500)
+        self.assertEqual(r.count, 1)
+        self.assertTrue(r.refilling())
+
+    def test_manual_bad_ms(self):
+        r = self.make()
+        r.update(True, 0)
+        for bad in (0, 10, 99999, "800", True, None):
+            self.assertFalse(r.request(bad, 10)["ok"])
+
+    def test_manual_counts_as_the_docking_refill(self):
+        r = self.make()
+        r.update(True, 0)
+        r.request(800, 10)
+        self.assertIsNone(r.update(True, 1000))         # 자동이 겹쳐 열지 않는다
+        self.assertEqual(r.count, 1)
+
+    def test_servo_duty(self):
+        self.assertEqual(sensor_core.servo_duty(0), sensor_core.GATE_DUTY_MIN)
+        self.assertEqual(sensor_core.servo_duty(180), sensor_core.GATE_DUTY_MAX)
+        mid = sensor_core.servo_duty(90)
+        self.assertTrue(sensor_core.GATE_DUTY_MIN < mid < sensor_core.GATE_DUTY_MAX)
+
+
+class BeaconTest(unittest.TestCase):
+    def test_white_pair_rotates(self):
+        px = sensor_core.beacon_pixels(8, 0, 255)
+        self.assertEqual(px[0], (255, 255, 255))
+        self.assertEqual(px[1], (255, 255, 255))
+        self.assertEqual(px[2], (0, 0, 63))            # 파랑 바탕
+        px = sensor_core.beacon_pixels(8, sensor_core.BEACON_STEP_MS, 255)
+        self.assertEqual(px[1], (255, 255, 255))
+        self.assertEqual(px[2], (255, 255, 255))
+        self.assertEqual(px[0], (0, 0, 63))
+
+    def test_wraps_around(self):
+        px = sensor_core.beacon_pixels(8, 7 * sensor_core.BEACON_STEP_MS, 255)
+        self.assertEqual(px[7], (255, 255, 255))
+        self.assertEqual(px[0], (255, 255, 255))       # 링을 한 바퀴 돌아 이어진다
+
+    def test_ring_pixels_beacon_switch(self):
+        modes = {"N": "risk3", "E": "risk1", "S": "off", "W": "done"}
+        px = sensor_core.ring_pixels(modes, 8, 0, 255, 2, True)
+        self.assertEqual(px[0], (255, 255, 255))
+        self.assertEqual(px[4], (0, 0, 63))
+        px = sensor_core.ring_pixels(modes, 8, 0, 255, 2, False)
+        self.assertEqual(px[0], (255, 0, 0))
+
+
+class LcdLinesTest(unittest.TestCase):
+    def test_two_lines_ascii_sixteen(self):
+        t = {"N": 12.0, "E": 11.0, "S": 12.0, "W": 10.0}
+        lines = sensor_core.lcd_lines("BASE OK", t)
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], "BASE OK")
+        self.assertEqual(lines[1], "N12 E11 S12 W10")
+        for line in lines:
+            self.assertLessEqual(len(line), 16)
+            self.assertTrue(all(32 <= ord(c) <= 126 for c in line))
+
+    def test_missing_temp_and_korean_msg(self):
+        lines = sensor_core.lcd_lines("북쪽 주의", {"N": None, "E": 11.0, "S": None, "W": 10.0})
+        self.assertEqual(lines[0], "?? ??")
+        self.assertEqual(lines[1], "N-- E11 S-- W10")
+
+
+# ---------------------------------------------------------------- @@REFILL 파싱
+class ParseRefillTest(unittest.TestCase):
+    def test_valid(self):
+        self.assertEqual(sensor_core.parse_refill_line('@@REFILL {"ms":800}'), {"ms": 800})
+        self.assertEqual(sensor_core.parse_refill_line('@@REFILL {"ms":400}\n'), {"ms": 400})
+
+    def test_ms_default(self):
+        self.assertEqual(sensor_core.parse_refill_line("@@REFILL {}"), {"ms": sensor_core.REFILL_MS})
+
+    def test_bad_values(self):
+        for line in ('@@REFILL {"ms":10}', '@@REFILL {"ms":99999}', '@@REFILL {"ms":"800"}',
+                     '@@REFILL {"ms":true}', "@@REFILL {깨짐", "@@REFILL ", "@@SHOW {}"):
+            self.assertIsNone(sensor_core.parse_refill_line(line))
+
+    def test_parse_line_dispatch(self):
+        self.assertEqual(sensor_core.parse_line('@@REFILL {"ms":800}'), ("refill", {"ms": 800}))
 
 
 # ---------------------------------------------------------------- SSD1306 드라이버
@@ -444,7 +643,8 @@ class MainTelemetryTest(unittest.TestCase):
             lines = cycle(main, 0)
             self.assertTrue(any(line.startswith("@@TEL ") for line in lines))
             tel = tel_of(lines)
-            self.assertEqual(set(tel), {"t", "rh", "ok", "wet_raw", "wet", "light_raw", "warn", "up"})
+            self.assertEqual(set(tel), {"t", "rh", "ok", "wet_raw", "wet", "light_raw", "warn",
+                                    "dock", "refills", "refilling", "up"})
             self.assertEqual(tel["t"]["N"], 2.0)         # 가짜 DHT11 GP2
             self.assertEqual(tel["rh"]["N"], 90)
             self.assertTrue(tel["ok"]["N"])
@@ -453,6 +653,9 @@ class MainTelemetryTest(unittest.TestCase):
             self.assertEqual(tel["wet_raw"], 40000)
             self.assertTrue(tel["wet"])
             self.assertEqual(tel["light_raw"], 40000)
+            self.assertFalse(tel["dock"])
+            self.assertEqual(tel["refills"], 0)
+            self.assertFalse(tel["refilling"])
             self.assertIsInstance(tel["up"], int)
 
     def test_one_sensor_per_loop_round_robin(self):
@@ -542,16 +745,124 @@ class MainShowTest(unittest.TestCase):
             main.oled = stub
             main.last_oled_ms = None
             main.usb_poll = fake_mpy_sensors.FakePoll()
-            with usb_input('@@SHOW {"arms":{"N":"risk2"},"msg":"북쪽 주의"}\n'):
+            with usb_input('@@SHOW {"arms":{"N":"risk2"},"msg":"NORTH WARN"}\n'):
                 cycle(main, 0)
             self.assertEqual(len(stub.lines), 4)
-            self.assertEqual(stub.lines[0], "북쪽 주의")
+            self.assertEqual(stub.lines[0], "NORTH WARN")
             self.assertIn("N 2.0", stub.lines[1])
             for line in stub.lines:
                 self.assertLessEqual(len(line), 16)
             with usb_input(""):
                 cycle(main, 11000)                            # 메시지가 오래되면 제목으로 돌아간다
             self.assertEqual(stub.lines[0], "ICE-ZERO SENSOR")
+
+
+class MainDockRefillTest(unittest.TestCase):
+    def open_duty(self, main):
+        return sensor_core.servo_duty(main.config.GATE_OPEN_DEG,
+                                      main.config.GATE_DUTY_MIN, main.config.GATE_DUTY_MAX)
+
+    def closed_duty(self, main):
+        return sensor_core.servo_duty(main.config.GATE_CLOSED_DEG,
+                                      main.config.GATE_DUTY_MIN, main.config.GATE_DUTY_MAX)
+
+    def dock(self, main, world, start):
+        """도킹 스위치를 누르고 디바운스가 끝난 시각을 돌려준다."""
+        world.inputs[main.config.PIN_DOCK] = 0
+        cycle(main, start)
+        t = start + main.config.DOCK_DEBOUNCE_MS + 10
+        cycle(main, t)
+        self.assertTrue(main.docked)
+        return t
+
+    def test_auto_refill_opens_and_closes_once(self):
+        with fake_pico() as (main, world):
+            self.assertEqual(world.duties[main.config.PIN_GATE], self.closed_duty(main))
+            t0 = self.dock(main, world, 0)
+            cycle(main, t0 + main.config.DOCK_SETTLE_MS)       # 정착 → 자동 보충
+            self.assertEqual(world.duties[main.config.PIN_GATE], self.open_duty(main))
+            self.assertEqual(main.refill.count, 1)
+            self.assertTrue(main.refill.refilling())
+            cycle(main, t0 + main.config.DOCK_SETTLE_MS + main.config.REFILL_MS + 20)
+            self.assertEqual(world.duties[main.config.PIN_GATE], self.closed_duty(main))
+            self.assertFalse(main.refill.refilling())
+            tel = tel_of(cycle(main, t0 + 3000))
+            self.assertTrue(tel["dock"])
+            self.assertEqual(tel["refills"], 1)
+            self.assertFalse(tel["refilling"])
+            cycle(main, t0 + 31000)                            # 같은 도킹에서는 다시 안 연다
+            self.assertEqual(main.refill.count, 1)
+
+    def test_manual_refill_requires_docking(self):
+        with fake_pico() as (main, world):
+            main.usb_poll = fake_mpy_sensors.FakePoll()
+            with usb_input('@@REFILL {"ms":400}\n'):
+                cycle(main, 0)                                 # 도킹 전 → 무시
+            self.assertEqual(main.refill.count, 0)
+            self.assertEqual(world.duties[main.config.PIN_GATE], self.closed_duty(main))
+            t0 = self.dock(main, world, 100)
+            with usb_input('@@REFILL {"ms":400}\n'):
+                cycle(main, t0 + 10)
+            self.assertEqual(main.refill.count, 1)
+            self.assertEqual(world.duties[main.config.PIN_GATE], self.open_duty(main))
+            cycle(main, t0 + 500)                               # 400ms 뒤 닫힌다
+            self.assertEqual(world.duties[main.config.PIN_GATE], self.closed_duty(main))
+
+
+class MainLcdTest(unittest.TestCase):
+    def test_lcd_two_lines_with_msg_and_temps(self):
+        with fake_pico() as (main, world):
+            stub = FakeLcd()
+            main.lcd = stub
+            main.last_lcd_ms = None
+            main.lcd_shown = None
+            main.usb_poll = fake_mpy_sensors.FakePoll()
+            with usb_input('@@SHOW {"arms":{},"msg":"BASE OK"}\n'):
+                cycle(main, 0)
+            self.assertEqual(len(stub.shown), 1)
+            line1, line2 = stub.shown[0]
+            self.assertEqual(line1, "BASE OK")
+            self.assertEqual(line2, "N2 E-- S-- W--")
+            for line in (line1, line2):
+                self.assertLessEqual(len(line), 16)
+                self.assertTrue(all(32 <= ord(c) <= 126 for c in line))
+
+    def test_lcd_not_rewritten_when_unchanged(self):
+        with fake_pico() as (main, world):
+            stub = FakeLcd()
+            main.lcd = stub
+            main.last_lcd_ms = None
+            main.lcd_shown = None
+            for arm in main.config.ARM_ORDER:
+                main.bank.apply(arm, 2.0, 70, 0)
+            cycle(main, 0)
+            before = len(stub.shown)
+            cycle(main, 600)                                    # 같은 내용이면 다시 쓰지 않는다
+            self.assertEqual(len(stub.shown), before)
+
+
+class MainBeaconTest(unittest.TestCase):
+    def test_beacon_spins_ring(self):
+        with fake_pico() as (main, world):
+            main.usb_poll = fake_mpy_sensors.FakePoll()
+            with usb_input('@@SHOW {"arms":{"N":"risk1"},"beacon":true}\n'):
+                cycle(main, 0)
+            self.assertEqual(world.pixels[0], (48, 48, 48))     # 흰색 두 픽셀
+            self.assertEqual(world.pixels[1], (48, 48, 48))
+            self.assertEqual(world.pixels[2], (0, 0, 12))       # 파랑 바탕
+            with usb_input(""):
+                cycle(main, sensor_core.BEACON_STEP_MS)          # 한 칸 돈다
+            self.assertEqual(world.pixels[1], (48, 48, 48))
+            self.assertEqual(world.pixels[2], (48, 48, 48))
+            self.assertEqual(world.pixels[0], (0, 0, 12))
+
+    def test_beacon_false_shows_arms(self):
+        with fake_pico() as (main, world):
+            main.usb_poll = fake_mpy_sensors.FakePoll()
+            with usb_input('@@SHOW {"arms":{"N":"risk3"},"beacon":false}\n'):
+                cycle(main, 0)
+            self.assertEqual(world.pixels[0], (48, 0, 0))       # 갈래 상태(빨강)
+            self.assertEqual(world.pixels[2], (0, 0, 0))
 
 
 if __name__ == "__main__":

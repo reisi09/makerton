@@ -56,7 +56,7 @@ DEFS = """<defs>
 
 def head(vb, w, h, title):
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="%s" width="%d" height="%d" '
-            'font-family="Helvetica, Apple SD Gothic Neo, Noto Sans KR, sans-serif">\n'
+            "font-family=\"'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', sans-serif\">\n"
             '<title>%s</title>\n%s' % (vb, w, h, esc(title), DEFS))
 
 
@@ -86,29 +86,29 @@ def svg_system():
         "같은 Wi-Fi: http://<맥 IP>:8000/monitor",
     ], "#cfe3f0", title_size=26))
 
-    o.append(panel(610, 110, 340, 250, "센서 Pico #1", [
-        "USB 시리얼(맥북 전원)",
-        "DHT11×4 · 수위 · 조도",
-        "OLED · 3색 LED · 부저 · 링",
-        "로컬 경고(WARN_T 3.0)",
+    o.append(panel(610, 110, 340, 250, "기지 Pico #1", [
+        "관제실 · USB 시리얼(맥북 전원)",
+        "DHT11×4 · 수위(W) · 조도",
+        "OLED · LCD · LED · 부저 · 링",
+        "도킹 감지 · 자동 보충",
     ], "#dceaf4", title_size=26))
 
     o.append(panel(610, 490, 340, 236, "제설차 Pico #2", [
         "Wi-Fi UDP 9200 ⇄ 9201",
         "28BYJ-48 ×2 + ULN2003 ×2",
-        "SG90 살포 · SR-04 정지",
-        "비상 버튼 · 링크 타임아웃",
+        "기지 출발 → 살포 → 후진 도킹",
+        "비상 버튼 · SR-04 정지",
     ], "#cfe3f0", title_size=26))
 
-    o.append(panel(1110, 110, 430, 250, "사거리 보드 — 센서부", [
-        "DHT11 기둥 4개 (N·E·S·W)",
-        "젖음 센서(E) · 조도 센서(W)",
-        "센서 Pico는 보드 동쪽 책상",
+    o.append(panel(1110, 110, 430, 250, "사거리 보드 — 도로", [
+        "검은 종이 도로 폭 약 150",
+        "A3 광장 297×420 · 임의 도로 4갈래",
+        "DHT11 기둥 4 · 젖음·조도(W)",
     ], "#e3eef6", title_size=26))
-    o.append(panel(1110, 490, 430, 236, "사거리 보드 — 도로부", [
-        "900×900 우드락 · 도로 폭 150",
-        "갈래 N·E·S·W, 중심에서 360mm",
-        "차 홈 = 중심(450,450) 북향",
+    o.append(panel(1110, 490, 430, 236, "제설기지 (S 끝 남쪽)", [
+        "외곽 320×230 · 차고 140×190×120",
+        "사일로·SG90 보충 게이트",
+        "도킹 스위치 · 지붕 경광등",
     ], "#e3eef6", title_size=26))
 
     # 연결 1: 맥북 ↔ 센서 Pico (USB 시리얼)
@@ -139,8 +139,8 @@ def svg_system():
     o.append(T(1030, 634, "차 위치", 15, weight=700, fill=CER))
 
     o.append(Rc(20, 756, 1520, 76, fill="#f2f8fc", stroke=STEEL, sw=1.5, rx=10))
-    o.append(T(40, 790, "자동 출동: auto 켜짐 + recommend + 차 idle + 실행 중 계획 없음 → plan 전송.", 19, "start", 700, NAVY))
-    o.append(T(40, 816, "비상 정지는 대시보드 stop, 차 버튼, 초음파 8cm 안쪽 물체 — 셋 다 항상 동작한다.", 19, "start", 700, NAVY))
+    o.append(T(40, 790, "auto 켜짐 + recommend + 차 idle + 실행 중 계획 없음 → 서버가 plan을 보낸다.", 18, "start", 700, NAVY))
+    o.append(T(40, 816, "기지 출발 → 갈래 살포 → 후진 도킹 → 자동 보충. 비상 정지 셋(대시보드·버튼·초음파)은 항상 동작한다.", 17, "start", 700, NAVY))
     o.append(T(1520, 872, "CONTRACT.md 1·5~8절", 16, "end", 600, AFB))
     o.append('</svg>')
     return "".join(o)
@@ -157,7 +157,7 @@ def svg_sensor_wiring():
     used = {1: "#2c7da0", 2: "#2c7da0", 4: "#2a6f97", 5: "#2a6f97", 6: "#2a6f97", 7: "#2a6f97",
             14: "#b91c1c", 15: "#15803d", 16: "#1d4ed8", 17: "#6d28d9", 21: "#014f86",
             31: "#0e7490", 32: "#a16207", 36: RED, 38: BLACK, 40: RED}
-    o = [head("-70 -50 1580 1120", 1580, 1120, "센서 Pico #1 배선도")]
+    o = [head("-70 -50 1580 1240", 1580, 1240, "센서 Pico #1 배선도")]
     o.append(T(-50, -18, "센서 Pico #1 배선 — DHT11×4 · 수위 · 조도 · OLED · 3색 LED · 부저 · 링", 30, "start", 800))
     ps, pp = pico(660, 120, used, "Pico 2 W (#1, USB)")
     o.append(ps)
@@ -168,7 +168,7 @@ def svg_sensor_wiring():
     o.append(ptag(126, 212, "3V3 · GND", YALE2))
     o.append(wire(op["SDA"], pp[1], CER2, None, via=590))
     o.append(wire(op["SCL"], pp[2], CER2, None, via=560))
-    o.append(T(250, 262, "주소 0x3C · 400kHz", 14, weight=700, fill=CER))
+    o.append(T(250, 262, "주소 0x3C · LCD 0x27 공유", 14, weight=700, fill=CER))
 
     # ── 왼쪽: DHT11 ×4 ──
     s, dp = box(110, 300, 280, 250, "DHT11 ×4 (갈래)", ["N", "E", "S", "W"])
@@ -196,7 +196,7 @@ def svg_sensor_wiring():
     o.append(ptag(1108, 352, "3V3 · GND", YALE2))
     o.append(wire(pp[32], gip["AO"], "#a16207", None, via=950))
 
-    s, wp = box(1080, 430, 330, 150, "수위감지 (젖음, E)", ["AO"], side="left")
+    s, wp = box(1080, 430, 330, 150, "수위감지 (젖음, W)", ["AO"], side="left")
     o.append(s)
     o.append(ptag(1108, 552, "3V3 · GND", YALE2))
     o.append(wire(pp[31], wp["AO"], "#0e7490", None, via=925))
@@ -206,13 +206,20 @@ def svg_sensor_wiring():
     o.append(ptag(1108, 752, "VBUS 5V · GND", RED))
     o.append(wire(pp[21], rp["DIN"], YALE3, None, via=950))
 
+    # ── 기지 부가 장치 ──
+    s, dp = box(110, 960, 280, 150, "기지: 도킹 스위치 · 보충 서보", ["도킹", "보충"])
+    o.append(s)
+    o.append(ptag(126, 1088, "GND", BLACK))
+    o.append(wire(dp["도킹"], pp[19], "#0e7490", None, via=470))
+    o.append(wire(dp["보충"], pp[20], "#6d28d9", None, via=440))
+
     # ── Pico 전원 ──
     o.append(net(pp[40], "VBUS 5V", RED, "right"))
     o.append(net(pp[36], "3V3", RED, "right"))
     o.append(net(pp[38], "GND", BLACK, "right"))
 
-    o.append(T(110, 992, "모든 모듈 VCC는 3V3, GND는 공통이다. 링만 VBUS 5V를 쓰고 DIN에 330Ω을 넣는다.", 17, "start", 700, YALE))
-    o.append(T(110, 1020, "DHT11 모듈은 풀업이 붙어 있어 데이터선만 이으면 된다. 수위·조도 AO는 3V3 기준 0~65535.", 17, "start", 600, CER))
+    o.append(T(110, 1140, "모든 모듈 VCC는 3V3, GND는 공통이다. 링만 VBUS 5V를 쓰고 DIN에 330Ω을 넣는다.", 17, "start", 700, YALE))
+    o.append(T(110, 1168, "DHT11 모듈은 풀업이 붙어 있어 데이터선만 이으면 된다. 수위·조도 AO는 3V3 기준 0~65535.", 17, "start", 600, CER))
     o.append('</svg>')
     return "".join(o)
 
@@ -226,7 +233,7 @@ def svg_car_wiring():
             19: "#0e7490", 20: "#6d28d9", 21: "#a16207", 22: "#2c7da0",
             24: "#b91c1c", 25: "#15803d", 26: "#1d4ed8", 27: "#7c3aed",
             36: RED, 38: BLACK, 40: RED}
-    o = [head("0 -50 1580 1090", 1580, 1090, "제설차 Pico #2 배선도")]
+    o = [head("0 -50 1580 1120", 1580, 1120, "제설차 Pico #2 배선도")]
     o.append(T(20, -14, "제설차 Pico #2 배선 — 스텝모터 ×2 · 서보 · 초음파 · 버튼 · LED · 부저", 30, "start", 800))
     ps, pp = pico(660, 140, used, "Pico 2 W (#2, Wi-Fi)")
     o.append(ps)
@@ -601,14 +608,345 @@ def svg_protocol():
     return "".join(o)
 
 
+def svg_board_v2():
+    """사용자 보드 사진 기준 평면. 값은 계약 8절의 사진 추정값(mm)."""
+    o = [head("-130 -200 1550 1420", 1550, 1420, "보드 평면 v2(사진 추정)")]
+    o.append(T(-110, -160, "보드 평면 — 사용자 사진 기준", 34, "start", 800))
+    o.append(T(-110, -124, "검은 종이 도로 폭 약 150, 가운데 A3 광장 297×420. 중심 (480,340), 원점은 판 왼쪽 위.", 19, "start", 600, CER))
+    o.append(Rc(-110, -108, 640, 46, fill="#cfe3f0", stroke=YALE2, sw=2, rx=8))
+    o.append(T(-98, -78, "사진 추정값 — 줄자로 실측해 config와 board.json을 고친다", 18, "start", 800, NAVY))
+
+    # 판·도로·광장
+    o.append(Rc(-20, 0, 970, 1000, fill="#fbfcfd", stroke=NAVY, sw=4))
+    o.append(Rc(405, 0, 150, 735, fill="#2f3338"))
+    o.append(Rc(-20, 265, 970, 150, fill="#2f3338"))
+    o.append(Rc(331.5, 130, 297, 420, fill="#3b4046", stroke="#6b7480", sw=2))
+    o.append(L(480, 0, 480, 735, "#c9b24a", 3, "22 18"))
+    o.append(L(-20, 340, 950, 340, "#c9b24a", 3, "22 18"))
+    o.append(T(348, 172, "A3 광장", 19, "start", 800, "#dff0f8"))
+    o.append(T(348, 196, "297 × 420", 15, "start", 700, "#dff0f8"))
+
+    # 건물
+    bld = [(40, 60, 220, 140, "NW", "낮은 주택", "그림자 N 0.29"),
+           (680, 60, 220, 140, "NE", "고색고 교사동", "낮게"),
+           (40, 470, 250, 150, "SW", "아파트(높음)", "W 1.00 · S 0.84"),
+           (680, 470, 220, 140, "SE", "낮은 건물", "보조")]
+    for (x, y, w, h, tag, name, note) in bld:
+        o.append(Rc(x, y, w, h, fill="#cbd9e4", stroke=YALE, sw=2.5, rx=5))
+        o.append(T(x + w / 2, y + 40, tag, 22, weight=800, fill=NAVY))
+        o.append(T(x + w / 2, y + 76, name, 17, weight=700, fill=NAVY))
+        o.append(T(x + w / 2, y + 102, note, 15, weight=600, fill=YALE3))
+
+    # 센서 기둥 · 젖음/조도
+    for d, (x, y), (dx, dy, an) in (("N", (585, 120), (24, -8, "start")), ("E", (700, 445), (26, 30, "start")),
+                                    ("S", (375, 600), (-26, 34, "end")), ("W", (260, 235), (-10, -20, "end"))):
+        o.append(C(x, y, 14, fill=CER, stroke=NAVY, sw=2.5))
+        o.append(T(x, y + 6, d, 14, weight=800, fill="#fff"))
+        o.append(T(x + dx, y + dy, "%s 기둥" % d, 16, an, 800, NAVY))
+    o.append(Rc(168, 233, 24, 24, fill=YALE3, stroke=NAVY, sw=2, rx=3))
+    o.append(T(202, 250, "젖음·조도", 15, "start", 800, YALE3))
+
+    # 기지
+    o.append(Rc(395, 745, 320, 230, fill="#eef4f8", stroke=NAVY, sw=3, rx=6))
+    o.append(Rc(410, 750, 140, 185, fill="#dce9f2", stroke=YALE2, sw=2))
+    o.append(T(480, 786, "차고", 17, weight=800, fill=NAVY))
+    o.append(Rc(558, 750, 150, 220, fill="#e6f0f7", stroke=YALE2, sw=2, dash="7 5", rx=4))
+    o.append(T(633, 786, "관제실", 16, weight=800, fill=NAVY))
+    o.append(T(633, 812, "Pico #1", 14, weight=700, fill=YALE2))
+    o.append(L(410, 745, 386, 721, NAVY, 3))
+    o.append(L(550, 745, 574, 721, NAVY, 3))
+    # 도킹 차
+    o.append(Rc(423.5, 765, 113, 150, fill=LIGHT, stroke=YALE2, sw=2.5, rx=5))
+    o.append(T(480, 830, "차", 16, weight=800, fill=NAVY))
+    o.append(T(480, 854, "도킹", 13, weight=700, fill=YALE2))
+    o.append(C(480, 865, 7, fill="#fff", stroke=NAVY, sw=2))
+    o.append(T(596, 872, "사일로 Ø12", 14, "start", 800, YALE3))
+    o.append(L(588, 866, 490, 866, YALE3, 1.4))
+    o.append(Rc(440, 928, 80, 8, fill=CER, stroke=NAVY, sw=1.5))
+    o.append(T(480, 960, "범퍼판·도킹 스위치", 13, weight=700, fill=YALE2))
+
+    # 주행 경로
+    o.append(L(480, 840, 480, 348, "#e6f4fb", 3, "10 9"))
+    o.append('<path d="M 480 330 l -9 -18 l 18 0 z" fill="#e6f4fb"/>')
+    o.append(T(492, 600, "출발 500", 16, "start", 800, "#e6f4fb"))
+    o.append(L(506, 348, 506, 846, "#8fc3dc", 3, "9 8", extra='marker-end="url(#arrE)"'))
+    o.append(T(520, 700, "귀환(후진 515)", 15, "start", 800, SKY))
+    o.append(L(480, 340, 480, 96, "#e6f4fb", 3, "10 9"))
+    o.append(L(480, 240, 480, 96, LIGHT, 11))
+    o.append(L(480, 340, 852, 340, "#e6f4fb", 3, "10 9"))
+    o.append(L(580, 340, 852, 340, LIGHT, 11))
+    o.append(L(480, 340, 88, 340, "#e6f4fb", 3, "10 9"))
+    o.append(L(380, 340, 88, 340, LIGHT, 11))
+    o.append(L(480, 440, 480, 726, LIGHT, 11))
+    o.append(T(600, 296, "살포 = 굵은 띠", 15, "start", 800, LIGHT))
+
+    # 치수
+    o.append(dim_h(480, 950, -22, "E 470", ext_from=0, size=17))
+    o.append(dim_h(-20, 480, -22, "W 500", ext_from=0, size=17))
+    o.append(dim_v(0, 340, -70, "N 340", ext_from=-20, size=17))
+    o.append(dim_v(340, 735, 990, "S 395", ext_from=735, size=17))
+
+    # 범례
+    o.append(Rc(1030, 40, 370, 470, fill="#f4f8fb", stroke=STEEL, sw=2, rx=10))
+    o.append(T(1054, 78, "건물 배치 원칙", 21, "start", 800, NAVY))
+    for i, line in enumerate([
+            "도로 가장자리에서 30mm,",
+            "광장 모서리에서 40mm 이상 띄운다.",
+            "SW는 높은 아파트: W·S 그늘.",
+            "E 옆은 고색고 교사동.",
+            "NW는 낮은 주택(N 0.29).",
+            "초음파·차 간섭을 피해 비운다."]):
+        o.append(T(1054, 116 + i * 30, "· " + line, 15, "start", 600, "#1f3b52"))
+    o.append(T(1054, 320, "실측 기입(8)", 19, "start", 800, YALE3))
+    for i, line in enumerate(["중심 x·y", "N·E·W 판 끝", "S 도로 끝", "도로 폭", "광장 가로·세로"]):
+        o.append(T(1054, 352 + i * 28, "· " + line, 14, "start", 600, "#1f3b52"))
+
+    o.append(T(-110, 1052, "사진 추정: 실측값을 pico/car/config.py(CENTER_X·CENTER_Y·BASE_DIST_MM·ARM_OUT_MM·SPRAY_WIN)와 server/board.json에 넣는다.",
+               17, "start", 700, NAVY))
+    o.append(T(-110, 1082, "S 도로는 남쪽 395에서 끝나고 그 아래 흰 공간이 기지다. 차는 기지에서 북상해 중심에 닿고, 갈래를 돌고, 북향 후진으로 돌아온다.",
+               17, "start", 600, CER))
+    o.append('</svg>')
+    return "".join(o)
+
+
+def svg_base_plan():
+    """제설기지 평면 + 정면 단면. 계약 9절(320×230, 차고 140×190×120, 출구 Ø12)."""
+    s = 2.4
+    o = [head("0 0 1800 1020", 1800, 1020, "제설기지 평면·단면")]
+    o.append(T(40, 48, "제설기지 — 평면(위에서) 과 정면 단면", 32, "start", 800))
+    o.append(T(40, 80, "외곽 320×230. 서쪽 차고 140×190×120, 동쪽 관제실. 단위 mm, 화면 2.4px = 1mm.", 18, "start", 600, CER))
+
+    # ── (a) 평면 ──
+    ox, oy = 90.0, 170.0
+    X = lambda v: ox + (v - 395) * s
+    Y = lambda v: oy + (v - 745) * s
+    o.append(T(40, 106, "(a) 평면", 21, "start", 800))
+    o.append(Rc(X(395), Y(745), 320 * s, 230 * s, fill="#eef4f8", stroke=NAVY, sw=3, rx=8))
+    o.append(Rc(X(410), Y(750), 140 * s, 185 * s, fill="#dce9f2", stroke=YALE2, sw=2.5))
+    o.append(Rc(X(558), Y(750), 150 * s, 220 * s, fill="#e6f0f7", stroke=YALE2, sw=2, dash="8 6", rx=4))
+    for (x1, y1, x2, y2) in ((410, 750, 410, 935), (550, 750, 550, 935)):
+        o.append(L(X(x1), Y(y1), X(x2), Y(y2), NAVY, 5))
+    # 깔때기
+    o.append(L(X(410), Y(745), X(386), Y(722), NAVY, 5))
+    o.append(L(X(550), Y(745), X(574), Y(722), NAVY, 5))
+    o.append(T(X(480), Y(714), "입구 45° · 20", 14, weight=800, fill=NAVY))
+    # 안내 레일
+    o.append(L(X(414), Y(760), X(414), Y(928), CER, 5))
+    o.append(L(X(546), Y(760), X(546), Y(928), CER, 5))
+    o.append(T(X(480), Y(946), "안내 레일 8", 13, weight=700, fill=YALE3))
+    # 차
+    o.append(Rc(X(423.5), Y(765), 113 * s, 150 * s, fill=LIGHT, stroke=YALE2, sw=2.5, rx=6))
+    o.append(T(X(480), Y(828), "차", 18, weight=800, fill=NAVY))
+    o.append(T(X(480), Y(852), "150×113", 12, weight=700, fill=YALE2))
+    # 범퍼판 + 스위치
+    o.append(Rc(X(450), Y(926), 60 * s, 9 * s, fill=CER, stroke=NAVY, sw=2))
+    o.append(T(X(480), Y(972), "범퍼판 60×30 + 도킹 스위치", 13, weight=700, fill=YALE2))
+    # 사일로 출구
+    o.append(C(X(480), Y(865), 13, fill="#fff", stroke=NAVY, sw=2.5))
+    o.append(L(X(480), Y(878), X(480), Y(897), YALE3, 1.5))
+    o.append(T(X(480), Y(914), "사일로 Ø12", 13, weight=800, fill=YALE3))
+    # 관제실
+    o.append(Rc(X(572), Y(770), 60 * s, 44 * s, fill="#cfe3f0", stroke=YALE2, sw=2, rx=4))
+    o.append(T(X(602), Y(796), "Pico #1", 14, weight=800, fill=NAVY))
+    o.append(Rc(X(572), Y(830), 54 * s, 34 * s, fill="#dce9f2", stroke=YALE2, sw=2, rx=4))
+    o.append(T(X(599), Y(852), "브레드보드", 11, weight=700, fill=YALE2))
+    o.append(Rc(X(636), Y(770), 58 * s, 34 * s, fill="#cfe3f0", stroke=YALE2, sw=2, rx=4))
+    o.append(T(X(665), Y(792), "LCD", 13, weight=800, fill=NAVY))
+    o.append(Rc(X(640), Y(830), 54 * s, 30 * s, fill="#dce9f2", stroke=YALE2, sw=2, rx=4))
+    o.append(T(X(667), Y(850), "LED·부저", 11, weight=700, fill=YALE2))
+    o.append(L(X(558), Y(940), X(700), Y(940), CER2, 6, "10 7"))
+    o.append(T(X(629), Y(958), "케이블 통로", 13, weight=700, fill=YALE3))
+
+    # ── (b) 단면 ──
+    bx, gy = 940.0, 780.0
+    s2 = s
+    o.append(T(900, 106, "(b) 정면 단면 — 입구가 왼쪽", 21, "start", 800))
+    o.append(L(900, gy, 1600, gy, NAVY, 3))
+    for gx in range(910, 1600, 22):
+        o.append(L(gx, gy, gx - 9, gy + 12, STEEL, 2))
+    # 차고 벽·지붕
+    ceil = gy - 120 * s2
+    o.append(L(bx, gy, bx, ceil, NAVY, 5))
+    o.append(Rc(1396, ceil, 20, 120 * s2, fill="#cbd9e4", stroke=NAVY, sw=2))
+    o.append(Rc(bx - 10, ceil - 12, 1130 - bx + 10, 12, fill="#cbd9e4", stroke=NAVY, sw=2))
+    o.append(Rc(1158, ceil - 12, 1416 - 1158 + 10, 12, fill="#cbd9e4", stroke=NAVY, sw=2))
+    # 차
+    o.append(Rc(964, gy - 95 * s2, 150 * s2, 95 * s2, fill=LIGHT, stroke=YALE2, sw=2.5, rx=6))
+    o.append(T(1144, gy - 40 * s2, "차", 16, weight=800, fill=NAVY))
+    # 범퍼판
+    o.append(Rc(1324, gy - 30 * s2, 72, 30 * s2, fill=CER, stroke=NAVY, sw=2))
+    o.append(T(1360, gy - 14 * s2, "범퍼", 11, weight=800, fill="#fff"))
+    # 도킹 스위치(뒤벽 뒤)
+    o.append(C(1430, gy - 22, 9, fill="#fff", stroke=RED, sw=2.5))
+    # 사일로
+    fx = 1144.0
+    o.append(P("M %.0f 330 L %.0f 330 L %.0f %.0f L %.0f %.0f Z" % (fx - 100, fx + 100, fx + 14, ceil - 6, fx - 14, ceil - 6),
+               fill=LIGHT, stroke=YALE3, sw=2.5))
+    o.append(Rc(fx - 14, ceil - 6, 28, 18, fill="#fff", stroke=NAVY, sw=2))
+    o.append(T(1290, 340, "사일로 깔때기", 15, "start", 800, YALE3))
+    o.append(T(1290, 366, "출구 Ø12", 13, "start", 700, YALE3))
+    o.append(T(1290, 392, "SG90 패들 0°/60°", 13, "start", 700, YALE3))
+    # 차 호퍼 입구
+    o.append(C(fx, gy - 95 * s2 + 8, 8, fill="none", stroke=RED, sw=2.5))
+    # 경광등
+    for i in range(3):
+        o.append(C(962 + i * 24, ceil - 26, 7, fill=SKY, stroke=YALE3, sw=1.5))
+    o.append(T(920, ceil - 46, "지붕 경광등(링)", 13, "start", 700, YALE3))
+    # 치수
+    o.append(dim_v(ceil, gy, bx - 62, "120", ext_from=bx, size=16))
+    o.append(dim_h(bx, 1396, gy + 52, "190 (깊이)", ext_from=gy, size=16))
+    o.append(dim_h(fx, 1396, ceil + 28, "75", ext_from=ceil, size=15))
+
+    # ── 부품 설명 ──
+    o.append(Rc(1470, 300, 300, 330, fill="#f4f8fb", stroke=STEEL, sw=2, rx=10))
+    o.append(T(1490, 336, "단면 표시", 19, "start", 800, NAVY))
+    for i, line in enumerate([
+            "사일로: 종이·PET 원뿔",
+            "출구 Ø12, SG90 패들 게이트",
+            "호퍼 입구 = 뒤 범퍼에서 75",
+            "뒤벽 범퍼판 60×30",
+            "도킹 스위치 = 뒤벽 뒤 택트",
+            "지붕 링 = WS2812 8픽셀",
+            "안내 레일 8mm(양쪽 벽)"]):
+        o.append(T(1490, 374 + i * 34, "· " + line, 14, "start", 600, "#1f3b52"))
+
+    o.append(T(40, 940, "차고 안내 레일 8mm는 바닥 양쪽 벽을 따라 붙여 차를 가운데로 모은다. 입구 벽 끝은 45°로 20mm 벌린 깔때기다.",
+               17, "start", 700, NAVY))
+    o.append(T(40, 968, "도킹: 차가 북향 후진으로 들어와 범퍼판을 밀면 도킹 스위치가 눌린다(눌리면 0). 그때 사일로 게이트가 열려 호퍼를 채운다.",
+               17, "start", 600, CER))
+    o.append('</svg>')
+    return "".join(o)
+
+
+def svg_car_build():
+    """제설차 제작 도면. 하판 100(폭)×150(길이), 전체 113×150×약 95, 바퀴 Ø65×8."""
+    s = 4.0
+    o = [head("0 0 1800 1000", 1800, 1000, "제설차 제작 도면")]
+    o.append(T(30, 46, "제설차 제작 도면 — 하판 100×150, 전체 113×150×약 95", 32, "start", 800))
+    o.append(T(30, 78, "단위 mm, 화면 4px = 1mm. 28BYJ-48 두 개를 마주 보게 달고 축은 바깥으로 낸다. 앞이 위(북).", 18, "start", 600, CER))
+
+    px, py = 60.0, 190.0
+    PX = lambda v: px + v * s
+    PY = lambda v: py + v * s
+    o.append(T(px, 122, "(a) 위에서 — 앞이 위(북)", 21, "start", 800))
+    o.append(Rc(PX(0), PY(0), 100 * s, 150 * s, fill="#fbfcfd", stroke=NAVY, sw=3, rx=8))
+
+    # 바퀴 Ø65×8 — 전체 폭 113
+    for cx in (50 - 52.5, 50 + 52.5):
+        o.append(Rc(PX(cx - 4), PY(42.5), 8 * s, 65 * s, fill=NAVY, rx=6))
+        o.append(T(PX(cx), PY(41.5), "Ø65", 11, weight=800, fill=NAVY))
+    # 모터(마주 보게, 차체 밖으로 조금) + 축
+    for mx in (-4, 76):
+        o.append(Rc(PX(mx), PY(61), 28 * s, 28 * s, fill=SKY, stroke=YALE, sw=2, rx=4))
+        o.append(T(PX(mx + 14), PY(79), "M", 15, weight=800, fill=NAVY))
+    o.append(L(PX(-4), PY(75), PX(-6.5), PY(75), CER, 4))
+    o.append(L(PX(104), PY(75), PX(106.5), PY(75), CER, 4))
+    # 호퍼 50×50
+    o.append(Rc(PX(25), PY(40), 50 * s, 50 * s, fill=LIGHT, stroke=YALE3, sw=2.5, rx=5))
+    o.append(T(PX(50), PY(64), "호퍼 50×50", 14, weight=800, fill=NAVY))
+    o.append(T(PX(50), PY(72), "높이 55", 12, weight=700, fill=YALE3))
+    o.append(C(PX(50), PY(86), 7, fill="#fff", stroke=NAVY, sw=2))
+    # ULN ×2 (앞쪽 좌우)
+    for ux, name in ((2, "ULN #1"), (68, "ULN #2")):
+        o.append(Rc(PX(ux), PY(4), 30 * s, 30 * s, fill="#e6f0f7", stroke=YALE2, sw=2, rx=4))
+        o.append(T(PX(ux + 15), PY(22), name, 11, weight=800, fill=NAVY))
+    # SR-04 (앞, 판 밖으로 조금)
+    o.append(Rc(PX(40), PY(-9), 20 * s, 9 * s, fill=STEEL, stroke=YALE, sw=2, rx=3))
+    o.append(T(PX(62), PY(-12), "SR-04", 12, "start", 800, YALE))
+    # 배터리 · Pico
+    o.append(Rc(PX(8), PY(104), 60 * s, 36 * s, fill="#cfe3f0", stroke=YALE2, sw=2, rx=4))
+    o.append(T(PX(38), PY(126), "보조배터리", 12, weight=800, fill=NAVY))
+    o.append(Rc(PX(76), PY(96), 21 * s, 51 * s, fill="#dce9f2", stroke=YALE2, sw=2, rx=3))
+    o.append(T(PX(86.5), PY(126), "Pico", 11, weight=800, fill=NAVY))
+    # LED·버튼·부저
+    o.append(C(PX(94), PY(92), 6, fill=RED, stroke=NAVY, sw=1.5))
+    o.append(T(PX(90), PY(96), "LED", 11, "end", 700, RED))
+    o.append(C(PX(6), PY(96), 6, fill="#fff", stroke=NAVY, sw=1.5))
+    o.append(T(PX(10), PY(100), "버튼", 11, "start", 700, YALE2))
+    o.append(C(PX(8), PY(48), 6, fill="#fff", stroke=NAVY, sw=1.5))
+    o.append(T(PX(8), PY(40), "부저", 11, "start", 700, YALE2))
+    # 범퍼판
+    o.append(Rc(PX(20), PY(146), 60 * s, 4 * s, fill=CER, stroke=NAVY, sw=1.5))
+    o.append(T(PX(50), PY(142), "범퍼판 60×30", 11, weight=700, fill=YALE2))
+
+    # 조립 번호
+    for n, (vx, vy) in enumerate([(96, 50), (10, 84), (-2.5, 40), (44, 84), (6, 10), (86, 140),
+                                  (62, 46), (50, 86), (50, -4), (94, 92), (50, 148), (30, 96)], 1):
+        o.append(C(PX(vx), PY(vy), 10, fill=NAVY, stroke="#fff", sw=1.5))
+        o.append(T(PX(vx), PY(vy) + 4, str(n), 10, weight=800, fill="#fff"))
+
+    o.append(dim_v(PY(0), PY(150), PX(0) - 46, "150", ext_from=PX(0), size=16))
+    o.append(dim_h(PX(0), PX(100), PY(150) + 56, "100 (폭)", ext_from=PY(150), size=16))
+
+    # ── (b) 옆에서 ──
+    gy, gx = 740.0, 760.0
+    rear, front = 800.0, 1400.0          # 차체 길이 150 = 600px
+    mid = (rear + front) / 2             # 바퀴 중심 = 길이 중앙(75)
+    o.append(T(gx, 122, "(b) 옆에서 — 앞이 오른쪽", 21, "start", 800))
+    o.append(L(gx - 20, gy, 1500, gy, NAVY, 3))
+    for k in range(int(gx) - 10, 1500, 24):
+        o.append(L(k, gy, k - 9, gy + 12, STEEL, 2))
+    wr = 65 * s / 2
+    o.append(C(mid, gy - wr, wr, fill="#cbd9e4", stroke=STEEL, sw=2, extra='stroke-dasharray="7 5"'))
+    o.append(C(mid, gy - wr, 24, fill="#e3eef6", stroke=STEEL, sw=2))
+    o.append(T(mid - 74, gy - wr + 5, "Ø65", 12, "end", 800, fill=NAVY))
+    o.append(T(mid + 150, gy - wr - 6, "바퀴 중심 = 길이 중앙(75)", 12, "start", 700, YALE2))
+    deck = gy - 38 * s
+    o.append(Rc(rear, deck, 150 * s, 12, fill=STEEL, stroke=YALE, sw=2))
+    o.append(T(rear + 16, deck - 12, "하판(우드락 2겹)", 12, "start", 700, YALE))
+    o.append(T(mid + 150, deck + 44, "점선 = 반대쪽 바퀴", 11, "start", 600, STEEL))
+    # 호퍼(입구는 뒤 범퍼에서 75 = 차체 중앙)
+    o.append(Rc(mid - 25 * s, deck - 55 * s, 50 * s, 55 * s, fill=LIGHT, stroke=YALE3, sw=2.5, rx=4))
+    o.append(T(mid, deck - 30 * s, "호퍼", 14, weight=800, fill=NAVY))
+    o.append(T(mid, deck - 10 * s, "55", 12, weight=700, fill=YALE3))
+    # 살포구(차체 가운데 아래) — 바퀴는 반대쪽이므로 뒤에 그린다
+    o.append(P("M %.0f %.0f L %.0f %.0f" % (mid, deck + 14, mid, gy - 8), stroke=YALE3, sw=4,
+               extra='marker-end="url(#flowB)"'))
+    o.append(T(mid + 12, gy - 44, "살포구", 13, "start", 800, YALE3))
+    # 미끄럼 받침(병뚜껑)
+    for bx in (rear + 40, front - 40):
+        o.append(Rc(bx - 26, gy - 28, 52, 28, fill="#cbd9e4", stroke=YALE2, sw=1.5, rx=6))
+    o.append(T(front - 40, gy + 26, "미끄럼 받침(병뚜껑)", 11, "middle", 700, YALE2))
+    # 범퍼판·SR-04
+    o.append(Rc(rear, deck - 30 * s, 12, 30 * s, fill=CER, stroke=NAVY, sw=1.5))
+    o.append(T(rear - 8, deck - 12, "범퍼", 10, "end", 800, YALE2))
+    o.append(Rc(front - 40, deck - 46, 40, 46, fill=STEEL, stroke=YALE, sw=2, rx=3))
+    o.append(T(front - 20, deck - 58, "SR-04", 12, weight=800, fill=YALE))
+    o.append(dim_v(deck - 55 * s, gy, gx - 40, "약 95", ext_from=rear, size=15))
+    o.append(dim_h(rear, front, deck - 55 * s - 34, "150 (길이)", ext_from=deck - 55 * s, size=15))
+
+    # ── (c) 조립 순서 ──
+    cx0 = 1540.0
+    o.append(T(cx0, 122, "(c) 조립 순서", 21, "start", 800))
+    steps = ["하판 100×150 재단(2겹)", "모터 브래킷 고정", "바퀴 3겹 원판 접착",
+             "D축 구멍 3×5 뚫기", "바퀴·고무줄 장착", "ULN2003 ×2 부착",
+             "Pico·배터리 부착", "호퍼 접착·구멍", "SG90 패들 장착",
+             "SR-04 앞면 장착", "LED·버튼·부저·범퍼", "배선·보정 시험"]
+    for i, line in enumerate(steps):
+        y = 168 + i * 34
+        o.append(C(cx0 + 10, y - 5, 11, fill=NAVY, stroke="#fff", sw=1.5))
+        o.append(T(cx0 + 10, y - 1, str(i + 1), 11, weight=800, fill="#fff"))
+        o.append(T(cx0 + 30, y, line, 14, "start", 600, "#1f3b52"))
+
+    o.append(T(30, 880, "바퀴: 우드락 3겹 원판 Ø65 + 고무줄 타이어 + D축 구멍 3×5. 앞뒤 미끄럼 받침은 병뚜껑을 쓴다.",
+               17, "start", 700, NAVY))
+    o.append(T(30, 910, "무게 배치: 뒤쪽 배터리·Pico, 가운데 호퍼, 앞쪽 ULN·SR-04. 바퀴 접지를 살리려 무게 중심을 조금 뒤에 둔다.",
+               17, "start", 600, CER))
+    o.append(T(30, 940, "호퍼 입구는 뒤 범퍼에서 75mm다. 기지 사일로 출구와 같은 자리라 도킹하면 그대로 떨어진다.",
+               17, "start", 600, YALE3))
+    o.append('</svg>')
+    return "".join(o)
+
+
 FIGURES = (
     ("system.svg", svg_system),
     ("sensor_wiring.svg", svg_sensor_wiring),
     ("car_wiring.svg", svg_car_wiring),
-    ("car_layout.svg", svg_car_layout),
-    ("board_layout.svg", svg_board_layout),
     ("car_states.svg", svg_car_states),
     ("protocol.svg", svg_protocol),
+    ("board_v2.svg", svg_board_v2),
+    ("base_plan.svg", svg_base_plan),
+    ("car_build.svg", svg_car_build),
 )
 
 

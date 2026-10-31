@@ -10,14 +10,15 @@ ARMS = ("N", "E", "S", "W")
 NIGHTS = ("2025-01-09", "2025-01-10")
 
 # 갈래별 가짜 값. risk·우선순위는 계약 4절 cross_arms.json 과 같은 모양이다.
+# 실제 도로명을 쓰지 않는다. 모형의 임의 도로 이름만 쓴다(참고: model/data/roads/cross_arms.json).
 ARM_SPEC = {
-    "N": {"name": "고색로 북측", "label": "general", "structure": 0,
+    "N": {"name": "북쪽 도로", "label": "general", "structure": 0,
           "shadow_index": 0.22, "risk": 0.44, "risk_pct": 0.41, "p": 0.18},
-    "E": {"name": "고색교", "label": "bridge", "structure": 1,
+    "E": {"name": "동쪽 도로(학교 앞)", "label": "general", "structure": 1,
           "shadow_index": 0.08, "risk": 0.91, "risk_pct": 0.97, "p": 0.90},
-    "S": {"name": "고색로 남측", "label": "general", "structure": 0,
+    "S": {"name": "남쪽 도로(기지 진입로)", "label": "general", "structure": 0,
           "shadow_index": 0.36, "risk": 0.38, "risk_pct": 0.33, "p": 0.12},
-    "W": {"name": "매봉길", "label": "general", "structure": 0,
+    "W": {"name": "서쪽 도로", "label": "general", "structure": 0,
           "shadow_index": 0.61, "risk": 0.72, "risk_pct": 0.78, "p": 0.55},
 }
 

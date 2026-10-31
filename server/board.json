@@ -1,0 +1,15 @@
+{
+  "note": "사진으로 추정한 값이다. 줄자로 재서 pico/car/config.py 와 함께 고친다(계약 7·8·9절).",
+  "CENTER_X": 480,
+  "CENTER_Y": 340,
+  "BASE_DIST_MM": 500,
+  "DOCK_OVERDRIVE_MM": 15,
+  "ROAD_MM": 150,
+  "PLAZA_MM": [297, 420],
+  "PLAZA_EDGE_MM": {"N": 243, "S": 176, "W": 157, "E": 140},
+  "ARM_END_MM": {"N": 340, "E": 470, "W": 500, "S": 395},
+  "ARM_OUT_MM": {"N": 250, "E": 380, "W": 400, "S": 390},
+  "SPRAY_WIN": {"N": [100, 250], "E": [100, 380], "S": [100, 390], "W": [100, 400]},
+  "BASE_MM": [320, 230],
+  "WET_ARM": "W"
+}

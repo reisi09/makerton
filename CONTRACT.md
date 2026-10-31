@@ -26,11 +26,12 @@ makerton/
     icezero/       __init__.py · kma.py · features.py · train.py · engine.py · roads.py
     data/raw/108/  서울 ASOS(정리본, 기준선 비교용)
     data/raw/119/  수원 ASOS 원본 CSV(기상자료개방포털 OBS_ASOS_TIM_*.csv)
-    data/roads/    gosaek_roads.geojson · cross_arms.json · overpass 캐시
+    data/roads/    cross_arms.json(임의 도로, 손으로 정함) · cross_arms_osm.json·gosaek_roads.geojson·overpass 캐시(참고)
     models/<stn>/  학습 산출물(지점별)
-  server/          gosaek_server.py · static/index.html
+  server/          gosaek_server.py · board.json(보드 치수) · static/index.html · static/monitor.html · static/fonts/(Pretendard, OFL)
   pico/car/        config.py · car_core.py · main.py · hwtest.py
-  pico/sensors/    config.py · sensor_core.py · main.py · hwtest.py · ssd1306.py
+  pico/sensors/    기지 Pico: config.py · sensor_core.py · main.py · hwtest.py · ssd1306.py · lcd1602.py
+  docs/            SYSTEM_DESIGN.md · BASE_AND_CAR.md · MODEL.md · BUILD.md · img/ · make_diagrams.py · build_design_pdf.py · *.pdf
   tests/           python3 -m unittest discover -s tests (저장소 루트에서) 전부 통과
 ```
 
@@ -44,6 +45,7 @@ makerton/
   - `~/Library/Python/3.9/bin/mpy-cross`로 컴파일 오류가 없어야 한다.
   - 하드웨어 import가 없는 `*_core.py`에 로직을 모으고, CPython 시험에서 직접 import한다.
 - 비밀값(Wi-Fi 비밀번호 등)은 저장소에 넣지 않는다. config에는 빈 문자열만 두고, 업로드할 때 채운다.
+- 글꼴은 Pretendard다(사용자 지정). 웹은 `server/static/fonts/PretendardVariable.woff2`를 @font-face로 쓰고 CDN은 쓰지 않는다. SVG·PDF도 "Pretendard Variable"을 쓴다.
 
 ## 3. 모델(model/icezero)
 - `kma.py`: 입력 두 형식을 같은 표준 열로 읽는다.
@@ -97,18 +99,22 @@ makerton/
 - `local` 형식: `{"N":{"dt":-2.1,"wet":false},...}`. 빠진 갈래는 0과 false로 본다.
 - `treated` 형식: `{"E":"2025-12-08T06:00:00"}`. 값은 효과가 끝나는 시각이다. ts가 그보다 앞이면 처리됨으로 본다.
 
-## 4. 도로·교차로(model/icezero/roads.py)
-- `python3 -m model.icezero.roads [--refresh]`
-  - Overpass API로 고색고 반경 1.5km의 도로(highway), 교량(bridge), 터널, 건물(높이·층수), 하천을 받는다.
-  - 받은 결과는 `data/roads/overpass_*.json`에 캐시한다.
-- 도로 구간 위험도는 ICE-ZERO risk_v2 방식을 따른다(`~/Downloads/ICE-ZERO_github_repo_v3/scripts/improve02_risk.py` 참고).
-  - 구성 요소: 교량, 그림자 지수(남쪽 건물 높이·거리), 도로 등급, 하천 근접
-  - 0~1 상대 점수 `risk`와 지역 내 백분위 `risk_pct`를 낸다.
-- 교차로 선정: 고색고 근처 4방향 교차로 가운데 교량·그늘 갈래가 있고 갈래 위험도 차이가 큰 곳 하나를 고른다. 갈래는 방위로 N·E·S·W에 맞춘다.
-- 출력
-  - `data/roads/gosaek_roads.geojson`
-  - `data/roads/cross_arms.json`: `{"source":{...},"arms":{"N":{"name","label","structure","shadow_index","risk","risk_pct","bearing_deg","length_m","osm_ids":[],"near_water":bool}}}`
-  - `docs/img/gosaek_map.svg`: 학교·관측소·교차로·위험도 색
+## 4. 도로(임의 도로, 사용자 결정)
+- 모형 보드의 도로는 **임의 도로**다. 실제 도로명이나 노드를 모형 갈래에 쓰지 않는다.
+- 갈래 정의는 `data/roads/cross_arms.json` 하나다. 손으로 고치며, 엔진·서버·화면은 이름·속성을 여기서만 읽는다.
+  - 형식: `{"source":{...},"arms":{"N":{"name","label","structure","shadow_index","risk","risk_pct",...}}}`
+  - 기본값
+    - N "북쪽 도로" 그늘 0.3
+    - E "동쪽 도로" 0.0
+    - S "남쪽 도로(기지 진입로)" 0.8
+    - W "서쪽 도로(그늘)" 1.0
+  - 그늘은 모형 건물 배치에서 정한다. SW 아파트와 남쪽 기지 건물이 W·S에 그늘을 만든다.
+  - `risk = 0.25 + 0.6×shadow_index`, `risk_pct` = 네 갈래 순위
+- 예보 모델은 그대로 고색고 주변 관측(수원 ASOS 119)으로 학습한다.
+- [참고 분석] `python3 -m model.icezero.roads`
+  - 고색고 반경 1.5km의 실제 OSM 도로 위험도와 교차로 후보를 계산한다.
+  - 출력: `cross_arms_osm.json`, `gosaek_roads.geojson`, `docs/img/gosaek_map.svg`
+  - 모형 갈래 파일은 덮어쓰지 않는다.
 
 ## 5. 서버(server/gosaek_server.py, 0.0.0.0:8000)
 - 옵션
@@ -132,10 +138,13 @@ makerton/
   - `/api/reset`
 - 센서 융합
   - 갈래 k의 `dt = T_k − baseline_k`. baseline은 시작 후 30초 평균이거나 `/baseline` 시점의 값이다.
-  - 젖음 센서는 E 갈래 `wet`으로 넣는다.
+  - 젖음 센서는 `WET_ARM` 갈래(기본 W, 그늘이 가장 깊은 갈래)의 `wet`으로 넣는다.
   - 센서가 10초 넘게 조용하면 local을 비운다.
 - 자동 출동
-  - 조건: auto가 켜져 있고, step의 recommend가 참이고, 차가 idle이고, 실행 중인 계획이 없다.
+  - 조건: auto가 켜져 있고, step의 recommend가 참이고, 차가 idle이고, 실행 중인 계획이 없다. 기지 링크가 살아 있으면 `dock`도 참이어야 한다(차고에 들어와 있을 때만 출동).
+  - 출동 중에는 `@@SHOW beacon=true`로 기지 지붕 경광등을 돌린다.
+  - 기지 TEL의 `dock`·`refills`·`refilling`을 상태와 화면(기지 상자)에 보여 준다.
+  - `server/board.json`에 중심·기지 거리·갈래 거리를 차 config와 같은 값으로 둔다. 화면이 차 위치(x,y)를 그릴 때 이 값을 쓴다.
   - 이때 `plan`을 보낸다. 대상 갈래는 order다.
   - 갈래 완료(`arm_done`) 시 `treated[arm] = 그 시각 + 3h`. replay는 재생 시각, live는 실제 시각으로 센다.
   - 차가 없으면(`--car none` 또는 링크 끊김) '모의 실행'으로 갈래당 3초 뒤 완료 처리한다.
@@ -160,23 +169,32 @@ makerton/
 ```
   - 배경은 `--deep-space-blue`, 패널은 `--yale-blue`·`--yale-blue-2`, 강조는 `--cerulean`·`--sky-blue-light`다.
 
-## 6. 센서 Pico #1(pico/sensors, Pico 2 W, USB 시리얼)
+## 6. 기지 Pico #1(pico/sensors, 제설기지 관제실 안, Pico 2 W, USB 시리얼)
 | 장치 | 핀 |
 |---|---|
-| DHT11 ×4 (갈래 N/E/S/W) | GP2 / GP3 / GP4 / GP5 (모듈 풀업 사용, 3V3) |
-| 수위감지(젖음, E 교량) AO | GP26 (ADC0) |
+| DHT11 ×4 (갈래 N/E/S/W 길가 기둥) | GP2 / GP3 / GP4 / GP5 (모듈 풀업 사용, 3V3) |
+| 수위감지(젖음) AO — 그늘이 가장 깊은 W 갈래 | GP26 (ADC0) |
 | 조도 모듈 AO(W 그늘, 선택) | GP27 (ADC1) |
 | OLED 0.91" SSD1306 128×32 I2C0 | SDA GP0, SCL GP1, 주소 0x3C |
+| I2C 1602 LCD(기지 전광판, 선택) | 같은 I2C0, 주소 0x27 |
 | 3색 LED 모듈(로컬 경고) | R GP10, G GP11, B GP12 |
 | 능동 부저 | GP13 |
-| 네오픽셀 WS2812 링(선택, 갈래 상태) | DIN GP16 |
-- `@@TEL`(2초마다): `{"t":{"N":f|null,...},"rh":{"N":i|null,...},"ok":{"N":b,...},"wet_raw":i,"wet":b,"light_raw":i|null,"warn":b,"up":i}`
+| **도킹 스위치**(차고 뒤벽 택트 스위치, 풀업) | GP14. 눌리면 0 = 차가 도킹함 |
+| **보충 게이트 SG90**(사일로 출구) | GP15 (닫힘 0°, 열림 60°) |
+| 네오픽셀 WS2812 링(기지 지붕 경광등 + 갈래 상태) | DIN GP16 |
+- `@@TEL`(2초마다): `{"t":{"N":f|null,...},"rh":{"N":i|null,...},"ok":{"N":b,...},"wet_raw":i,"wet":b,"light_raw":i|null,"warn":b,"dock":b,"refills":i,"refilling":b,"up":i}`
   - DHT11은 0~50°C만 잰다. 측정 실패는 null이다.
-- 맥 → Pico: `@@SHOW {"arms":{"N":"risk1|risk2|risk3|plan|done|off",...},"msg":"16자 이내"}`
-- 로컬 경고(맥과 무관)
-  - 켜짐: 어느 갈래든 (`t ≤ WARN_T`이고 `rh ≥ WARN_RH`)이거나, `wet`이고 `t ≤ WARN_T`
-  - 꺼짐: 3회 연속 거짓
-  - 실내 시연 기본값은 WARN_T 3.0, WARN_RH 85. 실제 설치값은 1.0으로 config에 적는다.
+- 맥 → Pico
+  - `@@SHOW {"arms":{"N":"risk1|risk2|risk3|plan|done|off",...},"msg":"ASCII 16자","beacon":b}`: beacon이 참이면 링이 경광등처럼 돈다(출동 중).
+  - `@@REFILL {"ms":800}`: 수동 보충. 도킹 상태에서만 연다.
+- 로컬 규칙(맥과 무관)
+  - 경고
+    - 켜짐: 어느 갈래든 (`t ≤ WARN_T`이고 `rh ≥ WARN_RH`)이거나, `wet`이고 W 갈래 `t ≤ WARN_T`
+    - 꺼짐: 3회 연속 거짓
+    - 실내 시연 기본값은 WARN_T 3.0, WARN_RH 85. 실제 설치값은 1.0이다.
+  - 자동 보충
+    - 조건: 도킹 스위치가 `DOCK_SETTLE_MS=1000` 동안 계속 눌리고, `REFILL_AUTO=True`이고, 마지막 보충에서 `REFILL_COOLDOWN_MS=20000`이 지났다.
+    - 동작: 게이트를 `REFILL_MS=800` 동안 열었다 닫는다. 한 번 도킹에 한 번만 연다.
 
 ## 7. 제설차 Pico #2(pico/car, Pico 2 W, Wi-Fi UDP)
 | 장치 | 핀 |
@@ -191,35 +209,68 @@ makerton/
 - 전원: 보조배터리 USB → Pico. ULN2003 VCC는 VBUS(5V), GND는 공통이다.
 - 기구 상수(config): `WHEEL_D_MM=65`, `TRACK_MM=105`, `STEPS_PER_REV=4096`(하프스텝), `STEP_US=1200`
   - 양쪽 모터는 마주 보게 달리므로 오른쪽 방향을 반전한다.
-- 좌표: 보드 900×900, 중심 (450,450), 위쪽이 북이다.
-  - 홈 = 중심, 북향(0°)
+- 좌표: x는 동쪽, y는 남쪽(mm). 원점은 보드 왼쪽 위 모서리다.
+  - 교차로 중심은 `(CENTER_X, CENTER_Y)`다. 사진 추정값 (480, 340)이며 실측해서 고친다.
   - 방위: N=0, E=90, S=180, W=270(시계 방향)
-- 경로(갈래 하나)
-  1. 갈래 방위로 제자리 회전
-  2. `OUT_MM=360` 전진. 중심에서 `SPRAY_FROM_MM=110`~`SPRAY_TO_MM=340` 구간에서만 서보를 연다.
-  3. 180° 회전
-  4. 360 전진해 중심으로 복귀
-  - 계획이 끝나면 북향으로 회전한다.
+  - **홈 = 기지 도킹 위치** `(CENTER_X, CENTER_Y + BASE_DIST_MM)`, 북향(0°). `BASE_DIST_MM`은 추정 500이다.
+- 갈래 거리(config, 모두 '중심에서 거리', 사진 추정값이며 실측해서 고친다)
+  - `ARM_OUT_MM = {"N":250, "E":380, "W":400}`: 차 중심이 멈추는 거리. 판 끝에서 약 90mm 앞이다.
+  - `SPRAY_WIN = {"N":(100,250), "E":(100,380), "S":(100,390), "W":(100,400)}`: 서보를 여는 구간
+  - `DOCK_OVERDRIVE_MM = 15`: 차고 뒤벽에 살짝 밀어붙여 자세를 다시 맞춘다. 스텝 몇 개를 헛돌아도 괜찮다.
+- 경로(plan)
+  1. **출발**: 도킹 위치에서 북쪽으로 `BASE_DIST_MM` 전진해 중심으로 간다.
+     - order에 S가 있으면 이 길에서 `SPRAY_WIN["S"]`(중심까지 남은 거리 기준) 구간을 살포한다. S 갈래가 기지로 가는 길이기 때문이다.
+     - 이때 S의 arm_start·arm_done을 보낸다.
+  2. **갈래**: S를 뺀 갈래를 order 순서대로 처리한다.
+     - 방위로 회전 → `ARM_OUT_MM[arm]` 전진(나가는 길에만 SPRAY_WIN 살포) → 180° 회전 → 같은 거리 전진해 중심 복귀 → arm_done
+  3. **귀환**: 북향으로 회전한다. `BASE_DIST_MM + DOCK_OVERDRIVE_MM`만큼 **후진**해 차고에 들어간다(phase home).
+     - 끝나면 추측 자세를 도킹 위치·북향으로 다시 맞추고 plan_done을 보낸다.
+  - `home` 명령: 지금 추측 위치에서 중심으로 돌아온 뒤 3번 귀환을 한다.
 - UDP JSON(한 줄 = 한 데이터그램)
   - 차 → 서버(서버 9200)
     - `{"t":"hello","id":"car1"}`: 부팅 시 브로드캐스트. config `SERVER_IP`가 비면 브로드캐스트한다.
-    - `{"t":"tel","id":"car1","state":"idle|run|pause|stopped|error","seq":n,"arm":"E","phase":"turn|out|back|home|idle","x":mm,"y":mm,"h":deg,"spray":b,"obst_cm":f|null,"up":ms}`: 500ms마다
+    - `{"t":"tel","id":"car1","state":"idle|run|pause|stopped|error","seq":n,"arm":"E","phase":"depart|turn|out|back|home|idle","x":mm,"y":mm,"h":deg,"spray":b,"obst_cm":f|null,"up":ms}`: 500ms마다
     - `{"t":"ack","seq":n,"ok":b,"reason":""}`
     - `{"t":"evt","e":"plan_start|arm_start|spray_on|spray_off|arm_done|plan_done|stopped|obstacle|resumed|aborted","seq":n,"arm":"E"}`
   - 서버 → 차(차 9201)
     - `{"t":"plan","seq":n,"order":["E","W"]}`: 실행 중이면 거절(ack ok=false)
-    - `{"t":"stop"}`
-    - `{"t":"home"}`
-    - `{"t":"ping"}`
+    - `{"t":"stop"}`, `{"t":"home"}`, `{"t":"ping"}`
   - 같은 seq는 한 번만 실행한다.
 - 안전
   - 초음파 `< OBST_CM=8`이면 정지한다. 1초 동안 비면 재개하고, 10초 넘게 막히면 aborted를 보낸다.
-  - 버튼이나 stop 명령이 오면 코일 전원을 끄고 서보를 닫은 뒤 stopped로 바꾼다. home 명령이 오면 추측 위치로 중심에 돌아간다.
+    - **후진(귀환) 중에는 앞쪽 초음파를 무시한다.** 차고 벽을 장애물로 보지 않게 하려는 것이다.
+  - 버튼이나 stop 명령이 오면 코일 전원을 끄고 서보를 닫은 뒤 stopped로 바꾼다. 버튼을 다시 누르면 남은 구간을 재개한다.
   - 실행 중 서버 패킷이 `LINK_TIMEOUT_MS=5000` 넘게 없으면 pause하고, 다시 받으면 재개한다.
 
-## 8. 물리 배치(mm, 원점 왼쪽 위, 위쪽 북)
-- 보드 900×900. 도로는 세로 x 375~525, 가로 y 375~525. 갈래 이름·속성은 `cross_arms.json`을 따른다.
-- 센서 기둥(DHT11): N (535,220), E (680,535), S (365,680), W (220,365)
-- 젖음 센서: E 갈래 남쪽 가장자리 (700,540)
-- 조도 센서: W 갈래 (200,530)
-- 센서 Pico와 맥북은 보드 동쪽 책상에 둔다. 제설차는 중심(450,450)에서 북향으로 대기한다.
+## 8. 물리 배치(사용자 보드 사진 기준, mm)
+- 보드: 흰 우드락 위에 검은 종이 도로를 붙였다.
+  - 도로 폭 약 150(A4를 세로로 반 자른 폭으로 추정)
+  - 중앙 광장은 검은 A3 한 장 297(동서)×420(남북)
+  - 아래 값은 모두 사진 추정이다. 줄자로 재서 차 config와 `server/board.json`에 같이 넣는다.
+- 중심 기준 길이(추정)
+  - 판 끝까지: N 340, E 470, W 500. S 도로는 남쪽 395에서 끝나고, 그 아래 흰 공간이 기지 자리다.
+  - 광장 가장자리: N 243, S 176, W 157, E 140
+- 건물: 네 모퉁이(NW·NE·SW·SE) 흰 공간에 세운다.
+  - 도로 가장자리에서 30mm, 광장 모서리에서 40mm 이상 띄운다. 차·초음파 간섭을 막기 위해서다.
+  - SW(높은 아파트)는 W·S 갈래에 그늘을 만든다. 실제 그림자 지수 W 1.00, S 0.84에 맞춘다.
+  - E 갈래(서둔로17번길) 옆에는 고색고 교사동을 둔다. NW는 낮은 주택이다(N 0.29).
+- DHT11 기둥: 도로 가장자리에서 30mm 밖, 중심에서 약 200mm
+  - 중심 기준 (동+, 남+): N (+105,−220), E (+220,+105), S (−105,+260), W (−220,−105)
+- 젖음·조도 센서: W 갈래(−300, −95) 길가
+- 기지: S 도로 끝 남쪽(9절). 맥북은 기지 옆 책상에 둔다.
+
+## 9. 제설기지(base)
+- 위치: S 도로 끝 남쪽. 차고 입구 중심선 = S 도로 중심선
+- 외곽은 약 320(동서)×230(남북)
+  - 서쪽에 차고(bay)를 둔다. 동쪽은 관제실(Pico #1·브레드보드·LCD·부저)이다.
+  - 지붕에 네오픽셀 링 경광등을 단다.
+- 차고
+  - 안쪽 크기: 폭 140, 깊이 190, 높이 120
+  - 입구 양쪽 벽 끝을 45°로 20mm 벌린다(깔때기).
+  - 바닥 양쪽 벽을 따라 높이 8mm 안내 레일을 붙여 차를 가운데로 모은다.
+  - 뒤벽에 범퍼판(우드락 60×30)을 대고 그 뒤에 도킹 스위치를 단다. 차가 후진으로 밀면 눌린다.
+- 보충 사일로
+  - 차고 위 깔때기(종이·PET 원뿔), 출구 지름 12mm
+  - 출구 아래 SG90 패들이 게이트다(닫힘 0°, 열림 60°).
+  - 출구 위치 = 도킹했을 때 차 호퍼 입구 위. 차 뒤 범퍼에서 `HOPPER_FROM_REAR_MM`(차 설계값 75)이다.
+- 차(참고): 전체 길이 150, 폭 113(바퀴 포함), 높이 약 95(호퍼 입구). 자세한 치수는 docs의 제설차 도면이다.

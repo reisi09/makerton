@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>makerton 고색고 사거리 — 조작 대시보드</title>
 <style>
+  @font-face {
+    font-family: "Pretendard Variable";
+    src: url("/static/fonts/PretendardVariable.woff2") format("woff2");
+    font-weight: 45 920;
+    font-display: swap;
+  }
   * { box-sizing: border-box; }
   :root{
     --deep-space-blue:#012a4aff; --yale-blue:#013a63ff; --yale-blue-2:#01497cff; --yale-blue-3:#014f86ff;
@@ -12,7 +18,7 @@
     --sky-blue-light:#89c2d9ff; --light-blue:#a9d6e5ff;
   }
   body { margin:0; background:var(--deep-space-blue); color:#fff;
-         font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif; font-size:14px; }
+         font-family:"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", sans-serif; font-size:14px; }
   header { background:var(--yale-blue); border-bottom:1px solid var(--yale-blue-3);
            padding:10px 18px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
   header h1 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.2px; }
@@ -20,7 +26,7 @@
   header .sub { font-size:12px; color:var(--sky-blue-light); }
   header .grow { flex:1; }
   .badge { padding:3px 10px; border-radius:999px; background:var(--yale-blue-2);
-           color:var(--sky-blue-light); font-size:12px; font-weight:800; white-space:nowrap; }
+           color:var(--sky-blue-light); font-size:12px; font-weight:700; white-space:nowrap; }
   .badge.ok { background:var(--cerulean); color:#fff; }
   .badge.off { background:var(--yale-blue-3); color:var(--sky-blue-light); }
   .badge.station { background:var(--cerulean); color:#fff; font-size:13px; }
@@ -48,7 +54,7 @@
   .legend i { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:4px;
               vertical-align:-2px; }
   table.kv { width:100%; border-collapse:collapse; font-size:13px; }
-  table.kv th { text-align:left; color:var(--sky-blue-light); font-weight:700; width:48%; padding:3px 0; }
+  table.kv th { text-align:left; color:var(--sky-blue-light); font-weight:700; width:44%; padding:3px 0; }
   table.kv td { padding:3px 0; font-weight:800; color:#fff; }
   table.grid { width:100%; border-collapse:collapse; font-size:12.5px; }
   table.grid th { text-align:left; padding:5px 6px; color:var(--sky-blue-light);
@@ -96,7 +102,7 @@
            border:1px solid var(--sky-blue-light); padding:10px 14px; border-radius:10px; font-size:13px;
            opacity:0; transition:opacity .2s; pointer-events:none; max-width:340px; font-weight:700; }
   #toast.on { opacity:.97; }
-  .url { position:fixed; right:12px; bottom:8px; font-size:12px; font-weight:800;
+  .url { position:fixed; left:12px; bottom:8px; font-size:12px; font-weight:700;
          color:var(--light-blue); background:var(--yale-blue); padding:2px 8px; border-radius:6px;
          opacity:.9; pointer-events:none; }
 </style>
@@ -113,27 +119,12 @@
 
 <main>
   <section class="panel" id="cross">
-    <h2>십자 사거리 <em>4갈래</em> <small id="crossNote">—</small></h2>
-    <svg class="cross" viewBox="0 0 900 900" preserveAspectRatio="xMidYMid meet">
-      <defs>
-        <pattern id="roads" width="26" height="26" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-          <line x1="0" y1="0" x2="0" y2="26" stroke="#01497c" stroke-width="7"/>
-        </pattern>
-      </defs>
-      <rect x="0" y="0" width="900" height="900" fill="#012a4a"/>
-      <rect x="375" y="0" width="150" height="900" fill="#013a63"/>
-      <rect x="0" y="375" width="900" height="150" fill="#013a63"/>
-      <line x1="450" y1="0" x2="450" y2="375" stroke="#61a5c2" stroke-width="3" stroke-dasharray="18 14"/>
-      <line x1="450" y1="525" x2="450" y2="900" stroke="#61a5c2" stroke-width="3" stroke-dasharray="18 14"/>
-      <line x1="0" y1="450" x2="375" y2="450" stroke="#61a5c2" stroke-width="3" stroke-dasharray="18 14"/>
-      <line x1="525" y1="450" x2="900" y2="450" stroke="#61a5c2" stroke-width="3" stroke-dasharray="18 14"/>
+    <h2>십자 사거리 <em>4갈래 · 제설기지</em> <small id="crossNote">—</small></h2>
+    <svg class="cross" id="crossSvg" viewBox="-30 -30 1010 1020" preserveAspectRatio="xMidYMid meet">
+      <g id="boardLayer"></g>
       <g id="armsLayer"></g>
-      <rect x="375" y="375" width="150" height="150" fill="#013a63" stroke="#468faf" stroke-width="2"/>
+      <g id="baseLayer"></g>
       <g id="carLayer"></g>
-      <text x="450" y="32" font-size="15" fill="#89c2d9" text-anchor="middle" font-weight="800">북 N</text>
-      <text x="450" y="888" font-size="15" fill="#89c2d9" text-anchor="middle" font-weight="800">남 S</text>
-      <text x="14" y="358" font-size="15" fill="#89c2d9" font-weight="800">서 W</text>
-      <text x="886" y="358" font-size="15" fill="#89c2d9" text-anchor="end" font-weight="800">동 E</text>
     </svg>
     <div class="legend">
       <span><i style="background:#2a6f97"></i>risk1 낮음</span>
@@ -146,7 +137,7 @@
   </section>
 
   <section class="panel" id="side">
-    <h2>자동 출동 <em>제설차</em> <small id="carNote">—</small></h2>
+    <h2>자동 출동 <em>제설차 · 기지</em> <small id="carNote">—</small></h2>
     <div class="pad">
       <div class="row">
         <button id="btnAuto" class="primary">자동 출동</button>
@@ -171,6 +162,8 @@
         <tr><th>완료</th><td id="execDone">—</td></tr>
         <tr><th>차 위치 · 방위</th><td id="carPos">—</td></tr>
         <tr><th>진행 단계</th><td id="carPhase">—</td></tr>
+        <tr><th>기지 도킹</th><td id="baseDock">—</td></tr>
+        <tr><th>보충</th><td id="baseRefill">—</td></tr>
       </table>
       <div class="hint" id="dispatchHint" style="margin-top:6px"></div>
     </div>
@@ -232,8 +225,8 @@
   <section class="panel" id="chart">
     <h2>예보 그래프 <em>관측 지면온도 · +3h 예측</em> <small id="chartNote">—</small></h2>
     <div class="pad">
-      <svg id="chartSvg" viewBox="0 0 900 230" preserveAspectRatio="none"
-           style="width:100%;height:230px;display:block"></svg>
+      <svg id="chartSvg" viewBox="0 0 900 240" preserveAspectRatio="none"
+           style="width:100%;height:240px;display:block"></svg>
     </div>
   </section>
 
@@ -250,9 +243,11 @@
   'use strict';
   var ARMS = ['N', 'E', 'S', 'W'];
   var LEVEL_COLOR = {risk1: '#2a6f97', risk2: '#61a5c2', risk3: '#a9d6e5', done: '#014f86', off: '#013a63'};
-  var LEVEL_KR = {risk1: '낮음', risk2: '주의', risk3: '높음', done: '✓ 처리됨', off: '자료 없음'};
+  var LEVEL_KR = {risk1: '낮음', risk2: '주의', risk3: '높음', done: '처리됨', off: '자료 없음'};
+  var LEVEL_MARK = {risk1: '▲', risk2: '▲▲', risk3: '▲▲▲', done: '✓', off: '·'};
   var EXEC_KR = {idle: '대기', running: '실행 중', done: '완료', failed: '중단', stopped: '정지'};
-  var PHASE_KR = {idle: '대기', turn: '회전', out: '전진·살포', back: '복귀', home: '홈 이동'};
+  var PHASE_KR = {idle: '대기', depart: '기지 출발', turn: '회전', out: '전진·살포',
+                  back: '복귀', home: '기지 귀환'};
   var lastNights = '';
   var lastState = null;
 
@@ -265,112 +260,191 @@
     if (v === null || v === undefined || isNaN(Number(v))) return '—';
     return Number(v).toFixed(digits === undefined ? 1 : digits);
   }
-  function ageText(age) {
-    if (age === null || age === undefined) return '신호 없음';
-    if (age < 1) return '방금';
-    return age.toFixed(1) + '초 전';
+  function shortName(value) {
+    var text = String(value || '');
+    return text.length > 7 ? (text.slice(0, 6) + '…') : text;
   }
-  function toast(msg) {
-    var t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'on';
-    clearTimeout(toast._t);
-    toast._t = setTimeout(function () { t.className = ''; }, 2600);
+  function boardOf(st) {
+    var b = st.board || {};
+    var plaza = b.PLAZA_MM || [297, 420];
+    var ends = b.ARM_END_MM || {N: 340, E: 470, W: 500, S: 395};
+    var baseSize = b.BASE_MM || [320, 230];
+    return {
+      cx: Number(b.CENTER_X) || 480,
+      cy: Number(b.CENTER_Y) || 340,
+      road: Number(b.ROAD_MM) || 150,
+      pw: Number(plaza[0]) || 297,
+      ph: Number(plaza[1]) || 420,
+      nEnd: Number(ends.N) || 340,
+      eEnd: Number(ends.E) || 470,
+      wEnd: Number(ends.W) || 500,
+      sEnd: Number(ends.S) || 395,
+      dist: Number(b.BASE_DIST_MM) || 500,
+      bw: Number(baseSize[0]) || 320,
+      bh: Number(baseSize[1]) || 230
+    };
   }
-  function api(path, body) {
-    return fetch(path, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body || {})
-    }).then(function (r) {
-      return r.json().then(function (data) {
-        if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
-        return data;
-      });
-    });
-  }
-  function act(path, body) {
-    return api(path, body).then(function () { return refresh(); })
-      .catch(function (e) { toast(e.message); });
-  }
-
-  // ------------------------------------------------------------ 십자 사거리
-  function armLevel(armId, armData, treated) {
+  function levelOf(armId, armData, treated) {
     if (treated && treated[armId]) return 'done';
     return (armData && armData.level) || 'off';
   }
 
-  function drawCross(st) {
+  // ------------------------------------------------------------ 사거리 그림
+  function drawBoard(st) {
+    var B = boardOf(st);
+    var x0 = B.cx - B.wEnd, x1 = B.cx + B.eEnd;
+    var y0 = B.cy - B.nEnd, y1 = B.cy + B.sEnd;
+    var baseY = y1;
+    var out = [];
+    out.push('<rect x="' + (B.cx - B.road / 2) + '" y="' + y0 + '" width="' + B.road +
+             '" height="' + (y1 - y0) + '" fill="#013a63"/>');
+    out.push('<rect x="' + x0 + '" y="' + (B.cy - B.road / 2) + '" width="' + (x1 - x0) +
+             '" height="' + B.road + '" fill="#013a63"/>');
+    out.push('<rect x="' + (B.cx - B.pw / 2) + '" y="' + (B.cy - B.ph / 2) + '" width="' + B.pw +
+             '" height="' + B.ph + '" fill="#01497c" stroke="#468faf" stroke-width="2"/>');
+    var dash = ' stroke="#61a5c2" stroke-width="3" stroke-dasharray="22 16"';
+    out.push('<line x1="' + B.cx + '" y1="' + y0 + '" x2="' + B.cx + '" y2="' +
+             (B.cy - B.ph / 2) + '"' + dash + '/>');
+    out.push('<line x1="' + B.cx + '" y1="' + (B.cy + B.ph / 2) + '" x2="' + B.cx + '" y2="' +
+             y1 + '"' + dash + '/>');
+    out.push('<line x1="' + x0 + '" y1="' + B.cy + '" x2="' + (B.cx - B.pw / 2) + '" y2="' +
+             B.cy + '"' + dash + '/>');
+    out.push('<line x1="' + (B.cx + B.pw / 2) + '" y1="' + B.cy + '" x2="' + x1 + '" y2="' +
+             B.cy + '"' + dash + '/>');
+
+    var baseX = B.cx - B.bw / 2;
+    out.push('<rect x="' + baseX + '" y="' + baseY + '" width="' + B.bw + '" height="' + B.bh +
+             '" rx="6" fill="#01497c" stroke="#89c2d9" stroke-width="3"/>');
+    var bayX = B.cx - 70, bayY = baseY + 10;
+    out.push('<rect x="' + bayX + '" y="' + bayY + '" width="140" height="190" fill="#012a4a" ' +
+             'stroke="#468faf" stroke-width="2"/>');
+    out.push('<line x1="' + bayX + '" y1="' + bayY + '" x2="' + (bayX + 16) + '" y2="' + baseY +
+             '" stroke="#468faf" stroke-width="2"/>');
+    out.push('<line x1="' + (bayX + 140) + '" y1="' + bayY + '" x2="' + (bayX + 124) + '" y2="' +
+             baseY + '" stroke="#468faf" stroke-width="2"/>');
+    out.push('<rect x="' + (B.cx + 78) + '" y="' + bayY + '" width="72" height="150" ' +
+             'fill="#013a63" stroke="#468faf" stroke-width="2"/>');
+    out.push('<text x="' + (B.cx + 114) + '" y="' + (bayY + 130) + '" font-size="16" ' +
+             'font-weight="700" fill="#a9d6e5" text-anchor="middle">관제실</text>');
+    out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 30) + '" font-size="22" ' +
+             'font-weight="800" fill="#eaf6fb">제설기지</text>');
+    out.push('<text x="' + B.cx + '" y="' + (baseY + 214) + '" font-size="18" font-weight="700" ' +
+             'fill="#89c2d9" text-anchor="middle">차고</text>');
+    out.push('<text x="' + B.cx + '" y="' + (y0 + 22) + '" font-size="22" font-weight="800" ' +
+             'fill="#61a5c2" text-anchor="middle">북 N ↑</text>');
+    document.getElementById('boardLayer').innerHTML = out.join('');
+  }
+
+  function drawBase(st) {
+    var B = boardOf(st);
+    var base = st.base || {};
+    var baseY = B.cy + B.sEnd;
+    var baseX = B.cx - B.bw / 2;
+    var out = [];
+    var bx = B.cx + 114, by = baseY + 34;
+    out.push('<circle cx="' + bx + '" cy="' + by + '" r="9" fill="' +
+             (base.beacon ? '#a9d6e5' : '#014986') + '" stroke="#89c2d9" stroke-width="2"/>');
+    if (base.beacon) {
+      out.push('<circle class="pulse" cx="' + bx + '" cy="' + by + '" r="17" fill="none" ' +
+               'stroke="#a9d6e5" stroke-width="3"/>');
+    }
+    var dock = base.dock;
+    out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 62) + '" font-size="19" ' +
+             'font-weight="800" fill="' + (dock ? '#a9d6e5' : '#89c2d9') + '">도킹 ' +
+             (dock === null || dock === undefined ? '—' : (dock ? '✓' : '이탈')) + '</text>');
+    var refills = (base.refills === null || base.refills === undefined) ? '—' : base.refills;
+    out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 88) + '" font-size="19" ' +
+             'font-weight="800" fill="#eaf6fb">보충 ' + refills + '</text>');
+    if (base.refilling) {
+      out.push('<text x="' + (baseX + 10) + '" y="' + (baseY + 112) + '" font-size="15" ' +
+               'font-weight="700" fill="#a9d6e5">보충 중…</text>');
+    }
+    document.getElementById('baseLayer').innerHTML = out.join('');
+  }
+
+  function drawArms(st) {
     var step = st.step || {};
     var arms = step.arms || {};
     var treated = st.treated || {};
     var order = ((step.dispatch || {}).order) || [];
     var out = [];
 
-    function box(armId, x, y, w, h, tx, ty, anchor) {
+    function card(armId, x, y) {
+      var w = 300, h = 210;
       var a = arms[armId] || {};
-      var level = armLevel(armId, a, treated);
+      var level = levelOf(armId, a, treated);
       var color = LEVEL_COLOR[level] || LEVEL_COLOR.off;
       var p = a.p_max;
-      var opacity = (p === undefined || p === null) ? 0.35 : (0.35 + 0.6 * Math.min(1, p));
+      var opacity = (p === undefined || p === null) ? 0.4 : (0.4 + 0.55 * Math.min(1, p));
       out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
-               '" rx="8" fill="' + color + '" fill-opacity="' + opacity.toFixed(2) +
-               '" stroke="' + color + '" stroke-width="3"/>');
+               '" rx="12" fill="' + color + '" fill-opacity="' + opacity.toFixed(2) +
+               '" stroke="' + color + '" stroke-width="4"/>');
+      if (level === 'risk3') {
+        out.push('<rect class="pulse" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+                 '" rx="12" fill="none" stroke="' + color + '" stroke-width="8"/>');
+      }
       var idx = order.indexOf(armId);
-      var shortName = (a.name || '').length > 7 ? ((a.name || '').slice(0, 7) + '…') : (a.name || '');
+      var dark = (level === 'risk3' || level === 'risk2');
+      var fg = dark ? '#012a4a' : '#eaf6fb';
+      var cx = x + w / 2;
       var lines = [
-        armId + ' · ' + shortName,
-        '동결확률 ' + num(a.p_max, 2),
-        '+3h ' + num((a.t_eff || {}).h3) + '℃',
-        '현장 ' + (a.local_dt === null || a.local_dt === undefined ? '0.0' : num(a.local_dt)) + '℃',
-        treated[armId] ? ('✓ 처리 ' + String(treated[armId]).slice(11, 16) + '까지')
-                       : (idx >= 0 ? (idx + 1) + '순위 출동' : LEVEL_KR[level])
+        [armId + ' ' + shortName(a.name), 22, 40],
+        [num(a.p_max, 2), 50, 104],
+        [LEVEL_MARK[level] + ' ' + LEVEL_KR[level], 22, 138],
+        ['+3h ' + num((a.t_eff || {}).h3) + '℃', 20, 168],
+        [treated[armId] ? ('✓ 처리 ' + String(treated[armId]).slice(11, 16) + '까지')
+                        : (idx >= 0 ? ((idx + 1) + '순위 출동')
+                                    : ('현장 ' + (a.local_dt === null || a.local_dt === undefined
+                                                 ? '0.0' : num(a.local_dt)) + '℃')), 20, 196]
       ];
-      lines.forEach(function (line, i) {
-        if (!line) return;
-        out.push('<text x="' + tx + '" y="' + (ty + i * 18) + '" font-size="' + (i === 0 ? 14 : 13) +
-                 '" font-weight="' + (i === 0 ? 800 : 700) +
-                 '" fill="' + (level === 'risk3' || level === 'risk2' ? '#012a4a' : '#eaf6fb') +
-                 '" text-anchor="' + anchor + '">' + esc(line) + '</text>');
+      lines.forEach(function (line) {
+        out.push('<text x="' + cx + '" y="' + (y + line[2]) + '" font-size="' + line[1] +
+                 '" font-weight="800" fill="' + fg + '" text-anchor="middle">' +
+                 esc(line[0]) + '</text>');
       });
     }
 
-    box('N', 350, 46, 200, 160, 450, 76, 'middle');
-    box('S', 350, 694, 200, 160, 450, 724, 'middle');
-    box('W', 20, 370, 200, 160, 120, 400, 'middle');
-    box('E', 680, 370, 200, 160, 780, 400, 'middle');
-
-    // 제설차 아이콘
-    var car = (st.car || {}).tel || {};
-    var cx = (car.x === null || car.x === undefined) ? 450 : car.x;
-    var cy = (car.y === null || car.y === undefined) ? 450 : car.y;
-    var ch = (car.h === null || car.h === undefined) ? 0 : car.h;
-    var running = (car.state === 'run' || car.state === 'pause');
-    var carColor = running ? '#a9d6e5' : '#89c2d9';
-
+    // 카드는 도로 밖 네 모퉁이에 둔다(차·도로를 가리지 않게).
+    card('N', 20, 30);
+    card('E', 660, 30);
+    card('W', 20, 470);
+    card('S', 660, 470);
     document.getElementById('armsLayer').innerHTML = out.join('');
-    document.getElementById('carLayer').innerHTML =
-      '<g transform="translate(' + cx + ',' + cy + ') rotate(' + ch + ')">' +
-      '<rect x="-26" y="-18" width="52" height="36" rx="8" fill="' + carColor +
-      '" stroke="#012a4a" stroke-width="2"/>' +
-      '<polygon points="0,-30 10,-16 -10,-16" fill="' + carColor + '"/>' +
-      (car.spray ? '<circle cx="0" cy="0" r="34" fill="none" stroke="#a9d6e5" stroke-width="3" opacity="0.8"/>' : '') +
-      '</g>' +
-      '<text x="' + cx + '" y="' + (cy + 46) + '" font-size="13" font-weight="800" ' +
-      'fill="#eaf6fb" text-anchor="middle">' + esc(PHASE_KR[car.phase] || car.phase || '대기') + '</text>';
-    var d = step.dispatch || {};
-    document.getElementById('crossNote').textContent = step
-      ? ((d.order || []).length ? ('출동 순서 ' + d.order.join(' → ') + ' · 예산 ' + d.budget + '갈래')
-                                : '출동 후보 없음')
-      : '엔진 자료 없음';
   }
 
-  // --------------------------------------------------------------- 그래프
+  function drawCar(st) {
+    var B = boardOf(st);
+    var base = st.base || {};
+    var car = (st.car || {}).tel || {};
+    var dockY = B.cy + B.dist;
+    var cx = (car.x === null || car.x === undefined) ? B.cx : Number(car.x);
+    var cy = (car.y === null || car.y === undefined) ? dockY : Number(car.y);
+    var docked = base.dock && (car.state === 'idle' || car.state === 'done' || !car.state);
+    if (docked) {
+      cx = B.cx;
+      cy = dockY;
+    }
+    var ch = (car.h === null || car.h === undefined) ? 0 : Number(car.h);
+    var moving = (car.state === 'run' || car.state === 'pause');
+    var fill = moving ? '#a9d6e5' : '#89c2d9';
+    var out = [];
+    out.push('<g transform="translate(' + cx + ',' + cy + ') rotate(' + ch + ')">' +
+             '<rect x="-38" y="-58" width="76" height="116" rx="14" fill="' + fill +
+             '" stroke="#012a4a" stroke-width="3"/>' +
+             '<polygon points="0,-80 16,-56 -16,-56" fill="' + fill + '"/>' +
+             (car.spray ? '<circle cx="0" cy="0" r="58" fill="none" stroke="#a9d6e5" stroke-width="5"/>' : '') +
+             '</g>');
+    out.push('<text x="' + cx + '" y="' + (cy + 82) + '" font-size="19" font-weight="800" ' +
+             'fill="#eaf6fb" text-anchor="middle">' +
+             esc(PHASE_KR[car.phase] || car.phase || '대기') + '</text>');
+    document.getElementById('carLayer').innerHTML = out.join('');
+  }
+
   function drawChart(st) {
     var svg = document.getElementById('chartSvg');
     var series = st.series || {};
     if (!series.ready || !series.time || !series.time.length) {
-      svg.innerHTML = '<text x="450" y="115" text-anchor="middle" font-size="14" fill="#89c2d9">' +
+      svg.innerHTML = '<text x="450" y="120" text-anchor="middle" font-size="14" fill="#89c2d9">' +
         esc(series.note || '계산 중') + '</text>';
       return;
     }
@@ -431,15 +505,15 @@
     out.push('<line x1="' + padL + '" y1="' + legendY + '" x2="' + (padL + 30) + '" y2="' + legendY +
              '" stroke="#ffffff" stroke-width="3.5"/>');
     out.push('<text x="' + (padL + 38) + '" y="' + (legendY + 4) + '" font-size="12" ' +
-             'font-weight="800" fill="#ffffff">관측 지면</text>');
+             'font-weight="700" fill="#ffffff">관측 지면</text>');
     out.push('<line x1="' + (padL + 126) + '" y1="' + legendY + '" x2="' + (padL + 156) + '" y2="' +
              legendY + '" stroke="#89c2d9" stroke-width="2.5" stroke-dasharray="10 7"/>');
     out.push('<text x="' + (padL + 164) + '" y="' + (legendY + 4) + '" font-size="12" ' +
-             'font-weight="800" fill="#89c2d9">+3h 예측</text>');
+             'font-weight="700" fill="#89c2d9">+3h 예측</text>');
     out.push('<line x1="' + (padL + 252) + '" y1="' + (legendY - 6) + '" x2="' + (padL + 252) +
              '" y2="' + (legendY + 6) + '" stroke="#a9d6e5" stroke-width="2" stroke-dasharray="4 4"/>');
     out.push('<text x="' + (padL + 260) + '" y="' + (legendY + 4) + '" font-size="12" ' +
-             'font-weight="800" fill="#a9d6e5">현재 시각</text>');
+             'font-weight="700" fill="#a9d6e5">현재 시각</text>');
     svg.innerHTML = out.join('');
     document.getElementById('chartNote').textContent = series.note || '';
   }
@@ -456,7 +530,7 @@
     var parts = [];
     parts.push('<span class="badge ' + (eng.ok ? 'ok' : 'off') + '">엔진 ' +
       (eng.ok ? '정상' : (eng.present ? '오류' : '없음')) + '</span>');
-    parts.push('<span class="badge ' + (sen.ok ? 'ok' : 'off') + '">센서 ' +
+    parts.push('<span class="badge ' + (sen.ok ? 'ok' : 'off') + '">기지 ' +
       (sen.mode === 'none' ? '없음' : (sen.ok ? '연결' : '끊김')) + '</span>');
     parts.push('<span class="badge ' + (car.ok ? 'ok' : 'off') + '">제설차 ' +
       (car.mode === 'none' ? '없음' : (car.ok ? '연결' : '끊김')) + '</span>');
@@ -483,12 +557,18 @@
     document.getElementById('execBar').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
     var car = st.car || {};
     var tel = car.tel || {};
+    var base = st.base || {};
     document.getElementById('carPos').textContent =
       (tel.x === null || tel.x === undefined ? '—' : (num(tel.x, 0) + ', ' + num(tel.y, 0))) +
       (tel.h === null || tel.h === undefined ? '' : (' · ' + num(tel.h, 0) + '°'));
     document.getElementById('carPhase').textContent =
       (PHASE_KR[tel.phase] || tel.phase || '대기') +
       (tel.arm ? (' · ' + tel.arm) : '') + (tel.spray ? ' · 살포 중' : '');
+    document.getElementById('baseDock').textContent =
+      base.ok ? (base.dock ? '도킹됨' : '이탈') : '기지 신호 없음';
+    document.getElementById('baseRefill').textContent =
+      (base.refills === null || base.refills === undefined ? '—' : base.refills + '회') +
+      (base.refilling ? ' · 보충 중' : '');
     document.getElementById('carNote').textContent =
       car.mode === 'none' ? '링크 없음(모의 실행)' :
       (car.ok ? ('연결 ' + (car.addr || '') + ' · ' + ageText(car.age)) : ('끊김 · ' + ageText(car.age)));
@@ -502,7 +582,14 @@
     document.getElementById('dispatchHint').textContent = st.engine.error ? st.engine.error :
       ('제안 ' + ((disp.order || []).join(' → ') || '없음') + ' · 기준 p_max ' +
        (disp.threshold === undefined ? '—' : disp.threshold) +
-       ' · ' + (disp.recommend ? '자동 출동 조건 충족' : '자동 출동 조건 아님'));
+       ' · ' + (disp.recommend ? '자동 출동 조건 충족' : '자동 출동 조건 아님') +
+       (base.ok ? (' · 기지 ' + (base.dock ? '도킹' : '이탈')) : ''));
+  }
+
+  function ageText(age) {
+    if (age === null || age === undefined) return '신호 없음';
+    if (age < 1) return '방금';
+    return age.toFixed(1) + '초 전';
   }
 
   function renderSensorRows(st) {
@@ -526,8 +613,8 @@
     document.getElementById('baselineNote').textContent =
       sen.baseline_ready ? '기준값 있음' : '기준값 잡는 중(30초)';
     document.getElementById('sensorHint').textContent =
-      '젖음 센서는 E 갈래에 들어갑니다. 현장 경고: ' + (tel.warn ? '켜짐' : '꺼짐') +
-      ' · 센서가 10초 넘게 조용하면 보정 dt 를 비웁니다.';
+      '젖음 센서는 ' + (st.wet_arm || 'W') + ' 갈래에 들어갑니다. 현장 경고: ' +
+      (tel.warn ? '켜짐' : '꺼짐') + ' · 센서가 조용하면 보정 dt 를 비웁니다.';
   }
 
   function renderModel(st) {
@@ -590,7 +677,10 @@
 
   function render(st) {
     lastState = st;
-    drawCross(st);
+    drawBoard(st);
+    drawArms(st);
+    drawBase(st);
+    drawCar(st);
     drawChart(st);
     renderHeader(st);
     renderSide(st);
@@ -639,6 +729,30 @@
   document.getElementById('btnReset').addEventListener('click', function () {
     if (confirm('시연 초기화: 처리됨·출동·센서 기준값을 지웁니다. 계속할까요?')) act('/api/reset', {});
   });
+
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'on';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.className = ''; }, 2600);
+  }
+  function api(path, body) {
+    return fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+        return data;
+      });
+    });
+  }
+  function act(path, body) {
+    return api(path, body).then(function () { return refresh(); })
+      .catch(function (e) { toast(e.message); });
+  }
 
   refresh();
   setInterval(refresh, 500);

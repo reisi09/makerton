@@ -9,6 +9,9 @@ WORLD = None
 class World:
     def __init__(self):
         self.outputs = {}        # 핀 번호 → 마지막 출력 값(0/1)
+        self.inputs = {}         # 핀 번호 → 입력 값. 없으면 1(풀업, 안 눌림)
+        self.duties = {}         # 핀 번호 → 마지막 duty_u16 (서보)
+        self.duty_log = []       # [(핀, duty)] 호출 순서
         self.adc = {}            # 핀 번호 → raw 값. 없으면 기본값을 쓴다
         self.adc_reads = {}      # 핀 번호 → 읽은 횟수
         self.dht = {2: (2.0, 90), 3: (1.5, 88), 4: (4.0, 70), 5: (5.0, 60)}  # 핀 → (온도, 습도)
@@ -42,6 +45,8 @@ class Pin:
 
     def value(self, v=None):
         if v is None:
+            if self.mode == Pin.IN:
+                return WORLD.inputs.get(self.num, 1)   # 풀업 기본값: 안 눌림
             return WORLD.outputs.get(self.num, 0)
         WORLD.outputs[self.num] = 1 if v else 0
         return None
@@ -51,6 +56,26 @@ class Pin:
 
     def off(self):
         return self.value(0)
+
+
+class PWM:
+    def __init__(self, pin):
+        self.pin = pin
+        self.freq_hz = None
+
+    def freq(self, f=None):
+        if f is not None:
+            self.freq_hz = f
+        return self.freq_hz
+
+    def duty_u16(self, value=None):
+        if value is None:
+            return WORLD.duties.get(self.pin.num, 0)
+        WORLD.duties[self.pin.num] = value
+        WORLD.duty_log.append((self.pin.num, value))
+
+    def deinit(self):
+        self.duty_u16(0)
 
 
 class ADC:
@@ -143,6 +168,7 @@ def build():
     machine = _module("machine")
     machine.Pin = Pin
     machine.ADC = ADC
+    machine.PWM = PWM
     machine.I2C = I2C
     dht = _module("dht")
     dht.DHT11 = DHT11

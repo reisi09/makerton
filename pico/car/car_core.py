@@ -1,7 +1,8 @@
 # ICE-ZERO 제설차(Pico #2) 순수 로직.
 # 하드웨어(machine·network·socket)를 import하지 않는다. 시험은 이 파일을 CPython으로 그대로 돌린다.
 #
-# 좌표: 보드 900x900mm, 원점 왼쪽 위, 위쪽이 북. 홈은 중심(450,450)이고 방위 0도가 북이다.
+# 좌표: x는 동쪽, y는 남쪽(mm). 원점은 보드 왼쪽 위 모서리다.
+# 교차로 중심은 (CENTER_X, CENTER_Y), 홈(기지 도킹 위치)은 그 남쪽 BASE_DIST_MM 지점이고 북향이다.
 # 방위는 시계 방향이다(N=0, E=90, S=180, W=270). 전진하면 x는 sin(h), y는 -cos(h)만큼 움직인다.
 #
 # 시간 인자는 전부 ms 정수다. MicroPython의 ticks_ms·ticks_us는 0x40000000에서 감싸므로
@@ -20,6 +21,7 @@ STATE_STOPPED = "stopped"
 STATE_ERROR = "error"
 
 PHASE_IDLE = "idle"
+PHASE_DEPART = "depart"
 PHASE_TURN = "turn"
 PHASE_OUT = "out"
 PHASE_BACK = "back"
@@ -52,6 +54,11 @@ def ticks_diff(a, b):
 def ticks_add(a, b):
     """MicroPython time.ticks_add. 0x40000000에서 감싼다."""
     return (a + b) % _TICKS_FULL
+
+
+# ── 기준점 ──────────────────────────────────────────────────────────
+DOCK_X = config.CENTER_X
+DOCK_Y = config.CENTER_Y + config.BASE_DIST_MM
 
 
 # ── 기구 수치 ────────────────────────────────────────────────────────
@@ -87,7 +94,7 @@ def shortest_delta(target, current):
 
 
 def bearing_to(dx, dy):
-    """보드 좌표 변화량 → 방위(도). 북이 0도, 시계 방향이다."""
+    """보드 좌표 변화량 → 방위(도). 북이 0도, 시계 방향이다(y가 남쪽이다)."""
     return norm_deg(math.degrees(math.atan2(dx, -dy)))
 
 
@@ -96,12 +103,12 @@ class Pose(object):
     """스텝을 밀 때마다 갱신하는 추측 위치·방위. 센서로 보정하지 않는다(추측항법)."""
 
     def __init__(self, x=None, y=None, h=0.0):
-        self.x = config.HOME_X if x is None else x
-        self.y = config.HOME_Y if y is None else y
+        self.x = DOCK_X if x is None else x
+        self.y = DOCK_Y if y is None else y
         self.h = norm_deg(h)
 
     def forward(self, mm):
-        """방위 방향으로 mm만큼 굴러간 것으로 본다. 위쪽(북)이 y 감소다."""
+        """방위 방향으로 mm만큼 굴러간 것으로 본다(음수면 후진). 남쪽이 y 증가다."""
         rad = math.radians(self.h)
         self.x += math.sin(rad) * mm
         self.y -= math.cos(rad) * mm
@@ -109,10 +116,16 @@ class Pose(object):
     def rotate(self, deg):
         self.h = norm_deg(self.h + deg)
 
-    def dist_to_home(self):
-        dx = config.HOME_X - self.x
-        dy = config.HOME_Y - self.y
+    def dist_to_center(self):
+        dx = config.CENTER_X - self.x
+        dy = config.CENTER_Y - self.y
         return math.sqrt(dx * dx + dy * dy)
+
+    def dock(self):
+        """도킹 위치·북향으로 다시 맞춘다."""
+        self.x = DOCK_X
+        self.y = DOCK_Y
+        self.h = 0.0
 
     def as_dict(self):
         return {"x": self.x, "y": self.y, "h": self.h}
@@ -121,35 +134,61 @@ class Pose(object):
 # ── 구간 만들기 ──────────────────────────────────────────────────────
 def _turn_seg(deg, phase, arm):
     return {"kind": "turn", "deg": deg, "steps": deg_to_steps(deg),
-            "dir": 1 if deg >= 0 else -1, "phase": phase, "arm": arm, "spray": False}
+            "dir": 1 if deg >= 0 else -1, "phase": phase, "arm": arm,
+            "spray": False, "window": None, "mode": "dist"}
 
 
-def _drive_seg(mm, phase, arm, spray=False):
+def _drive_seg(mm, phase, arm, spray=False, window=None, mode="dist", reverse=False):
+    """mm는 거리(mm, 양수). reverse면 같은 거리를 후진한다.
+    남은 거리 기준으로 살포하려면 mode="remain"을 쓴다(S 갈래)."""
     return {"kind": "drive", "mm": mm, "steps": mm_to_steps(mm),
-            "dir": 1 if mm >= 0 else -1, "phase": phase, "arm": arm, "spray": spray}
+            "dir": -1 if reverse else 1, "phase": phase, "arm": arm,
+            "spray": bool(spray), "window": window, "mode": mode}
+
+
+def _depart_leg(serve_s, heading):
+    """1. 출발: 도킹 위치에서 중심까지 북쪽으로. S는 이 길에서 살포한다."""
+    segs = []
+    segs.append(_turn_seg(shortest_delta(0.0, heading), PHASE_TURN, None))
+    segs.append(_drive_seg(config.BASE_DIST_MM, PHASE_DEPART,
+                           "S" if serve_s else None, serve_s,
+                           config.SPRAY_WIN["S"] if serve_s else None, "remain"))
+    return segs
+
+
+def _return_leg(heading):
+    """3. 귀환: 북향으로 돌아 BASE_DIST+OVERDRIVE만큼 후진해 차고에 들어간다."""
+    return [_turn_seg(shortest_delta(0.0, heading), PHASE_HOME, None),
+            _drive_seg(config.BASE_DIST_MM + config.DOCK_OVERDRIVE_MM,
+                       PHASE_HOME, None, reverse=True)]
 
 
 def plan_for_order(order, pose=None):
-    """갈래 순서 → 구간 목록. 계획이 끝나면 북향 회전을 붙인다(계약 7절)."""
+    """갈래 순서 → 구간 목록(계약 7절 경로). 차가 도킹 위치·북향에 있다고 본다."""
     if pose is None:
         pose = Pose()
-    segs = []
-    heading = pose.h
+    serve_s = "S" in order
+    segs = _depart_leg(serve_s, pose.h)
+    heading = 0.0                       # 출발 구간을 지나면 북향이다
     for arm in order:
+        if arm == "S":
+            continue                    # S는 출발 구간에서 이미 처리했다
         bearing = config.ARM_BEARING[arm]
+        dist = config.ARM_OUT_MM[arm]
         segs.append(_turn_seg(shortest_delta(bearing, heading), PHASE_TURN, arm))
-        segs.append(_drive_seg(config.OUT_MM, PHASE_OUT, arm, True))
+        segs.append(_drive_seg(dist, PHASE_OUT, arm, True,
+                               config.SPRAY_WIN[arm], "dist"))
         segs.append(_turn_seg(180.0, PHASE_TURN, arm))
-        segs.append(_drive_seg(config.OUT_MM, PHASE_BACK, arm))   # 180도 돌았으니 다시 전진
+        segs.append(_drive_seg(dist, PHASE_BACK, arm))
         heading = norm_deg(bearing + 180.0)
-    segs.append(_turn_seg(shortest_delta(0.0, heading), PHASE_HOME, None))
+    segs.extend(_return_leg(heading))
     return _drop_empty(segs)
 
 
 def plan_home(pose):
-    """지금 추측 위치에서 중심으로 돌아가 북향으로 서는 구간 목록."""
-    dx = config.HOME_X - pose.x
-    dy = config.HOME_Y - pose.y
+    """지금 추측 위치에서 중심으로 간 뒤 귀환(3번)을 한다."""
+    dx = config.CENTER_X - pose.x
+    dy = config.CENTER_Y - pose.y
     dist = math.sqrt(dx * dx + dy * dy)
     heading = pose.h
     segs = []
@@ -158,7 +197,7 @@ def plan_home(pose):
         segs.append(_turn_seg(shortest_delta(bearing, heading), PHASE_HOME, None))
         segs.append(_drive_seg(dist, PHASE_HOME, None))
         heading = bearing
-    segs.append(_turn_seg(shortest_delta(0.0, heading), PHASE_HOME, None))
+    segs.extend(_return_leg(heading))
     return _drop_empty(segs)
 
 
@@ -186,7 +225,7 @@ def plan_seconds(segs, step_us=None):
 
 
 def estimate_seconds(order, step_us=None):
-    """홈(중심·북향)에서 출발해 갈래 order를 도는 데 걸리는 예상 시간(초)."""
+    """도킹 위치에서 출발해 order를 돌고 기지로 돌아오는 예상 시간(초)."""
     return plan_seconds(plan_for_order(order, Pose()), step_us)
 
 
@@ -194,9 +233,10 @@ def estimate_seconds(order, step_us=None):
 class Mission(object):
     """구간 목록을 스텝 단위로 소화한다. 자세는 Pose를 직접 고친다."""
 
-    def __init__(self, segs, pose):
+    def __init__(self, segs, pose, dock_reset=True):
         self.segs = segs
         self.pose = pose
+        self.dock_reset = dock_reset     # 계획이 끝나면 자세를 도킹 위치로 맞춘다
         self.i = 0
         self.done = not segs
         self.left = segs[0]["steps"] if segs else 0
@@ -211,6 +251,13 @@ class Mission(object):
         if self.done or self.arm is None:
             return []
         return [(EV_ARM_START, self.arm)]
+
+    def reversing(self):
+        """지금 후진 중인가(귀환). 이때는 앞쪽 초음파를 무시한다."""
+        if self.done:
+            return False
+        seg = self.segs[self.i]
+        return seg["kind"] == "drive" and seg["dir"] < 0
 
     def step(self):
         """스텝 1회. (left, right, spray, events)를 돌려준다.
@@ -230,8 +277,7 @@ class Mission(object):
             left = d
             right = d
             if seg["spray"]:
-                want = (self.travel >= config.SPRAY_FROM_MM - 0.5 and
-                        self.travel <= config.SPRAY_TO_MM + 0.5)
+                want = self._spray_now(seg)
                 if want != self.spray:
                     self.spray = want
                     if want:
@@ -244,27 +290,39 @@ class Mission(object):
             events.extend(self._advance())
         return (left, right, self.spray, events)
 
+    def _spray_now(self, seg):
+        """살포 구간 판정. dist는 중심에서 거리, remain은 구간 끝(중심)까지 남은 거리."""
+        lo, hi = seg["window"]
+        if seg["mode"] == "remain":
+            dist = seg["mm"] - abs(self.travel)
+        else:
+            dist = abs(self.travel)
+        return dist >= lo - 0.5 and dist <= hi + 0.5
+
     def _advance(self):
         events = []
         prev = self.segs[self.i]
         if self.spray:
             self.spray = False
             events.append((EV_SPRAY_OFF, prev["arm"]))
-        if prev["phase"] == PHASE_BACK:
-            events.append((EV_ARM_DONE, prev["arm"]))
         self.i += 1
-        if self.i >= len(self.segs):
+        nxt = self.segs[self.i] if self.i < len(self.segs) else None
+        next_arm = nxt["arm"] if nxt is not None else None
+        if prev["arm"] is not None and next_arm != prev["arm"]:
+            events.append((EV_ARM_DONE, prev["arm"]))     # 그 갈래 일이 끝났다
+        if nxt is None:
             self.done = True
             self.phase = PHASE_IDLE
             self.left = 0
             self.arm = None
+            if self.dock_reset:
+                self.pose.dock()
             events.append((EV_PLAN_DONE, None))
             return events
-        nxt = self.segs[self.i]
         self.left = nxt["steps"]
         self.travel = 0.0
         self.phase = nxt["phase"]
-        if nxt["arm"] is not None and nxt["arm"] != self.arm:
+        if nxt["arm"] is not None and nxt["arm"] != prev["arm"]:
             self.arm = nxt["arm"]
             events.append((EV_ARM_START, nxt["arm"]))
         else:
@@ -349,8 +407,10 @@ class CarCore(object):
         self.last_rx = now_ms
 
     def sonar(self, cm, now_ms):
-        """초음파 측정값(mm 아님, cm). None이면 '비어 있음'이다."""
+        """초음파 측정값(cm). None이면 '비어 있음'이다."""
         self.obst_cm = cm
+        if self.mission is not None and self.mission.reversing():
+            return                     # 후진(귀환) 중에는 차고 벽을 장애물로 보지 않는다
         if cm is not None and cm < self.cfg.OBST_CM:
             if self.blocked_since is None:
                 self.blocked_since = now_ms

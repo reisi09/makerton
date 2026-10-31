@@ -10,22 +10,27 @@
 
 | 항목 | 상태 |
 |---|---|
-| 자동 시험 | `python3 -m unittest discover -s tests` → 158개 통과 |
-| Pico 펌웨어 | `pico/car` 4개, `pico/sensors` 5개 파일 `mpy-cross` 통과. 실물 배선·주행은 미검증 |
+| 자동 시험 | `python3 -m unittest discover -s tests` → 205개 통과 |
+| Pico 펌웨어 | `pico/car` 4개, `pico/sensors`(기지 Pico) 6개 파일 `mpy-cross` 통과. 실물 배선·주행은 미검증 |
+| 제설기지 | S 도로 끝. 차고(안내 레일·도킹 스위치), 보충 사일로(SG90 게이트), 관제실, 지붕 경광등. 차는 기지에서 출동하고 후진으로 도킹한다 |
+| 인쇄용 PDF | [`docs/제설기지_제설차_제작가이드.pdf`](docs/제설기지_제설차_제작가이드.pdf), [`docs/라즈베리파이_시스템_설계도.pdf`](docs/라즈베리파이_시스템_설계도.pdf). `python3 docs/build_design_pdf.py [--doc base]`로 다시 만든다 |
+| 글꼴 | Pretendard(`server/static/fonts/`, OFL). 웹·도면·PDF 공통 |
 | 모델 | 서울 108로 파이프라인 검증 완료. 수원 119 원본 CSV를 받으면 `--stn 119`로 다시 학습한다 |
-| 교차로 | 고색고에서 171m 떨어진 OSM 노드 4641502519(아래 표) |
+| 모형 갈래 | 임의 도로 4갈래(아래 표). 이름·속성은 `cross_arms.json`에서 읽는다 |
 | 서버·모니터 | 실제 엔진 + 가짜 차·센서로 자동 출동 → 살포 완료 → 처리됨(3시간) 흐름 확인 |
 
-### 교차로(OSM, 고색고 반경 1.5km 후보 108곳 중 선정)
+### 모형 갈래(임의 도로 4갈래)
 
-| 갈래 | 도로 | 등급 | 그림자 | risk | 지역 백분위 |
-|---|---|---|---|---|---|
-| N | 매송고색로711번길 | residential | 0.29 | 0.573 | 0.685 |
-| E | 서둔로17번길(학교 앞) | tertiary | 0.00 | 0.250 | 0.109 |
-| S | 매송고색로711번길 | residential | 0.84 | 0.829 | 0.967 |
-| W | 서부로1596번길 | tertiary | 1.00 | 0.719 | 0.844 |
+| 갈래 | 이름 | 성격 | 그림자(모형) |
+|---|---|---|---|
+| N | 북쪽 도로 | 낮은 주택가 | 0.29 |
+| E | 동쪽 도로(학교 앞) | 학교 앞, 그늘 없음 | 0.00 |
+| S | 남쪽 도로(기지 진입로) | 아파트 그늘 | 0.84 |
+| W | 서쪽 도로 | 아파트 그늘(가장 깊음) | 1.00 |
 
-반경 1.5km 안에 교량 갈래가 있는 4갈래 교차로는 없었다. 그래서 갈래 차이는 그늘·도로 등급(risk)과 현장 센서로 만든다. 지도는 [`docs/img/gosaek_map.svg`](docs/img/gosaek_map.svg)에 있다.
+모형 갈래는 **임의 도로**다. 실제 교차로를 모형에 그대로 옮기지 않았다. 갈래 이름·그림자·위험도는 `model/data/roads/cross_arms.json`에서 읽고, 코드·화면·문서에 도로명을 박지 않는다. 그늘이 없거나 차이가 작으면 현장 센서와 모형 건물(2절)로 차이를 만든다.
+
+참고 분석: `model/icezero/roads.py`는 고색고 반경 1.5km의 OSM 도로·건물로 상대 위험도를 계산해 [`docs/img/gosaek_map.svg`](docs/img/gosaek_map.svg)에 남긴다. 이 값은 모형 갈래의 이름·근거로 쓰지 않는다.
 
 ### 모델 개선 결과(서울 108, 2025년 시험)
 
@@ -54,7 +59,7 @@
 makerton/
   CONTRACT.md          구현 계약(핀·상수·형식의 기준)
   README.md
-  docs/                SYSTEM_DESIGN.md · MODEL.md · BUILD.md · img/*.svg · make_diagrams.py · svgkit.py
+  docs/                SYSTEM_DESIGN.md · MODEL.md · BUILD.md · BASE_AND_CAR.md · img/*.svg · make_diagrams.py · svgkit.py
   model/icezero/       kma.py · features.py · train.py · engine.py · roads.py
   model/data/raw/119/  수원 ASOS 원본 CSV
   model/data/roads/    gosaek_roads.geojson · cross_arms.json
@@ -130,8 +135,9 @@ open -a "Google Chrome" --args --kiosk http://localhost:8000/monitor
 |---|---|
 | `CONTRACT.md` | 핀·상수·JSON 형식. 다른 문서와 코드가 어긋나면 이 문서를 먼저 고친다 |
 | `docs/SYSTEM_DESIGN.md` | 구성, 데이터 흐름, 핀표, 전원, 프로토콜, 상태기계, 안전, 보정 |
+| `docs/BASE_AND_CAR.md` | 보드 사진 기준 실측표, 건물 배치, 제설기지, 제설차 제작 12단계, 도킹 보정 |
 | `docs/MODEL.md` | 학습 자료, 피처, 검증 수치, 방법 선택 |
-| `docs/BUILD.md` | 부품표, 제작 순서, 시험 T1~T10, 90초 시연 대본, 문제 해결 |
+| `docs/BUILD.md` | 부품표, 제작 순서, 시험 T1~T12, 90초 시연 대본, 문제 해결 |
 
 ## 원칙
 

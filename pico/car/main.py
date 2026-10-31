@@ -321,13 +321,18 @@ class CarDevice(object):
     # ── 부팅 ────────────────────────────────────────────────────────
     def summary(self):
         cfg = self.cfg
-        print("ICE-ZERO 제설차 %s 시작" % cfg.CAR_ID)
+        print("ICE-ZERO 제설차 %s 시작 (기지 도킹 위치 %.0f,%.0f 북향)" %
+              (cfg.CAR_ID, car_core.DOCK_X, car_core.DOCK_Y))
         print("바퀴 %.0fmm / 윤거 %.0fmm / 1회전 %d스텝 / 스텝 %dus" %
               (cfg.WHEEL_D_MM, cfg.TRACK_MM, cfg.STEPS_PER_REV, cfg.STEP_US))
         print("1mm = %.2f스텝, 1도 회전 = %.1f스텝" %
               (1.0 / car_core.MM_PER_STEP, 1.0 / car_core.DEG_PER_STEP))
-        print("서보 닫힘 %d도 / 열림 %d도, 살포 %d~%dmm" %
-              (cfg.SERVO_CLOSED_DEG, cfg.SERVO_OPEN_DEG, cfg.SPRAY_FROM_MM, cfg.SPRAY_TO_MM))
+        print("중심 %.0f,%.0f / 기지까지 %.0fmm / 후진 여유 %.0fmm" %
+              (cfg.CENTER_X, cfg.CENTER_Y, cfg.BASE_DIST_MM, cfg.DOCK_OVERDRIVE_MM))
+        print("갈래 거리 %s" % (cfg.ARM_OUT_MM,))
+        print("살포 창 %s (S는 중심까지 남은 거리)" % (cfg.SPRAY_WIN,))
+        print("서보 닫힘 %d도 / 열림 %d도" %
+              (cfg.SERVO_CLOSED_DEG, cfg.SERVO_OPEN_DEG))
         print("서버 %s:%d → 차 %d, Wi-Fi %s" %
               (cfg.SERVER_IP or "브로드캐스트", cfg.SERVER_PORT, cfg.UDP_PORT,
                cfg.WIFI_SSID or "안 씀(오프라인)"))

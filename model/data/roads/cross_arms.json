@@ -1,122 +1,20 @@
 {
   "source": {
-    "generated_at": "2026-10-31T11:23:58",
-    "generator": "model/icezero/roads.py",
-    "school": {
-      "lat": 37.25378,
-      "lon": 126.98246
-    },
-    "station": {
-      "id": 119,
-      "lat": 37.25746,
-      "lon": 126.983
-    },
-    "radius_m": 1500,
-    "osm_timestamp": "2026-10-31T02:19:00Z",
-    "endpoints": [
-      "https://overpass-api.de/api/interpreter",
-      "https://overpass.kumi.systems/api/interpreter"
-    ],
-    "cache_files": [
-      "model/data/roads/overpass_roads.json",
-      "model/data/roads/overpass_buildings.json",
-      "model/data/roads/overpass_water.json"
-    ],
-    "counts": {
-      "road_segments": 2768,
-      "buildings": 313,
-      "bridge_segments": 42,
-      "tunnel_segments": 8,
-      "four_way_candidates": 108
-    },
-    "weights": {
-      "class": 0.4,
-      "shadow": 0.3,
-      "water": 0.15,
-      "structure": 0.15
-    },
-    "tunnel_deduct": 0.1,
-    "risk_formula": "risk_raw = 0.40·등급 + 0.30·그림자 + 0.15·하천 + 0.15·구조물 − 0.10·터널, risk = 지역 min-max(risk_raw), risk_pct = 지역 백분위",
-    "shadow_formula": "남쪽 섹터 180°±60°, 80m 안 건물의 높이/거리 합을 2.0에서 포화 (높이: height 태그 → building:levels×3.2 → 8m)",
-    "assumptions": [
-      "ASOS 119는 단일 지점 관측이라 구간별 유효표면온도 차를 만들 수 없다. risk_v2의 freeze(0.30)+narrow(0.10)를 도로 등급 0.40으로 합쳐 옮겼다.",
-      "하천 근접(0.15)은 refreeze_index(0.15)의 대체물이다. 수증기·안개로 재결빙이 잦다는 가정.",
-      "교량은 structure=1(상시 가산 0.15). 터널은 원식의 +1.5°C 보정을 −0.10 점수로 바꿨다.",
-      "risk는 상대 우선순위이며 절대 결빙확률이 아니다."
-    ],
-    "junction": {
-      "osm_id": 4641502519,
-      "lat": 37.252745,
-      "lon": 126.981035,
-      "dist_school_m": 170.7,
-      "score": 1.717,
-      "min_sep_deg": 72.7,
-      "bridges": [],
-      "names": {
-        "N": "매송고색로711번길",
-        "E": "서둔로17번길",
-        "S": "매송고색로711번길",
-        "W": "서부로1596번길"
-      }
-    },
-    "note": "반경 1500 m 안 4갈래 교차로 후보 108곳 중 교량 갈래가 있는 곳이 없어, 교량 없이 가장 나은 곳을 골랐다."
+    "type": "임의 도로(모형)",
+    "note": "우드락 모형 보드의 가상 도로다. 실제 도로명·위치가 아니다. 이름과 속성은 이 파일만 고치면 엔진·서버·화면에 그대로 반영된다.",
+    "basis": "그늘 지수는 모형 건물 배치에서 정했다. SW 모퉁이 높은 아파트와 남쪽 제설기지 건물이 W·S 도로에 그늘을 만든다. NW는 낮은 주택이다.",
+    "risk_formula": "risk = 0.25 + 0.6 × shadow_index (0~1 상대 우선순위). risk_pct는 네 갈래 안에서의 순위(0.25 단위)다.",
+    "weather": "날씨·지면온도 예보는 수원 ASOS 119(고색고에서 약 0.4km) 기준이다. 도로가 임의여도 예보는 학교 주변 관측으로 학습한다.",
+    "osm_reference": "model/data/roads/cross_arms_osm.json(고색고 주변 실제 도로 분석, 참고용)"
   },
   "arms": {
-    "N": {
-      "name": "매송고색로711번길",
-      "label": "general",
-      "structure": 0,
-      "shadow_index": 0.289,
-      "risk": 0.573,
-      "risk_pct": 0.685,
-      "bearing_deg": 331.6,
-      "length_m": 130.5,
-      "osm_ids": [
-        470588362
-      ],
-      "near_water": false
-    },
-    "E": {
-      "name": "서둔로17번길",
-      "label": "general",
-      "structure": 0,
-      "shadow_index": 0.0,
-      "risk": 0.25,
-      "risk_pct": 0.109,
-      "bearing_deg": 73.7,
-      "length_m": 141.4,
-      "osm_ids": [
-        705700131
-      ],
-      "near_water": false
-    },
-    "S": {
-      "name": "매송고색로711번길",
-      "label": "general",
-      "structure": 0,
-      "shadow_index": 0.836,
-      "risk": 0.829,
-      "risk_pct": 0.967,
-      "bearing_deg": 146.4,
-      "length_m": 73.4,
-      "osm_ids": [
-        469893039
-      ],
-      "near_water": false
-    },
-    "W": {
-      "name": "서부로1596번길",
-      "label": "general",
-      "structure": 0,
-      "shadow_index": 1.0,
-      "risk": 0.719,
-      "risk_pct": 0.844,
-      "bearing_deg": 253.7,
-      "length_m": 73.0,
-      "osm_ids": [
-        392174387
-      ],
-      "near_water": false
-    }
+    "N": {"name": "북쪽 도로", "label": "general", "structure": 0, "shadow_index": 0.3, "risk": 0.43, "risk_pct": 0.5,
+          "bearing_deg": 0, "near_water": false, "buildings": "NW 낮은 주택"},
+    "E": {"name": "동쪽 도로", "label": "general", "structure": 0, "shadow_index": 0.0, "risk": 0.25, "risk_pct": 0.25,
+          "bearing_deg": 90, "near_water": false, "buildings": "NE·SE 학교·상가(낮음)"},
+    "S": {"name": "남쪽 도로(기지 진입로)", "label": "general", "structure": 0, "shadow_index": 0.8, "risk": 0.73, "risk_pct": 0.75,
+          "bearing_deg": 180, "near_water": false, "buildings": "남쪽 제설기지·SW 아파트"},
+    "W": {"name": "서쪽 도로(그늘)", "label": "general", "structure": 0, "shadow_index": 1.0, "risk": 0.85, "risk_pct": 1.0,
+          "bearing_deg": 270, "near_water": false, "buildings": "SW 높은 아파트"}
   }
 }
