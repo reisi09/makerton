@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<!-- 모니터 전용 보기: 1920x1080 전체 화면, 스크롤 없음, 조작 버튼 없음, 1초 갱신 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>makerton 고색고 사거리 — 모니터</title>
+<style>
+  * { box-sizing: border-box; }
+  :root{
+    --deep-space-blue:#012a4aff; --yale-blue:#013a63ff; --yale-blue-2:#01497cff; --yale-blue-3:#014f86ff;
+    --rich-cerulean:#2a6f97ff; --cerulean:#2c7da0ff; --air-force-blue:#468fafff; --steel-blue:#61a5c2ff;
+    --sky-blue-light:#89c2d9ff; --light-blue:#a9d6e5ff;
+  }
+  /* 1920x1080 화면 기준. 스크롤이 생기지 않도록 높이를 화면에 고정한다. */
+  html, body { height:100%; }
+  body { margin:0; overflow:hidden; background:var(--deep-space-blue); color:#fff;
+         font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif; font-size:20px; }
+  header { height:92px; display:flex; align-items:center; gap:24px; padding:0 24px;
+           background:var(--yale-blue); border-bottom:2px solid var(--yale-blue-3); }
+  header .title { font-size:33px; font-weight:900; letter-spacing:-.5px; white-space:nowrap; }
+  header .title span { color:var(--sky-blue-light); }
+  header .station { font-size:23px; font-weight:900; padding:6px 18px; border-radius:999px;
+                    background:var(--cerulean); white-space:nowrap; }
+  header .station.warn { background:var(--air-force-blue); }
+  header .grow { flex:1; }
+  header .auto { font-size:25px; font-weight:900; padding:8px 20px; border-radius:999px;
+                 background:var(--yale-blue-3); color:var(--sky-blue-light); white-space:nowrap; }
+  header .auto.on { background:var(--light-blue); color:var(--deep-space-blue); }
+  header .clock { font-size:25px; font-weight:900; font-variant-numeric:tabular-nums;
+                  color:var(--sky-blue-light); white-space:nowrap; }
+  main { height:calc(100vh - 92px); padding:14px 18px 16px; display:grid; gap:14px;
+         grid-template-columns:minmax(0,860px) minmax(0,560px) minmax(0,1fr);
+         grid-template-rows:minmax(0,1fr) minmax(0,0.5fr);
+         grid-template-areas:"cross arms chart" "cross car events"; }
+  .panel { background:var(--yale-blue); border:1px solid var(--yale-blue-3); border-radius:14px;
+           overflow:hidden; display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .panel > h2 { margin:0; padding:9px 15px; font-size:20px; font-weight:900; color:#fff;
+                background:var(--yale-blue-2); display:flex; align-items:center; gap:10px;
+                white-space:nowrap; overflow:hidden; }
+  .panel > h2 small { margin-left:auto; font-size:15px; font-weight:800; color:var(--sky-blue-light);
+                      overflow:hidden; text-overflow:ellipsis; }
+  .panel .body { padding:8px 13px; min-height:0; overflow:hidden; }
+  #cross   { grid-area:cross; }
+  #arms    { grid-area:arms; }
+  #chartP  { grid-area:chart; }
+  #carP    { grid-area:car; }
+  #eventsP { grid-area:events; }
+  svg.cross { display:block; width:100%; height:100%; background:var(--deep-space-blue); }
+  table.arms { width:100%; border-collapse:collapse; font-size:19px; table-layout:fixed; }
+  table.arms th { text-align:left; padding:7px 5px; color:var(--sky-blue-light); font-size:15px;
+                  border-bottom:2px solid var(--yale-blue-3); font-weight:900; white-space:nowrap; }
+  table.arms td { padding:8px 5px; border-bottom:1px solid var(--yale-blue-2); font-weight:800;
+                  vertical-align:middle; white-space:nowrap; overflow:hidden;
+                  text-overflow:ellipsis; }
+  table.arms td.num { text-align:right; font-variant-numeric:tabular-nums; font-size:24px; }
+  .lv { display:inline-block; padding:2px 10px; border-radius:999px; font-size:16px; font-weight:900;
+        color:var(--deep-space-blue); white-space:nowrap; }
+  .lv.risk1 { background:var(--rich-cerulean); color:#fff; }
+  .lv.risk2 { background:var(--steel-blue); }
+  .lv.risk3 { background:var(--light-blue); }
+  .lv.done  { background:var(--yale-blue-3); color:#fff; border:1px solid var(--sky-blue-light); }
+  .lv.off   { background:var(--yale-blue); color:var(--sky-blue-light); }
+  .big { font-size:36px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .mid { font-size:22px; font-weight:900; }
+  .sub { font-size:16px; color:var(--sky-blue-light); font-weight:800; }
+  .pulse { animation:blink 1.1s steps(1, end) infinite; }
+  @keyframes blink { 0%, 55% { opacity:.2; } 56%, 100% { opacity:1; } }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; font-size:19px; }
+  .kv b { color:var(--sky-blue-light); font-weight:800; white-space:nowrap; }
+  .kv span { font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  ul.events { list-style:none; margin:0; padding:0 0 20px; font-size:17px; }
+  ul.events li { display:grid; grid-template-columns:74px 88px 1fr; gap:8px; padding:3px 0;
+                 border-bottom:1px dashed var(--yale-blue-2); font-weight:700; }
+  ul.events time { color:var(--sky-blue-light); font-variant-numeric:tabular-nums; }
+  ul.events .kind { font-weight:900; color:var(--light-blue); }
+  ul.events li span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar { height:13px; border-radius:999px; background:var(--yale-blue-2); overflow:hidden; }
+  .bar > i { display:block; height:100%; width:0; background:var(--light-blue); }
+  #chartBody { display:flex; flex-direction:column; gap:4px; height:100%; }
+  #chartSvg { flex:1; min-height:0; width:100%; }
+  .url { position:fixed; right:14px; bottom:8px; font-size:13px; font-weight:800;
+         color:var(--light-blue); background:var(--yale-blue); padding:2px 8px; border-radius:6px;
+         opacity:.92; }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">고색고 사거리 <span>결빙 예보</span></div>
+  <div class="station" id="station">지점 —</div>
+  <div class="grow"></div>
+  <div class="auto" id="autoState">자동 출동 —</div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<main>
+  <section class="panel" id="cross">
+    <svg class="cross" viewBox="0 0 900 900" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="900" height="900" fill="#012a4a"/>
+      <rect x="375" y="0" width="150" height="900" fill="#013a63"/>
+      <rect x="0" y="375" width="900" height="150" fill="#013a63"/>
+      <line x1="450" y1="0" x2="450" y2="360" stroke="#61a5c2" stroke-width="4" stroke-dasharray="24 16"/>
+      <line x1="450" y1="540" x2="450" y2="900" stroke="#61a5c2" stroke-width="4" stroke-dasharray="24 16"/>
+      <line x1="0" y1="450" x2="360" y2="450" stroke="#61a5c2" stroke-width="4" stroke-dasharray="24 16"/>
+      <line x1="540" y1="450" x2="900" y2="450" stroke="#61a5c2" stroke-width="4" stroke-dasharray="24 16"/>
+      <g id="armsLayer"></g>
+      <rect x="375" y="375" width="150" height="150" fill="#013a63" stroke="#468faf" stroke-width="3"/>
+      <g id="carLayer"></g>
+      <text x="450" y="34" font-size="20" fill="#89c2d9" text-anchor="middle" font-weight="900">북 N</text>
+      <text x="450" y="884" font-size="20" fill="#89c2d9" text-anchor="middle" font-weight="900">남 S</text>
+      <text x="14" y="348" font-size="20" fill="#89c2d9" font-weight="900">서 W</text>
+      <text x="886" y="348" font-size="20" fill="#89c2d9" text-anchor="end" font-weight="900">동 E</text>
+    </svg>
+  </section>
+
+  <section class="panel" id="arms">
+    <h2>갈래별 예측 동결확률 <small id="armsNote">—</small></h2>
+    <div class="body">
+      <table class="arms">
+        <colgroup><col style="width:25%"><col style="width:13%"><col style="width:21%">
+          <col style="width:23%"><col style="width:18%"></colgroup>
+        <thead><tr><th>갈래</th><th>확률</th><th>단계</th><th>기온/습도</th><th>현장</th></tr></thead>
+        <tbody id="armRows"></tbody>
+      </table>
+      <div class="sub" id="armsFoot" style="margin-top:8px; line-height:1.45">—</div>
+    </div>
+  </section>
+
+  <section class="panel" id="chartP">
+    <h2>예보 그래프 <small id="chartNote">—</small></h2>
+    <div class="body" id="chartBody">
+      <svg id="chartSvg" viewBox="0 0 520 552" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </section>
+
+  <section class="panel" id="carP">
+    <h2>제설차 <small id="carNote">—</small></h2>
+    <div class="body" style="flex:1">
+      <div class="kv">
+        <b>상태</b><span id="carState">대기</span>
+        <b>진행</b><span id="carPhase">대기</span>
+        <b>위치</b><span id="carPos">—</span>
+        <b>계획</b><span id="carPlan">—</span>
+      </div>
+      <div class="bar" style="margin-top:9px"><i id="carBar"></i></div>
+      <div class="mid" id="carHint" style="margin-top:9px">—</div>
+    </div>
+  </section>
+
+  <section class="panel" id="eventsP">
+    <h2>최근 이벤트</h2>
+    <div class="body" style="flex:1">
+      <ul class="events" id="eventList"></ul>
+    </div>
+  </section>
+
+  <div class="url" id="url">—</div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var ARMS = ['N', 'E', 'S', 'W'];
+  var LEVEL_COLOR = {risk1: '#2a6f97', risk2: '#61a5c2', risk3: '#a9d6e5', done: '#014f86', off: '#013a63'};
+  var LEVEL_KR = {risk1: '낮음', risk2: '주의', risk3: '높음', done: '✓ 처리됨', off: '자료 없음'};
+  var LEVEL_MARK = {risk1: '▲', risk2: '▲▲', risk3: '▲▲▲', done: '✓', off: '·'};
+  var EXEC_KR = {idle: '대기', running: '출동 중', done: '완료', failed: '중단', stopped: '정지'};
+  var PHASE_KR = {idle: '대기', turn: '회전', out: '전진·살포', back: '복귀', home: '홈 이동'};
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function num(v, digits) {
+    if (v === null || v === undefined || isNaN(Number(v))) return '—';
+    return Number(v).toFixed(digits === undefined ? 1 : digits);
+  }
+  function shortName(value) {
+    var text = String(value || '');
+    return text.length > 7 ? (text.slice(0, 6) + '…') : text;
+  }
+
+  function levelOf(armId, armData, treated) {
+    if (treated && treated[armId]) return 'done';
+    return (armData && armData.level) || 'off';
+  }
+
+  function drawCross(st) {
+    var step = st.step || {};
+    var arms = step.arms || {};
+    var treated = st.treated || {};
+    var order = ((step.dispatch || {}).order) || [];
+    var out = [];
+
+    function box(armId, x, y, w, h) {
+      var a = arms[armId] || {};
+      var level = levelOf(armId, a, treated);
+      var color = LEVEL_COLOR[level] || LEVEL_COLOR.off;
+      var p = a.p_max;
+      var opacity = (p === undefined || p === null) ? 0.4 : (0.4 + 0.55 * Math.min(1, p));
+      out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+               '" rx="10" fill="' + color + '" fill-opacity="' + opacity.toFixed(2) +
+               '" stroke="' + color + '" stroke-width="4"/>');
+      if (level === 'risk3') {
+        out.push('<rect class="pulse" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+                 '" rx="10" fill="none" stroke="' + color + '" stroke-width="9"/>');
+      }
+      var idx = order.indexOf(armId);
+      var dark = (level === 'risk3' || level === 'risk2');
+      var fg = dark ? '#012a4a' : '#eaf6fb';
+      var cx = x + w / 2;
+      // 줄마다 기준선을 따로 잡는다(제목과 큰 숫자가 겹치지 않게).
+      var lines = [
+        [armId + ' ' + shortName(a.name), 18, 30],
+        [num(a.p_max, 2), 36, 74],
+        [LEVEL_MARK[level] + ' ' + LEVEL_KR[level], 18, 102],
+        ['+3h ' + num((a.t_eff || {}).h3) + '℃', 17, 128],
+        [treated[armId] ? ('✓ ' + String(treated[armId]).slice(11, 16) + '까지')
+                        : (idx >= 0 ? ((idx + 1) + '순위 출동')
+                                    : ('현장 ' + (a.local_dt === null || a.local_dt === undefined
+                                                 ? '0.0' : num(a.local_dt)) + '℃')), 17, 152]
+      ];
+      lines.forEach(function (line) {
+        out.push('<text x="' + cx + '" y="' + (y + line[2]) + '" font-size="' + line[1] +
+                 '" font-weight="900" fill="' + fg + '" text-anchor="middle">' +
+                 esc(line[0]) + '</text>');
+      });
+    }
+
+    box('N', 350, 46, 200, 178);
+    box('S', 350, 676, 200, 178);
+    box('W', 20, 360, 200, 178);
+    box('E', 680, 360, 200, 178);
+
+    document.getElementById('armsLayer').innerHTML = out.join('');
+
+    var car = (st.car || {}).tel || {};
+    var cx = (car.x === null || car.x === undefined) ? 450 : car.x;
+    var cy = (car.y === null || car.y === undefined) ? 450 : car.y;
+    var ch = (car.h === null || car.h === undefined) ? 0 : car.h;
+    var moving = (car.state === 'run' || car.state === 'pause');
+    var fill = moving ? '#a9d6e5' : '#89c2d9';
+    var carOut = [];
+    carOut.push('<g transform="translate(' + cx + ',' + cy + ') rotate(' + ch + ')">' +
+                '<rect x="-34" y="-24" width="68" height="48" rx="10" fill="' + fill +
+                '" stroke="#012a4a" stroke-width="2"/>' +
+                '<polygon points="0,-38 14,-20 -14,-20" fill="' + fill + '"/>' +
+                (car.spray ? '<circle cx="0" cy="0" r="46" fill="none" stroke="#a9d6e5" stroke-width="4"/>' : '') +
+                '</g>');
+    carOut.push('<text x="' + cx + '" y="' + (cy + 66) + '" font-size="18" font-weight="900" ' +
+                'fill="#eaf6fb" text-anchor="middle">' +
+                esc(PHASE_KR[car.phase] || car.phase || '대기') + '</text>');
+    document.getElementById('carLayer').innerHTML = carOut.join('');
+  }
+
+  function drawChart(st) {
+    var svg = document.getElementById('chartSvg');
+    var series = st.series || {};
+    if (!series.ready || !series.time || !series.time.length) {
+      svg.innerHTML = '<text x="260" y="276" text-anchor="middle" font-size="19" fill="#89c2d9">' +
+        esc(series.note || '계산 중') + '</text>';
+      document.getElementById('chartNote').textContent = '계산 중';
+      return;
+    }
+    var times = series.time, obs = series.obs_ground, pred = series.pred_h3;
+    var values = [0];
+    for (var i = 0; i < obs.length; i++) {
+      if (obs[i] !== null && obs[i] !== undefined) values.push(obs[i]);
+      if (pred[i] !== null && pred[i] !== undefined) values.push(pred[i]);
+    }
+    var lo = Math.min.apply(null, values) - 1.5;
+    var hi = Math.max.apply(null, values) + 1.5;
+    var W = 520, H = 552, padL = 56, padR = 14, padT = 66, padB = 32;
+    function xOf(i) { return padL + (W - padL - padR) * (times.length <= 1 ? 0.5 : i / (times.length - 1)); }
+    function yOf(v) { return padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo)); }
+    var out = [];
+    for (var g = 0; g <= 3; g++) {
+      var v = lo + (hi - lo) * g / 3;
+      var y = yOf(v);
+      out.push('<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y +
+               '" stroke="#01497c" stroke-width="1"/>');
+      out.push('<text x="' + (padL - 6) + '" y="' + (y + 5) + '" font-size="15" fill="#89c2d9" ' +
+               'text-anchor="end">' + v.toFixed(1) + '</text>');
+    }
+    if (lo <= 0 && hi >= 0) {
+      out.push('<line x1="' + padL + '" y1="' + yOf(0) + '" x2="' + (W - padR) + '" y2="' + yOf(0) +
+               '" stroke="#468faf" stroke-width="2" stroke-dasharray="7 6"/>');
+      out.push('<text x="' + (W - padR - 2) + '" y="' + (yOf(0) - 7) +
+               '" font-size="15" font-weight="900" fill="#a9d6e5" text-anchor="end">0℃</text>');
+    }
+    function path(arr, color, dash, width) {
+      var d = '', started = false;
+      for (var i = 0; i < arr.length; i++) {
+        var val = arr[i];
+        if (val === null || val === undefined) { started = false; continue; }
+        d += (started ? ' L' : ' M') + xOf(i).toFixed(1) + ' ' + yOf(val).toFixed(1);
+        started = true;
+      }
+      if (!d) return '';
+      return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + width +
+             '" stroke-linejoin="round"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>';
+    }
+    // 관측=굵은 흰 실선, 예측=하늘색 점선(밝기·모양 둘 다 다르게)
+    out.push(path(pred, '#89c2d9', '10 7', 2.5));
+    out.push(path(obs, '#ffffff', '', 3.5));
+    var idx = (st.replay || {}).index;
+    if (typeof idx === 'number' && idx >= 0 && idx < times.length) {
+      out.push('<line x1="' + xOf(idx) + '" y1="' + padT + '" x2="' + xOf(idx) + '" y2="' + (H - padB) +
+               '" stroke="#a9d6e5" stroke-width="2" stroke-dasharray="5 4"/>');
+    }
+    [0, Math.floor(times.length / 2), times.length - 1].forEach(function (i) {
+      if (times[i] === undefined) return;
+      out.push('<text x="' + xOf(i) + '" y="' + (H - 8) + '" font-size="15" fill="#89c2d9" ' +
+               'text-anchor="middle">' + esc(String(times[i]).slice(11, 16)) + '</text>');
+    });
+    // 그래프 안 범례(그리기 영역 위 여백에 둔다)
+    var legendY = 36;
+    out.push('<line x1="' + padL + '" y1="' + legendY + '" x2="' + (padL + 34) + '" y2="' + legendY +
+             '" stroke="#ffffff" stroke-width="3.5"/>');
+    out.push('<text x="' + (padL + 42) + '" y="' + (legendY + 5) + '" font-size="15" ' +
+             'font-weight="800" fill="#ffffff">관측 지면</text>');
+    out.push('<line x1="' + (padL + 132) + '" y1="' + legendY + '" x2="' + (padL + 166) + '" y2="' +
+             legendY + '" stroke="#89c2d9" stroke-width="2.5" stroke-dasharray="10 7"/>');
+    out.push('<text x="' + (padL + 174) + '" y="' + (legendY + 5) + '" font-size="15" ' +
+             'font-weight="800" fill="#89c2d9">+3h 예측</text>');
+    out.push('<line x1="' + (padL + 268) + '" y1="' + (legendY - 7) + '" x2="' + (padL + 268) +
+             '" y2="' + (legendY + 7) + '" stroke="#a9d6e5" stroke-width="2" stroke-dasharray="4 4"/>');
+    out.push('<text x="' + (padL + 276) + '" y="' + (legendY + 5) + '" font-size="15" ' +
+             'font-weight="800" fill="#a9d6e5">현재</text>');
+    svg.innerHTML = out.join('');
+    document.getElementById('chartNote').textContent = series.note || '';
+  }
+
+  function render(st) {
+    var station = st.station || {};
+    var el = document.getElementById('station');
+    el.textContent = (station.label || '지점 —');
+    el.className = 'station' + (station.replaced ? ' warn' : '');
+    var auto = document.getElementById('autoState');
+    auto.textContent = '자동 출동 ' + (st.auto ? '켜짐' : '꺼짐');
+    auto.className = 'auto' + (st.auto ? ' on' : '');
+    document.getElementById('clock').textContent =
+      st.replay && st.replay.ts ? String(st.replay.ts).replace('T', ' ').slice(5) : (st.time || '');
+
+    drawCross(st);
+    drawChart(st);
+
+    var step = st.step || {};
+    var arms = step.arms || {};
+    var treated = st.treated || {};
+    var rows = (st.sensor || {}).rows || {};
+    document.getElementById('armRows').innerHTML = ARMS.map(function (a) {
+      var row = arms[a] || {};
+      var level = levelOf(a, row, treated);
+      var sensor = rows[a] || {};
+      var tempText = (sensor.t === null || sensor.t === undefined) ? '—' : (num(sensor.t) + '℃');
+      var rhText = (sensor.rh === null || sensor.rh === undefined) ? '—' : (sensor.rh + '%');
+      var tEff = (row.t_eff || {}).h3;
+      return '<tr><td>' + a + ' <span class="sub">' + esc(shortName(row.name)) + '</span></td>' +
+        '<td class="num">' + num(row.p_max, 2) + '</td>' +
+        '<td><span class="lv ' + level + '">' + LEVEL_MARK[level] + ' ' + LEVEL_KR[level] + '</span></td>' +
+        '<td title="+3h 유효온도 ' + num(tEff) + '℃">' + tempText + ' / ' + rhText + '</td>' +
+        '<td>' + (row.local_dt === null || row.local_dt === undefined ? '—' : num(row.local_dt) + '℃') +
+        (sensor.wet ? ' <span class="sub">젖음</span>' : '') + '</td></tr>';
+    }).join('');
+    var disp = step.dispatch || {};
+    document.getElementById('armsNote').textContent =
+      st.engine && st.engine.error ? st.engine.error : ('출동 제안 ' + ((disp.order || []).join(' → ') || '없음'));
+    document.getElementById('armsFoot').textContent =
+      '예측 동결확률 p_max · 처리된 갈래는 ✓ 로 바꾸고 후보에서 뺍니다 · 예산 ' + st.budget + '갈래';
+
+    var car = st.car || {}, tel = car.tel || {}, ex = st.execution || {};
+    document.getElementById('carNote').textContent =
+      car.mode === 'none' ? '링크 없음(모의 실행)' : (car.ok ? '연결됨' : '링크 끊김');
+    document.getElementById('carState').textContent =
+      (EXEC_KR[ex.state] || ex.state || '대기') + (ex.mode === 'mock' ? ' (모의)' : '');
+    document.getElementById('carPhase').textContent =
+      (PHASE_KR[tel.phase] || tel.phase || '대기') + (tel.arm ? (' · ' + tel.arm) : '') +
+      (tel.spray ? ' · 살포 중' : '');
+    document.getElementById('carPos').textContent =
+      (tel.x === null || tel.x === undefined ? '—' : (num(tel.x, 0) + ' , ' + num(tel.y, 0))) +
+      (tel.h === null || tel.h === undefined ? '' : (' · ' + num(tel.h, 0) + '°'));
+    document.getElementById('carPlan').textContent =
+      (ex.plan_id || '—') + ' · ' + ((ex.order || []).join(' → ') || '—');
+    var total = (ex.order || []).length || 0;
+    var done = (ex.done || []).length || 0;
+    document.getElementById('carBar').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
+    document.getElementById('carHint').textContent = ex.state === 'running'
+      ? ('지금 ' + (ex.current || '—') + ' 갈래')
+      : ((disp.order || []).length ? ('다음 출동 ' + disp.order.join(' → ')) :
+         (st.auto ? '출동 대기' : '자동 출동 꺼짐'));
+
+    var list = (st.events || []).slice(-7).reverse();
+    document.getElementById('eventList').innerHTML = list.map(function (e) {
+      return '<li><time>' + esc(e.time || '') + '</time><span class="kind">' + esc(e.kind || '') +
+             '</span><span>' + esc(e.text || '') + '</span></li>';
+    }).join('') || '<li class="sub">아직 이벤트가 없습니다.</li>';
+
+    document.getElementById('url').textContent =
+      st.monitor_url || (location.host ? ('http://' + location.host + '/monitor') : '');
+  }
+
+  function refresh() {
+    fetch('/api/state', {cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () {
+        document.getElementById('station').textContent = '서버 응답 없음';
+      });
+  }
+
+  refresh();
+  setInterval(refresh, 1000);
+})();
+</script>
+</body>
+</html>
