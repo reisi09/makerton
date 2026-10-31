@@ -198,8 +198,8 @@ function Ring({ p }: { p: number }) {
   const r = 9, c = 2 * Math.PI * r;
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
-      <circle cx="12" cy="12" r={r} fill="none" stroke="#e8edf2" strokeWidth="3" />
-      <circle cx="12" cy="12" r={r} fill="none" stroke="#2c7da0" strokeWidth="3" strokeLinecap="round"
+      <circle cx="12" cy="12" r={r} fill="none" stroke="#dee2e6" strokeWidth="3" />
+      <circle cx="12" cy="12" r={r} fill="none" stroke="#495057" strokeWidth="3" strokeLinecap="round"
         strokeDasharray={`${(c * p).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90 12 12)" />
     </svg>
   );
@@ -216,26 +216,26 @@ function CrossMap({ sim, p, resting }: { sim: Sim; p: number; resting: boolean }
   if (run) y = run.p < 0.5 ? HOME + (STOP - HOME) * ease(run.p / 0.5) : STOP + (HOME - STOP) * ease((run.p - 0.5) / 0.5);
   if (run && sim.snow && run.p < 0.5 && y - 58 < CY + 18) run.pushed = true;
   const gone = run?.pushed ? Math.min(1, (run.p - 0.2) * 3) : 0;
-  const ice = resting || (run && run.p > 0.25) ? 0 : p * 0.6;
+  const ice = resting || (run && run.p > 0.25) ? 0 : p * 0.45;
   return (
     <svg className="map" viewBox="0 0 600 560" role="img" aria-label="사거리와 제설차">
-      <rect width="600" height="560" rx="18" fill="#f3f6f9" />
-      {[[24, 24], [426, 24], [24, 366], [426, 366]].map(([x, yy]) => <rect key={`${x}-${yy}`} x={x} y={yy} width="150" height="170" rx="14" fill="#e3eaf0" />)}
-      <rect x={CX - ROAD / 2} y="0" width={ROAD} height="560" fill="#cfd8e0" />
-      <rect x="0" y={CY - ROAD / 2} width="600" height={ROAD} fill="#cfd8e0" />
-      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="#bcc9d4" />
-      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="#2c7da0" opacity={ice} />
-      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="none" stroke="#012a4a" strokeWidth="1.5" strokeDasharray="7 6" opacity=".45" />
-      <circle cx={CX} cy={CY} r="7" fill="#f2c230" stroke="#fff" strokeWidth="2" />
-      <rect x={CX - 18 + gone * 90} y={CY - 18} width="36" height="36" rx="6" fill="#fff" stroke="#a9d6e5" strokeWidth="2" opacity={sim.snow ? 1 - gone : 0} />
+      <rect width="600" height="560" rx="18" fill="#e9ecef" />
+      {[[24, 24], [426, 24], [24, 366], [426, 366]].map(([x, yy]) => <rect key={`${x}-${yy}`} x={x} y={yy} width="150" height="170" rx="14" fill="#dee2e6" />)}
+      <rect x={CX - ROAD / 2} y="0" width={ROAD} height="560" fill="#ced4da" />
+      <rect x="0" y={CY - ROAD / 2} width="600" height={ROAD} fill="#ced4da" />
+      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="#adb5bd" />
+      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="#212529" opacity={ice} />
+      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="none" stroke="#212529" strokeWidth="1.5" strokeDasharray="7 6" opacity=".45" />
+      <circle cx={CX} cy={CY} r="7" fill="#343a40" stroke="#f8f9fa" strokeWidth="2" />
+      <rect x={CX - 18 + gone * 90} y={CY - 18} width="36" height="36" rx="6" fill="#f8f9fa" stroke="#6c757d" strokeWidth="2" opacity={sim.snow ? 1 - gone : 0} />
       <g transform={`translate(${CX},${y.toFixed(1)})`}>
-        <rect x="-26" y="-34" width="52" height="69" rx="9" fill="#012a4a" />
-        <rect x="-17" y="-21" width="34" height="24" rx="5" fill="#a9d6e5" />
-        <rect x="-38" y="-52" width="76" height="6" rx="3" fill="#2c7da0" transform="rotate(-15)" />
+        <rect x="-26" y="-34" width="52" height="69" rx="9" fill="#212529" />
+        <rect x="-17" y="-21" width="34" height="24" rx="5" fill="#dee2e6" />
+        <rect x="-38" y="-52" width="76" height="6" rx="3" fill="#6c757d" transform="rotate(-15)" />
       </g>
       {(["N", "E", "S", "W"] as const).map((a, i) => {
         const [x, yy] = [[CX, 18], [588, CY + 5], [CX, 552], [12, CY + 5]][i];
-        return <text key={a} x={x} y={yy} fill="#6b7f90" fontSize="13" fontWeight="700" textAnchor={i === 1 ? "end" : i === 3 ? "start" : "middle"}>{a}</text>;
+        return <text key={a} x={x} y={yy} fill="#6c757d" fontSize="13" fontWeight="700" textAnchor={i === 1 ? "end" : i === 3 ? "start" : "middle"}>{a}</text>;
       })}
     </svg>
   );
