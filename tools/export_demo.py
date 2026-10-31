@@ -6,7 +6,7 @@
 넣고, 예보·갈래별 예측 동결확률을 저장한다. 브라우저는 이 값을 재생하고 출동 규칙만 다시 계산한다.
 현장 보정(local_dt)은 엔진 범위 −6~+3°C를 1°C 간격으로 미리 계산해 둔다(얼음팩 슬라이더).
 
-    python3 tools/export_demo.py            → docs/demo/replay.json
+    python3 tools/export_demo.py            → web/public/demo/replay.json
 """
 import argparse
 import datetime
@@ -27,7 +27,7 @@ P_HORIZONS = ("h1", "h3", "h6")      # 출동 판단에 쓰는 시점(engine.CLA
 NIGHT_HOURS = 16                     # 18:00 ~ 다음 날 09:00
 CLEAR_NIGHTS = 4                     # 결빙 없던 밤도 몇 개 넣어 '출동 안 함'을 보인다
 TEST_YEAR = 2025
-OUT = ROOT / "docs" / "demo" / "replay.json"
+OUT = ROOT / "web" / "public" / "demo" / "replay.json"
 
 
 def _r(value, digits=3):

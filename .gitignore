@@ -3,3 +3,8 @@ __pycache__/
 .DS_Store
 *.mpy
 server/events.jsonl
+
+web/node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
