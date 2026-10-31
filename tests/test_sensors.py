@@ -75,9 +75,11 @@ def usb_input(text):
 
 
 def cycle(main, now):
-    """loop_once를 돌리고 main이 출력한 줄들을 돌려준다."""
+    """loop_once를 돌리고 main이 출력한 줄들을 돌려준다.
+    가짜 poll은 늘 '준비됨'이라 진짜 stdin을 읽으면 셸에 따라 영원히 기다린다. 그래서 빈 입력을 끼운다."""
     out = io.StringIO()
-    with contextlib.redirect_stdout(out):
+    stdin = contextlib.nullcontext() if isinstance(sys.stdin, io.StringIO) else usb_input("")
+    with stdin, contextlib.redirect_stdout(out):
         main.loop_once(now)
     return out.getvalue().splitlines()
 
