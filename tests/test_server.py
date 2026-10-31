@@ -149,43 +149,27 @@ class StateTest(ServerBase):
 
 
 class AutoDispatchTest(ServerBase):
-    def test_auto_dispatch_sweeps_once_then_waits_for_snow(self):
-        """모델 권고 → 사거리 왕복(N) → 처리 효과 동안 모델로는 다시 안 감 → 눈 감지면 다시 간다."""
+    def test_weather_model_alone_never_dispatches(self):
+        """날씨 모델이 출동을 권해도 차는 나가지 않는다. 출동은 눈을 봤을 때만(사진·조도센서)."""
         model = self.make_model(night=NIGHT, budget=1, auto=True)
         self.attach_fake_car(model)
         self.assertTrue(model.snapshot()["step"]["dispatch"]["recommend"])
-
-        first = wait_for(lambda: model.execution["plan_id"] if model.execution["order"] == srv.SWEEP_ORDER else None)
-        self.assertEqual(first, "P1", "자동 출동이 일어나지 않았습니다")
-        self.assertEqual(model.execution["mode"], "car")
-
-        # 차가 arm_done 을 보내면 treated[N] = 재생 시각 + 3시간
-        self.assertIsNotNone(wait_for(lambda: model.treated.get("N")))
-        self.assertEqual(model.treated["N"], "2025-01-09T21:00:00")
-        self.assertIsNotNone(wait_for(lambda: model.execution["state"] == "done"))
-
-        # 다른 갈래 확률이 여전히 높아도(권고 참) 사거리 처리 효과가 남아 있으면 다시 가지 않는다
         time.sleep(0.4)
-        self.assertTrue(model.step["dispatch"]["recommend"])
-        self.assertEqual(model.execution["plan_id"], "P1", "처리 효과가 남았는데 다시 출동했습니다")
+        self.assertIsNone(model.execution["plan_id"], "날씨 모델만으로 출동했습니다")
 
-        # 눈 조각이 조도센서를 덮으면(젖음 입력 참) 바로 다시 간다
-        self.enable_base(model, dock=True, wet=True)
-        self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"] == "P2"), "눈 감지 출동이 없습니다")
-        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
-
-    def test_snow_dispatches_without_model_recommend(self):
+    def test_snow_sensor_sweeps_all_arms_in_the_best_order(self):
         model = self.make_model(night=NIGHT, auto=True)
-        with model.lock:
-            model.step = dict(model.step or {}, dispatch={"recommend": False, "order": []})
         self.attach_fake_car(model)
         self.enable_base(model, dock=True, wet=True)
         self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"]), "눈 감지 출동이 없습니다")
-        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
+        self.assertEqual(sorted(model.execution["order"]), ["E", "N", "S", "W"])
+        self.assertEqual(model.execution["order"],
+                         srv.route.plan({a: {"area_mm2": 1000} for a in "CNESW"})["order"])
 
     def test_estop_turns_auto_off(self):
         model = self.make_model(night=NIGHT, auto=True)
         self.attach_fake_car(model)
+        self.enable_base(model, dock=True, wet=True)
         self.assertIsNotNone(wait_for(lambda: model.execution["state"] == "running"))
         result = model.estop()
         self.assertFalse(result["auto"])
@@ -261,7 +245,8 @@ class BaseTest(ServerBase):
         board = model.snapshot()["board"]
         self.assertEqual(board["CENTER_X"], 582)
         self.assertEqual(board["CENTER_Y"], 480)
-        self.assertEqual(board["BASE_DIST_MM"], 345)
+        self.assertEqual(board["BASE_XY"], [775, 250])           # 북동쪽 기지 차고, 출입구는 서쪽
+        self.assertEqual(board["BASE_H"], 270)
         self.assertEqual(board["ROAD_MM"], 135)            # 2026-10-31 사진 실측
         self.assertEqual(board["BOARD_MM"], [925, 910])
         self.assertEqual(board["PLAZA_MM"], [297, 420])
@@ -307,15 +292,14 @@ class BaseTest(ServerBase):
     def test_dock_false_blocks_auto_dispatch(self):
         model = self.make_model(night=NIGHT, auto=True)
         self.attach_fake_car(model)
-        self.enable_base(model, dock=False)
-        self.assertTrue(model.step["dispatch"]["recommend"])
+        self.enable_base(model, dock=False, wet=True)
         time.sleep(0.4)
         self.assertIsNone(model.execution["plan_id"], "도킹 전인데 출동했습니다")
 
         # 도킹되면 곧바로 자동 출동한다
-        self.enable_base(model, dock=True)
+        self.enable_base(model, dock=True, wet=True)
         self.assertIsNotNone(wait_for(lambda: model.execution["plan_id"]))
-        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
+        self.assertEqual(sorted(model.execution["order"]), ["E", "N", "S", "W"])
 
     def test_beacon_only_while_running(self):
         model = self.make_model(night=NIGHT, auto=False)
@@ -343,7 +327,7 @@ class FakeBaseTest(ServerBase):
         model = self.make_model(night=NIGHT, auto=False)
         car = self.attach_fake_car(model, arm_s=0.08)
         board = model.board
-        dock_y = board["CENTER_Y"] + board["BASE_DIST_MM"]
+        dock_x, dock_y = board["BASE_XY"]
         seen = {"depart": False, "home": False, "ys": set(), "xs": set()}
         stop = threading.Event()
 
@@ -371,7 +355,7 @@ class FakeBaseTest(ServerBase):
         self.assertTrue(seen["home"], "기지 귀환 단계가 없습니다")
         self.assertGreater(len(seen["ys"]), 2, "차가 y 축으로 움직이지 않았습니다")
         self.assertGreater(len(seen["xs"]), 1, "차가 x 축으로 움직이지 않았습니다")
-        self.assertEqual(model.car_state["x"], board["CENTER_X"])
+        self.assertEqual(model.car_state["x"], dock_x)
         self.assertEqual(model.car_state["y"], dock_y)
 
     def test_fake_base_follows_car_and_refills(self):
@@ -451,7 +435,7 @@ class HttpTest(ServerBase):
         status, raw = self.request(port, path, body)
         return status, json.loads(raw.decode("utf-8"))
 
-    def test_vision_photo_dispatches_when_snow_is_on_the_car_route(self):
+    def test_vision_photo_plans_the_route_and_dispatches(self):
         from tests.test_vision import N_SNOW, board, floor, photo
         model = self.make_model(night=NIGHT)
         self.attach_fake_car(model)
@@ -462,19 +446,22 @@ class HttpTest(ServerBase):
         status, body = self.post(port, "/api/vision/detect", {"image": srv.vision.to_data_url(floor())})
         self.assertEqual(status, 422, "도로가 없는 사진을 판정했습니다")
 
-        status, body = self.post(port, "/api/vision/detect", {"image": clean, "go": False})
+        status, body = self.post(port, "/api/vision/detect", {"image": clean})
         self.assertEqual(status, 200, body)
-        self.assertNotEqual(body["decision"]["why"], "snow")
+        self.assertFalse(body["decision"]["go"])
+        self.assertIsNone(body["route"])
         self.assertIsNone(body["dispatch"])
 
         status, body = self.post(port, "/api/vision/detect", {"image": snowy})
         self.assertEqual(status, 200, body)
-        self.assertEqual(body["decision"]["why"], "snow")
-        self.assertGreater(body["arms"]["N"]["area_mm2"], 250)
+        self.assertTrue(body["decision"]["go"])
+        self.assertEqual(body["route"]["order"], ["N"])               # 눈은 N 갈래에만 있다
+        self.assertEqual(body["route"]["path"][0][:2], [775, 250])   # 경로는 기지 차고에서 시작해
+        self.assertEqual(body["route"]["path"][-1][:2], [775, 250])  # 기지로 돌아온다
         self.assertTrue(body["view"].startswith("data:image/jpeg;base64,"))
         self.assertEqual(body["dispatch"]["source"], "vision")
-        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
-        self.assertEqual(model.snapshot()["vision"]["decision"]["why"], "snow")
+        self.assertEqual(model.execution["order"], ["N"])
+        self.assertEqual(model.snapshot()["vision"]["route"]["order"], ["N"])
 
     def test_state_api_and_pages(self):
         model = self.make_model(night=NIGHT)
@@ -629,9 +616,7 @@ class FakeCarTest(ServerBase):
         # 차는 arm_done 뒤에 plan_done 과 유휴 텔레메트리를 한 번 더 보낸다.
         self.assertIsNotNone(wait_for(lambda: model.car_state["state"] == "idle"))
         self.assertEqual(model.car_state["state"], "idle")
-        self.assertEqual(model.car_state["x"], model.board["CENTER_X"])
-        self.assertEqual(model.car_state["y"],
-                         model.board["CENTER_Y"] + model.board["BASE_DIST_MM"])
+        self.assertEqual([model.car_state["x"], model.car_state["y"]], model.board["BASE_XY"])
         self.assertEqual(model.car_state["arm"], None)
         car.stop()
         self.assertTrue(any("갈래 살포 완료" in e["text"] for e in model.events))

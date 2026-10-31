@@ -141,12 +141,11 @@ class GeometryTest(unittest.TestCase):
         self.assertAlmostEqual(car_core.MM_PER_STEP, 0.02301, places=4)
         self.assertAlmostEqual(car_core.DEG_PER_STEP, 0.02441, places=4)
 
-    def test_dock_is_south_of_center(self):
-        self.assertEqual(car_core.DOCK_X, config.CENTER_X)
-        self.assertEqual(car_core.DOCK_Y, config.CENTER_Y + config.BASE_DIST_MM)
+    def test_dock_is_in_the_northeast_garage(self):
         pose = car_core.Pose()
-        self.assertEqual((pose.x, pose.y, pose.h), (car_core.DOCK_X, car_core.DOCK_Y, 0.0))
-        self.assertAlmostEqual(pose.dist_to_center(), config.BASE_DIST_MM)
+        self.assertEqual((pose.x, pose.y, pose.h), (775.0, 250.0, 270.0))   # 출입구(서쪽)를 본다
+        self.assertAlmostEqual(car_core.DOOR_MM, 193.0)                      # 차고 → N 도로 가운데
+        self.assertAlmostEqual(car_core.DOOR_TO_CENTER_MM, 230.0)            # 출입구 → 교차로 중심
 
     def test_shortest_delta(self):
         self.assertAlmostEqual(car_core.shortest_delta(0, 350), 10.0)
@@ -178,39 +177,49 @@ class GeometryTest(unittest.TestCase):
 
 
 # ---------------------------------------------------------------- 경로 계획
+ON_ROAD = ((515, 650, -1, 911), (-1, 926, 404, 552))     # 세로 도로, 가로 도로(x0, x1, y0, y1), 실측 mm
+
+
+def on_road_or_door(x, y):
+    """차 중심이 도로 위이거나 차고~N 도로 출입구 길 위인가(건물을 가로지르지 않는가)."""
+    if any(x0 <= x <= x1 and y0 <= y <= y1 for x0, x1, y0, y1 in ON_ROAD):
+        return True
+    return abs(y - car_core.DOCK_Y) < 1 and config.CENTER_X - 1 <= x <= car_core.DOCK_X + 1
+
+
+def legs(order):
+    return [(s["phase"], s["kind"], s["dir"], s["steps"]) for s in car_core.plan_for_order(order, car_core.Pose())]
+
+
 class PlanTest(unittest.TestCase):
-    def test_depart_arms_return(self):
-        segs = car_core.plan_for_order(["E"], car_core.Pose())
-        self.assertEqual([s["phase"] for s in segs],
-                         ["depart", "turn", "out", "back", "home", "home"])
-        self.assertEqual([s["steps"] for s in segs],
-                         [14994, 3686, 16515, 16515, 3686, 14994])
-        # 갈래에서는 돌지 않고 같은 길을 후진으로 되짚는다. 귀환 회전은 동쪽(90도)에서 북쪽으로 도는 −90도다
-        self.assertEqual([s["dir"] for s in segs], [1, 1, 1, -1, -1, -1])
-        self.assertEqual([bool(s["spray"]) for s in segs],
-                         [False, False, True, False, False, False])
+    def test_garage_depart_one_arm_and_return(self):
+        mm, deg = car_core.mm_to_steps, car_core.deg_to_steps
+        self.assertEqual(legs(["E"]), [
+            ("depart", "drive", 1, mm(193)),          # 차고에서 서쪽으로 나와 N 도로 가운데까지
+            ("turn", "turn", -1, deg(90)),            # 남쪽으로 돈다
+            ("depart", "drive", 1, mm(230)),          # 교차로 중심까지
+            ("turn", "turn", -1, deg(90)),            # 동쪽
+            ("out", "drive", 1, mm(config.ARM_OUT_MM["E"])),
+            ("back", "drive", -1, mm(config.ARM_OUT_MM["E"])),
+            ("home", "turn", -1, deg(90)),            # 북쪽
+            ("home", "drive", 1, mm(230)),            # 출입구 높이까지
+            ("home", "turn", -1, deg(90)),            # 출입구(서쪽)를 보고
+            ("home", "drive", -1, mm(193)),           # 후진으로 차고에 들어간다
+        ])
 
-    def test_depart_reaches_center(self):
-        segs = car_core.plan_for_order(["E"], car_core.Pose())
-        first = segs[0]
-        self.assertEqual(first["phase"], "depart")
-        self.assertEqual(first["steps"], car_core.mm_to_steps(config.BASE_DIST_MM))
-        self.assertIsNone(first["arm"])
-
-    def test_s_is_served_on_depart(self):
-        segs = car_core.plan_for_order(["S", "W"], car_core.Pose())
-        first = segs[0]
-        self.assertEqual(first["phase"], "depart")
-        self.assertEqual(first["arm"], "S")
-        self.assertTrue(first["spray"])
-        self.assertEqual(first["window"], config.SPRAY_WIN["S"])
-        self.assertEqual(first["mode"], "remain")      # 중심까지 남은 거리 기준
-        self.assertEqual([s for s in segs if s["arm"] == "S" and s["phase"] == "out"], [])
-        # S를 뺀 W만 갈래 주행을 한다
-        self.assertEqual(len([s for s in segs if s["phase"] == "out"]), 1)
+    def test_every_route_stays_on_roads(self):
+        for order in (["N"], ["E"], ["S"], ["W"], ["W", "S", "E", "N"], ["N", "E", "S", "W"]):
+            pose = car_core.Pose()
+            mission = car_core.Mission(car_core.plan_for_order(order, pose), pose)
+            n = 0
+            while not mission.done:
+                mission.step()
+                n += 1
+                if n % 40 == 0:
+                    self.assertTrue(on_road_or_door(pose.x, pose.y), (order, round(pose.x), round(pose.y)))
 
     def test_arm_distances_and_windows(self):
-        for arm in ("N", "E", "W"):
+        for arm in ("N", "E", "S", "W"):
             segs = car_core.plan_for_order([arm], car_core.Pose())
             out = [s for s in segs if s["phase"] == "out"][0]
             self.assertEqual(out["steps"], car_core.mm_to_steps(config.ARM_OUT_MM[arm]))
@@ -221,26 +230,19 @@ class PlanTest(unittest.TestCase):
             self.assertEqual(back["dir"], -1)                  # 후진으로 되짚는다
             self.assertFalse(back["spray"])
 
-    def test_return_reverses_into_base(self):
-        segs = car_core.plan_for_order(["E"], car_core.Pose())
-        last = segs[-1]
-        self.assertEqual(last["phase"], "home")
-        self.assertEqual(last["dir"], -1)                      # 후진
-        self.assertEqual(last["steps"], car_core.mm_to_steps(
-            config.BASE_DIST_MM + config.DOCK_OVERDRIVE_MM))
-        self.assertFalse(last["spray"])
+    def test_blade_stops_inside_the_board(self):
+        ends = {"N": 480, "E": 343, "S": 430, "W": 582}       # 중심 → 보드 끝(실측)
+        for arm, end in ends.items():
+            self.assertLessEqual(config.ARM_OUT_MM[arm] + 85, end, arm)     # 차 앞 75 + 날 10
 
     def test_pose_resets_to_dock(self):
         for order in (["S"], ["E"], ["N", "E"], ["E", "W"], ["N", "E", "S", "W"]):
             steps, spray, events, pose = sim_mission(order)
-            self.assertEqual(pose.x, car_core.DOCK_X)
-            self.assertEqual(pose.y, car_core.DOCK_Y)
-            self.assertEqual(pose.h, 0.0)
+            self.assertEqual((pose.x, pose.y, pose.h), (car_core.DOCK_X, car_core.DOCK_Y, car_core.DOCK_H))
             self.assertEqual(events[-1][0], car_core.EV_PLAN_DONE)
 
     def test_spray_happens_only_outbound(self):
-        cases = ((["E"], {"out"}), (["S"], {"depart"}), (["S", "W"], {"depart", "out"}))
-        for order, want in cases:
+        for order in (["E"], ["S"], ["S", "W"]):
             segs = car_core.plan_for_order(order, car_core.Pose())
             mission = car_core.Mission(segs, car_core.Pose())
             phases = set()
@@ -248,33 +250,9 @@ class PlanTest(unittest.TestCase):
                 mission.step()
                 if mission.spray:
                     phases.add(mission.phase)
-            self.assertEqual(phases, want)
+            self.assertEqual(phases, {"out"})
 
-    def test_arm_spray_window_length(self):
-        for arm in ("N", "E", "W"):
-            segs = car_core.plan_for_order([arm], car_core.Pose())
-            mission = car_core.Mission(segs, car_core.Pose())
-            sprayed = 0
-            while not mission.done:
-                mission.step()
-                if mission.spray:
-                    sprayed += 1
-            lo, hi = config.SPRAY_WIN[arm]
-            self.assertAlmostEqual(sprayed * car_core.MM_PER_STEP, hi - lo, delta=2.0)
-
-    def test_s_spray_window_uses_remaining_distance(self):
-        segs = car_core.plan_for_order(["S"], car_core.Pose())
-        mission = car_core.Mission(segs, car_core.Pose())
-        sprayed = 0
-        while not mission.done:
-            mission.step()
-            if mission.spray:
-                sprayed += 1
-        lo, hi = config.SPRAY_WIN["S"]
-        # 출발 길이므로 '중심까지 남은 거리'가 hi에서 lo로 줄어드는 동안 열린다
-        self.assertAlmostEqual(sprayed * car_core.MM_PER_STEP, hi - lo, delta=2.0)
-
-    def test_s_arm_events(self):
+    def test_arm_events_follow_the_order(self):
         steps, spray, events, pose = sim_mission(["S", "W"])
         names = [e[0] for e in events]
         self.assertEqual(names, [
@@ -282,63 +260,38 @@ class PlanTest(unittest.TestCase):
             car_core.EV_ARM_DONE,
             car_core.EV_ARM_START, car_core.EV_SPRAY_ON, car_core.EV_SPRAY_OFF,
             car_core.EV_ARM_DONE, car_core.EV_PLAN_DONE])
-        arms = [e[1] for e in events if e[0] == car_core.EV_ARM_DONE]
-        self.assertEqual(arms, ["S", "W"])
+        self.assertEqual([e[1] for e in events if e[0] == car_core.EV_ARM_DONE], ["S", "W"])
 
     def test_next_arm_turns_from_last_bearing(self):
         # E에서 후진으로 돌아오면 여전히 동쪽을 보므로, W로 가려면 180도 돈다
         segs = car_core.plan_for_order(["E", "W"], car_core.Pose())
-        self.assertEqual([s["steps"] for s in segs],
-                         [14994, 3686, 16515, 16515, 7373, 17384, 17384, 3686, 14994])
-        self.assertEqual(segs[5]["arm"], "W")
-        self.assertEqual(segs[5]["phase"], "out")
+        w_turn = [s for s in segs if s["arm"] == "W" and s["kind"] == "turn"][0]
+        self.assertEqual(w_turn["steps"], car_core.deg_to_steps(180))
 
     def test_estimate_seconds(self):
-        # 사거리 왕복(N): 출발 345 + 북쪽 385 + 후진 385 + 귀환 후진 345, 회전 없음 → 약 76초(실기 약 87초)
-        self.assertAlmostEqual(car_core.estimate_seconds(["N"]),
-                               63452 * config.STEP_US / 1000000.0)
-        self.assertAlmostEqual(car_core.estimate_seconds(["S"]),
-                               29988 * config.STEP_US / 1000000.0)
-        self.assertAlmostEqual(car_core.estimate_seconds(["E", "W"]),
-                               112531 * config.STEP_US / 1000000.0)
-        self.assertAlmostEqual(car_core.estimate_seconds(["S", "W"]),
-                               72128 * config.STEP_US / 1000000.0)
-        self.assertAlmostEqual(car_core.estimate_seconds(["N", "E", "S", "W"]),
-                               145995 * config.STEP_US / 1000000.0)
-
-    def test_sweep_has_no_turns(self):
-        segs = car_core.plan_for_order(["N"], car_core.Pose())
-        self.assertEqual([s["kind"] for s in segs], ["drive"] * 4)
-        self.assertEqual([s["dir"] for s in segs], [1, 1, -1, -1])
+        # 차고 출발 193+230, 갈래 왕복, 귀환 230+193과 그 사이 회전. 값이 바뀌면 경로나 기구 상수가 바뀐 것이다
+        for order, want in ((["N"], 84977), (["E"], 73068), (["S"], 80631), (["W"], 93842),
+                            (["N", "E", "S", "W"], 192725)):
+            self.assertAlmostEqual(car_core.estimate_seconds(order), want * config.STEP_US / 1000000.0)
 
     def test_plan_home_from_mid_arm(self):
-        pose = car_core.Pose(x=config.CENTER_X + config.ARM_OUT_MM["E"],
-                             y=config.CENTER_Y, h=90.0)
+        pose = car_core.Pose(x=config.CENTER_X + config.ARM_OUT_MM["E"], y=config.CENTER_Y, h=90.0)
         segs = car_core.plan_home(pose)
         self.assertEqual(segs[0]["phase"], "home")
         mission = car_core.Mission(segs, pose)
         while not mission.done:
             mission.step()
-        self.assertEqual(pose.x, car_core.DOCK_X)
-        self.assertEqual(pose.y, car_core.DOCK_Y)
-        self.assertEqual(pose.h, 0.0)
+            self.assertTrue(on_road_or_door(pose.x, pose.y), (round(pose.x), round(pose.y)))
+        self.assertEqual((pose.x, pose.y, pose.h), (car_core.DOCK_X, car_core.DOCK_Y, car_core.DOCK_H))
 
-    def test_plan_home_from_center_reverses_only(self):
-        pose = car_core.Pose(x=config.CENTER_X, y=config.CENTER_Y, h=0.0)
+    def test_plan_home_from_door_path_only_reverses(self):
+        pose = car_core.Pose(x=config.CENTER_X + 100, y=car_core.DOCK_Y, h=270.0)
         segs = car_core.plan_home(pose)
-        self.assertEqual(len(segs), 1)
-        self.assertEqual(segs[0]["phase"], "home")
-        self.assertEqual(segs[0]["dir"], -1)
+        self.assertEqual([(s["kind"], s["dir"]) for s in segs], [("drive", -1)])
+        self.assertEqual(segs[0]["steps"], car_core.mm_to_steps(car_core.DOCK_X - pose.x))
 
-    def test_plan_home_from_dock(self):
-        # 도킹 위치는 이미 북향이라 회전이 필요 없다: 중심으로 전진 → 후진 귀환
-        segs = car_core.plan_home(car_core.Pose())
-        self.assertEqual([s["phase"] for s in segs], ["home", "home"])
-        self.assertEqual(segs[0]["dir"], 1)
-        self.assertEqual(segs[0]["steps"], car_core.mm_to_steps(config.BASE_DIST_MM))
-        self.assertEqual(segs[1]["dir"], -1)
-        self.assertEqual(segs[1]["steps"], car_core.mm_to_steps(
-            config.BASE_DIST_MM + config.DOCK_OVERDRIVE_MM))
+    def test_plan_home_from_dock_is_empty(self):
+        self.assertEqual(car_core.plan_home(car_core.Pose()), [])
 
 
 # ---------------------------------------------------------------- 프로토콜
@@ -358,7 +311,7 @@ class ProtocolTest(unittest.TestCase):
         self.assertIsNone(tel["obst_cm"])
         self.assertEqual(tel["x"], int(car_core.DOCK_X))
         self.assertEqual(tel["y"], int(car_core.DOCK_Y))
-        self.assertEqual(tel["h"], 0)
+        self.assertEqual(tel["h"], int(car_core.DOCK_H))
 
     def test_event_format(self):
         evt = car_core.make_evt(car_core.EV_SPRAY_ON, 7, "E")
@@ -429,15 +382,17 @@ class CoreStateTest(unittest.TestCase):
         tel = self.core.tel(100)
         self.assertEqual(tel["phase"], "depart")
         self.assertEqual(tel["state"], car_core.STATE_RUN)
-        self.assertEqual(tel["y"], int(car_core.DOCK_Y))      # 아직 몇 mm 안 움직였다
-        self.assertLess(self.core.pose.y, car_core.DOCK_Y)     # 북쪽으로 갔다
+        self.assertEqual(tel["x"], int(car_core.DOCK_X))      # 아직 몇 mm 안 움직였다
+        self.assertLess(self.core.pose.x, car_core.DOCK_X)     # 출입구(서쪽)로 나간다
+        self.assertEqual(self.core.pose.y, car_core.DOCK_Y)
 
-    def test_s_arm_starts_on_depart(self):
+    def test_first_arm_starts_after_leaving_the_garage(self):
         self.plan(1, order=("S", "W"))
-        out = self.drain()
-        self.assertEqual([m["t"] for m in out], ["ack", "evt", "evt"])
-        self.assertEqual(out[2]["e"], car_core.EV_ARM_START)
-        self.assertEqual(out[2]["arm"], "S")
+        self.assertEqual([m["t"] for m in self.drain()], ["ack", "evt"])     # plan_start만
+        while self.core.can_step() and self.core.mission.arm is None:
+            self.core.step()
+        evts = [m for m in self.drain() if m["t"] == "evt"]
+        self.assertEqual((evts[0]["e"], evts[0]["arm"]), (car_core.EV_ARM_START, "S"))
 
     def test_duplicate_seq_runs_once(self):
         self.plan(1)
@@ -537,8 +492,6 @@ class CoreStateTest(unittest.TestCase):
         """귀환 후진 중에는 차고 벽을 장애물로 보지 않는다."""
         self.plan(1, order=("S",))
         self.drain()
-        segs = self.core.mission.segs
-        reverse_steps = segs[-1]["steps"]
         while self.core.can_step() and not self.core.mission.reversing():
             self.core.step()
         self.assertTrue(self.core.mission.reversing())
@@ -547,10 +500,10 @@ class CoreStateTest(unittest.TestCase):
         self.assertEqual(self.core.state, car_core.STATE_RUN)
         self.assertIsNone(self.core.blocked_since)
         self.assertEqual(self.core.tel(self.t)["obst_cm"], 3.0)   # 표시는 한다
-        for _ in range(reverse_steps):
+        while self.core.can_step():
             self.core.step()
         self.assertEqual(self.core.state, car_core.STATE_IDLE)
-        self.assertEqual(self.core.pose.y, car_core.DOCK_Y)
+        self.assertEqual((self.core.pose.x, self.core.pose.y), (car_core.DOCK_X, car_core.DOCK_Y))
 
     def test_obstacle_aborts_after_ten_seconds(self):
         self.plan(1)
@@ -590,16 +543,16 @@ class DeviceTest(unittest.TestCase):
             self.assertEqual(dev.core.phase, "depart")
             self.assertFalse(world.coils_off(cfg.PIN_LEFT))
             self.assertEqual(world.freqs[cfg.PIN_SERVO], cfg.SERVO_HZ)
-            # 출발 길 110mm를 지나면 S 살포가 시작된다
-            for i in range(2):
+            # 차고를 나와 교차로를 지나 S 갈래 100mm부터 살포 창이 열린다(약 32초)
+            for i in range(17):
                 inject(world, {"t": "ping", "seq": 100 + i})
                 run_ms(dev, world, 2000)
             self.assertTrue(dev.core.spray)
             self.assertGreater(world.duty[cfg.PIN_SERVO], 0)
-            self.assertLess(dev.core.pose.y, core_mod.DOCK_Y)     # 북쪽으로 갔다
+            self.assertGreater(dev.core.pose.y, cfg.CENTER_Y)     # 교차로 남쪽으로 내려왔다
             t = tel_last(world)
             self.assertIsNotNone(t)
-            self.assertEqual(t["phase"], "depart")
+            self.assertEqual(t["phase"], "out")
 
     def test_stop_turns_coils_off_and_closes_servo(self):
         with fake_pico() as (dev, world, core_mod, cfg):
@@ -651,10 +604,10 @@ class DeviceTest(unittest.TestCase):
 
     def test_reverse_ignores_sonar(self):
         with fake_pico() as (dev, world, core_mod, cfg):
-            # 중심에 있다가 home을 받으면 곧바로 후진(귀환)만 한다
-            dev.core.pose.x = cfg.CENTER_X
-            dev.core.pose.y = cfg.CENTER_Y
-            dev.core.pose.h = 0.0
+            # 출입구 길에 있다가 home을 받으면 곧바로 차고로 후진만 한다
+            dev.core.pose.x = cfg.CENTER_X + 100
+            dev.core.pose.y = core_mod.DOCK_Y
+            dev.core.pose.h = 270.0
             inject(world, {"t": "home", "seq": 9})
             dev.tick()
             self.assertEqual(dev.core.mission.phase, "home")
@@ -697,9 +650,7 @@ class DeviceTest(unittest.TestCase):
             self.assertEqual(acks[0]["seq"], 5)
             self.assertTrue(acks[0]["ok"])
             evts = [m for m in msgs if m["t"] == "evt"]
-            self.assertEqual(evts[0]["e"], core_mod.EV_PLAN_START)
-            self.assertEqual(evts[1]["e"], core_mod.EV_ARM_START)
-            self.assertEqual(evts[1]["arm"], "S")
+            self.assertEqual([e["e"] for e in evts], [core_mod.EV_PLAN_START])   # 갈래는 차고를 나온 뒤 시작한다
 
     def test_wifi_retry_and_led_before_connected(self):
         with fake_pico() as (dev, world, core_mod, cfg):
@@ -758,9 +709,10 @@ class DeviceTest(unittest.TestCase):
                 fwd, back = sweep.sweep(dev.motors)
                 sweep.MODE = "calib"
                 sweep.main()
-            want = core_mod.mm_to_steps(cfg.BASE_DIST_MM) + core_mod.mm_to_steps(cfg.ARM_OUT_MM["N"])
-            self.assertEqual(fwd, want)
-            self.assertEqual(back, want)
+            mm = core_mod.mm_to_steps
+            # 전진: 차고 → N 도로 → 교차로 → N 끝, 귀환 때 출입구 높이까지. 후진: N 끝에서 교차로, 차고로
+            self.assertEqual(fwd, mm(193) + mm(230) + mm(cfg.ARM_OUT_MM["N"]) + mm(230))
+            self.assertEqual(back, mm(cfg.ARM_OUT_MM["N"]) + mm(193))
             self.assertTrue(world.coils_off(cfg.PIN_LEFT))
             self.assertTrue(world.coils_off(cfg.PIN_RIGHT))
 

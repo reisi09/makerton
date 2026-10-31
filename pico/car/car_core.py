@@ -2,7 +2,7 @@
 # 하드웨어(machine·network·socket)를 import하지 않는다. 시험은 이 파일을 CPython으로 그대로 돌린다.
 #
 # 좌표: x는 동쪽, y는 남쪽(mm). 원점은 보드 왼쪽 위 모서리다.
-# 교차로 중심은 (CENTER_X, CENTER_Y), 홈(기지 도킹 위치)은 그 남쪽 BASE_DIST_MM 지점이고 북향이다.
+# 교차로 중심은 (CENTER_X, CENTER_Y). 홈은 북동쪽 기지 차고 안 (BASE_X, BASE_Y)이고 서쪽 출입구를 본다.
 # 방위는 시계 방향이다(N=0, E=90, S=180, W=270). 전진하면 x는 sin(h), y는 -cos(h)만큼 움직인다.
 #
 # 시간 인자는 전부 ms 정수다. MicroPython의 ticks_ms·ticks_us는 0x40000000에서 감싸므로
@@ -57,8 +57,11 @@ def ticks_add(a, b):
 
 
 # ── 기준점 ──────────────────────────────────────────────────────────
-DOCK_X = config.CENTER_X
-DOCK_Y = config.CENTER_Y + config.BASE_DIST_MM
+DOCK_X = config.BASE_X
+DOCK_Y = config.BASE_Y
+DOCK_H = config.BASE_H
+DOOR_MM = DOCK_X - config.CENTER_X          # 차고 → N 도로 가운데(서쪽)
+DOOR_TO_CENTER_MM = config.CENTER_Y - DOCK_Y  # 출입구 높이 → 교차로 중심(남쪽)
 
 
 # ── 기구 수치 ────────────────────────────────────────────────────────
@@ -102,10 +105,10 @@ def bearing_to(dx, dy):
 class Pose(object):
     """스텝을 밀 때마다 갱신하는 추측 위치·방위. 센서로 보정하지 않는다(추측항법)."""
 
-    def __init__(self, x=None, y=None, h=0.0):
+    def __init__(self, x=None, y=None, h=None):
         self.x = DOCK_X if x is None else x
         self.y = DOCK_Y if y is None else y
-        self.h = norm_deg(h)
+        self.h = norm_deg(DOCK_H if h is None else h)
 
     def forward(self, mm):
         """방위 방향으로 mm만큼 굴러간 것으로 본다(음수면 후진). 남쪽이 y 증가다."""
@@ -122,10 +125,10 @@ class Pose(object):
         return math.sqrt(dx * dx + dy * dy)
 
     def dock(self):
-        """도킹 위치·북향으로 다시 맞춘다."""
+        """차고 안 도킹 위치·출입구 방향으로 다시 맞춘다."""
         self.x = DOCK_X
         self.y = DOCK_Y
-        self.h = 0.0
+        self.h = DOCK_H
 
     def as_dict(self):
         return {"x": self.x, "y": self.y, "h": self.h}
@@ -140,44 +143,40 @@ def _turn_seg(deg, phase, arm):
 
 def _drive_seg(mm, phase, arm, spray=False, window=None, mode="dist", reverse=False):
     """mm는 거리(mm, 양수). reverse면 같은 거리를 후진한다.
-    남은 거리 기준으로 살포하려면 mode="remain"을 쓴다(S 갈래)."""
+    남은 거리 기준으로 살포하려면 mode="remain"을 쓴다."""
     return {"kind": "drive", "mm": mm, "steps": mm_to_steps(mm),
             "dir": -1 if reverse else 1, "phase": phase, "arm": arm,
             "spray": bool(spray), "window": window, "mode": mode}
 
 
-def _depart_leg(serve_s, heading):
-    """1. 출발: 도킹 위치에서 중심까지 북쪽으로. S는 이 길에서 살포한다."""
-    segs = []
-    segs.append(_turn_seg(shortest_delta(0.0, heading), PHASE_TURN, None))
-    segs.append(_drive_seg(config.BASE_DIST_MM, PHASE_DEPART,
-                           "S" if serve_s else None, serve_s,
-                           config.SPRAY_WIN["S"] if serve_s else None, "remain"))
-    return segs
+def _depart_leg(heading):
+    """1. 출발: 차고에서 서쪽으로 나와 N 도로 가운데에서 남쪽으로 돌아 교차로 중심까지."""
+    return [_turn_seg(shortest_delta(DOCK_H, heading), PHASE_TURN, None),
+            _drive_seg(DOOR_MM, PHASE_DEPART, None),
+            _turn_seg(shortest_delta(180.0, DOCK_H), PHASE_TURN, None),
+            _drive_seg(DOOR_TO_CENTER_MM, PHASE_DEPART, None)]
 
 
 def _return_leg(heading):
-    """3. 귀환: 북향으로 돌아 BASE_DIST+OVERDRIVE만큼 후진해 차고에 들어간다."""
+    """3. 귀환: 북향으로 돌아 출입구 높이까지 간 뒤, 출입구 쪽(서쪽)을 보고 후진해 차고에 들어간다."""
     return [_turn_seg(shortest_delta(0.0, heading), PHASE_HOME, None),
-            _drive_seg(config.BASE_DIST_MM + config.DOCK_OVERDRIVE_MM,
-                       PHASE_HOME, None, reverse=True)]
+            _drive_seg(DOOR_TO_CENTER_MM, PHASE_HOME, None),
+            _turn_seg(shortest_delta(DOCK_H, 0.0), PHASE_HOME, None),
+            _drive_seg(DOOR_MM, PHASE_HOME, None, reverse=True)]
 
 
 def plan_for_order(order, pose=None):
-    """갈래 순서 → 구간 목록(계약 7절 경로). 차가 도킹 위치·북향에 있다고 본다."""
+    """갈래 순서 → 구간 목록. 차가 차고 안 도킹 위치에 있다고 본다.
+    갈래마다 중심에서 그 방위로 돌아 끝까지 밀고(날이 눈을 보드 밖으로 민다) 같은 길을 후진으로 되짚는다."""
     if pose is None:
         pose = Pose()
-    serve_s = "S" in order
-    segs = _depart_leg(serve_s, pose.h)
-    heading = 0.0                       # 출발 구간을 지나면 북향이다
+    segs = _depart_leg(pose.h)
+    heading = 180.0                     # 출발 구간을 지나면 남향이다
     for arm in order:
-        if arm == "S":
-            continue                    # S는 출발 구간에서 이미 처리했다
         bearing = config.ARM_BEARING[arm]
         dist = config.ARM_OUT_MM[arm]
         segs.append(_turn_seg(shortest_delta(bearing, heading), PHASE_TURN, arm))
-        segs.append(_drive_seg(dist, PHASE_OUT, arm, True,
-                               config.SPRAY_WIN[arm], "dist"))
+        segs.append(_drive_seg(dist, PHASE_OUT, arm, True, config.SPRAY_WIN[arm], "dist"))
         # 같은 길을 후진으로 되짚는다. 갈 때 생긴 방향 오차가 돌아올 때 상쇄된다.
         segs.append(_drive_seg(dist, PHASE_BACK, arm, reverse=True))
         heading = float(bearing)
@@ -186,7 +185,14 @@ def plan_for_order(order, pose=None):
 
 
 def plan_home(pose):
-    """지금 추측 위치에서 중심으로 간 뒤 귀환(3번)을 한다."""
+    """지금 추측 위치에서 차고로. 출입구 길(차고~N 도로)이면 바로 후진하고,
+    도로 위면 도로를 따라 중심으로 간 뒤 귀환(3번)한다. 건물을 가로지르지 않는다."""
+    tol = config.HOME_TOL_MM
+    if abs(pose.x - DOCK_X) < tol and abs(pose.y - DOCK_Y) < tol:
+        return []
+    if abs(pose.y - DOCK_Y) < 20 and pose.x > config.CENTER_X + tol:
+        return _drop_empty([_turn_seg(shortest_delta(DOCK_H, pose.h), PHASE_HOME, None),
+                            _drive_seg(DOCK_X - pose.x, PHASE_HOME, None, reverse=True)])
     dx = config.CENTER_X - pose.x
     dy = config.CENTER_Y - pose.y
     dist = math.sqrt(dx * dx + dy * dy)

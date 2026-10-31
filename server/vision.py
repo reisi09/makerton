@@ -1,10 +1,11 @@
-"""패드 사진 한 장 → 검은 도로만 찾기 → 도로 위 흰 알갱이(우드락 눈)를 갈래별로 센다 → 출동 판단.
+"""패드 사진 한 장 → 검은 도로만 찾기 → 도로 위 흰 알갱이(우드락 눈)를 갈래별로 센다(객체 인식).
+출동 여부와 도는 순서는 server/route.py가 정한다.
 
 기준 사진도, 모서리 찍기도, 학습 데이터도 없다. 도로는 '꽉 찬 검정'이라 점박이 바닥 타일과 갈리고,
 눈은 도로 안의 흰 점이다. 중앙선 점선 위 투명 테이프가 빛을 받으면 눈처럼 하얗게 찍히므로
 중앙선 띠와 도로 방향으로 길쭉한 반사는 뺀다. 축척은 도로 폭(board.json ROAD_MM)으로 잡는다.
 사진 방향은 노란 코트가 교차로 왼쪽 아래에 오도록 돌려 맞춘다(그래서 N은 늘 공원·큰 건물 쪽 도로).
-2026-10-31 모형 사진 19장: 위에서 찍은 눈 없음 0~28mm², 눈 있음 342mm² 이상.
+2026-10-31 모형 사진: 위에서 찍은 눈 없는 사진은 갈래당 30mm² 이하, 눈 사진은 눈 있는 갈래가 100mm² 이상.
 낮은 각도로 비스듬히 찍은 1885 한 장만 반사로 640mm²가 나왔다. 패드는 위에서 내려다보게 둔다.
 """
 
@@ -19,10 +20,8 @@ MAX_SIDE = 1200        # 이보다 크면 줄여서 본다(알갱이가 2px 아�
 DARK = 80              # 이보다 어두운 픽셀이 도로 후보
 SOLID = 0.8            # 주변이 이 비율 넘게 검어야 도로(바닥 타일 점박이는 빠진다)
 SNOW_MIN = 140         # 도로 안에서 RGB가 모두 이보다 밝으면 눈
-SNOW_MIN_MM2 = 300     # 차가 닿는 갈래의 눈 합계가 이보다 크면 출동
 CENTER_FRAC = 0.12     # 도로 폭의 이 비율만큼 중앙선 띠는 보지 않는다(점선·투명 테이프 반사)
 STREAK = 3.0           # 이 비율 넘게 길쭉하고 10mm 넘게 긴 흰 덩어리는 반사로 본다
-REACH = ("S", "C", "N")  # 차는 S 대기 칸 → 교차로 → N 끝을 민다(사거리 왕복)
 ARMS = ("C", "N", "S", "E", "W")
 
 
@@ -136,19 +135,6 @@ def analyze(img, road_mm):
         arms[name] = {"area_mm2": int(round(sel.sum() / px_mm ** 2)),
                       "far_mm": int(round(dist[sel].max())) if sel.any() else 0}
     return {"arms": arms, "turns": k, "view": _overlay(img, road, snow, (cx, cy), (x0, x1, y0, y1))}
-
-
-def decide(arms, p, threshold):
-    """갈래별 눈 + 모델 확률 → 출동 여부. 차가 닿는 갈래의 눈이 먼저, 없으면 모델이 미리 밀지 정한다."""
-    reach = sum(arms[a]["area_mm2"] for a in REACH)
-    away = [a for a in ARMS if a not in REACH and arms[a]["area_mm2"] >= SNOW_MIN_MM2]
-    note = " (%s 갈래 눈은 차가 닿지 않음)" % "·".join(away) if away else ""
-    if reach >= SNOW_MIN_MM2:
-        return {"go": True, "why": "snow", "text": "차 경로(S·교차로·N)에 눈 %dmm² → 지금 출동%s" % (reach, note)}
-    if p is not None and p >= threshold:
-        return {"go": True, "why": "model",
-                "text": "경로에 눈은 적지만 N 결빙확률 %d%% → 미리 밀기%s" % (round(p * 100), note)}
-    return {"go": False, "why": "none", "text": "차 경로에 눈 없음%s" % note}
 
 
 def _overlay(img, road, snow, center, cross):

@@ -37,7 +37,7 @@ APP_DIR = os.path.join(ROOT, "web", "out-app")   # npm run build:app 결과(패�
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from server import vision  # noqa: E402
+from server import route, vision  # noqa: E402
 
 HTTP_PORT = 8000
 ARMS = ("N", "E", "S", "W")
@@ -48,8 +48,8 @@ TREAT_HOURS = 3          # 살포 효과를 보는 시간(계약 5절)
 MOCK_ARM_S = 3.0         # 차가 없을 때 갈래당 모의 실행 시간(계약 5절)
 CAR_FRESH_S = 5.0        # 차 링크가 살아 있다고 보는 시간(계약 7절 LINK_TIMEOUT_MS)
 PING_S = 1.0             # 차로 보내는 ping 주기(계약 5절)
-PLAN_ARM_TIMEOUT_S = 90.0  # 차가 arm_done 을 보내주지 않으면 계획을 접는다
-PLAN_DONE_TIMEOUT_S = 30.0  # 마지막 갈래 뒤 기지 도킹(plan_done)을 기다리는 한계
+PLAN_ARM_TIMEOUT_S = 180.0  # 차가 arm_done 을 보내주지 않으면 계획을 접는다(첫 갈래는 기지 출발 포함 실기 약 95초)
+PLAN_DONE_TIMEOUT_S = 90.0  # 마지막 갈래 뒤 기지 도킹(plan_done)을 기다리는 한계(귀환은 실기 약 40초)
 FAKE_ARM_S = 0.8         # --car fake: 구간당 시간(시연에서 움직임이 보이게)
 FAKE_TEL_S = 2.0         # --sensors-serial fake: @@TEL 주기(계약 6절 2초)
 SHOW_RESEND_S = 2.0      # @@SHOW 를 같은 내용으로 다시 보내는 주기
@@ -61,18 +61,17 @@ TICK_S = 0.1
 # board.json 이 없을 때 쓰는 기본값(계약 7·8·9절). board.json 과 같은 2026-10-31 실측값이다.
 BOARD_DEFAULTS = {
     "note": "사진 추정값. 줄자로 재서 pico/car/config.py 와 함께 고친다.",
-    "CENTER_X": 582, "CENTER_Y": 480, "BASE_DIST_MM": 345, "DOCK_OVERDRIVE_MM": 0,
+    "CENTER_X": 582, "CENTER_Y": 480, "BASE_XY": [775, 250], "BASE_H": 270,
     "ROAD_MM": 135, "PLAZA_MM": [297, 420],
     "PLAZA_EDGE_MM": {"N": 243, "S": 176, "W": 157, "E": 140},
     "ARM_END_MM": {"N": 480, "E": 343, "W": 582, "S": 430},
-    "ARM_OUT_MM": {"N": 385, "E": 380, "W": 400, "S": 390},
-    "SPRAY_WIN": {"N": [100, 385], "E": [100, 380], "S": [100, 345], "W": [100, 400]},
+    "ARM_OUT_MM": {"N": 385, "E": 248, "W": 487, "S": 335},
+    "SPRAY_WIN": {"N": [100, 385], "E": [100, 248], "S": [100, 335], "W": [100, 487]},
     "BASE_MM": [320, 230],
     "WET_ARM": "W",
     "BOARD_MM": [925, 910],
 }
 AUTO_COOLDOWN_S = 10.0  # 출동이 끝난 뒤 자동 출동을 다시 판단하기까지(눈이 남아 있으면 한 번 더)
-SWEEP_ORDER = ["N"]     # 사거리 왕복: 대기 칸 → 광장 북쪽 끝 → 같은 길 후진
 
 
 class HttpError(Exception):
@@ -138,17 +137,17 @@ def _arm(value):
 
 
 def _arms_of(values):
-    """갈래 목록을 N·E·S·W 로 제한하고 계약 순서로 정리한다."""
+    """갈래 목록을 N·E·S·W 로 제한하고 중복을 뺀다. 순서는 그대로 둔다(최적 경로가 정한 순서다)."""
     if not values:
         return []
     if isinstance(values, str):
         values = values.replace(",", " ").split()
-    found = set()
+    out = []
     for item in values:
         arm = _arm(item)
-        if arm:
-            found.add(arm)
-    return [a for a in ARMS if a in found]
+        if arm and arm not in out:
+            out.append(arm)
+    return out
 
 
 def _json_tail(line, prefix):
@@ -313,7 +312,8 @@ class FakeCar(object):
     """프로세스 안 가짜 제설차.
 
     계약 7절 순서를 흉내 낸다: ack → plan_start → (기지 출발) → arm_start → spray_on …
-    기지에서 북쪽으로 나가 갈래를 돌고, 다시 기지로 후진해 들어온다. x·y 는 board.json 기준 mm다.
+    북동쪽 기지 차고에서 서쪽 출입구로 나와 N 도로로 교차로에 가고, 갈래를 돈 뒤 같은 길로 후진해 들어온다.
+    x·y 는 board.json 기준 mm다.
     """
 
     mode = "fake"
@@ -324,8 +324,8 @@ class FakeCar(object):
         self.arm_s = arm_s
         self.seq = 0
         self.state = {"state": "idle", "phase": "idle", "arm": None,
-                      "x": self._num("CENTER_X", 480), "y": self._dock_y(),
-                      "h": 0, "spray": False, "obst_cm": None, "up": 0}
+                      "x": self._dock()[0], "y": self._dock()[1],
+                      "h": self._num("BASE_H", 270), "spray": False, "obst_cm": None, "up": 0}
         self._cancel = threading.Event()
         self._seen_seq = set()
         self._running = False
@@ -377,8 +377,8 @@ class FakeCar(object):
             with self._lock:
                 self._running = False
             self._emit("plan_done", None)
-            self._state(state="idle", phase="home", x=self._num("CENTER_X", 480),
-                        y=self._dock_y(), h=0, spray=False, arm=None)
+            self._state(state="idle", phase="home", x=self._dock()[0],
+                        y=self._dock()[1], h=self._num("BASE_H", 270), spray=False, arm=None)
         elif kind == "ping":
             self._tel()
         return True
@@ -391,8 +391,9 @@ class FakeCar(object):
         except (TypeError, ValueError):
             return float(default)
 
-    def _dock_y(self):
-        return self._num("CENTER_Y", 340) + self._num("BASE_DIST_MM", 500)
+    def _dock(self):
+        xy = (getattr(self.model, "board", None) or {}).get("BASE_XY") or [775, 250]
+        return float(xy[0]), float(xy[1])
 
     def _arm_out(self, arm):
         board = getattr(self.model, "board", None) or {}
@@ -436,29 +437,19 @@ class FakeCar(object):
     def _run(self, order):
         cx = self._num("CENTER_X", 480)
         cy = self._num("CENTER_Y", 340)
-        dock_y = self._dock_y()
+        dock_x, dock_y = self._dock()
+        dock_h = self._num("BASE_H", 270)
         self._emit("plan_start", None)
-        s_on_way = "S" in order
 
-        # 1) 출발: 기지 → 중심. order 에 S 가 있으면 이 길에서 살포한다.
-        if s_on_way:
-            self._emit("arm_start", "S")
-        self._state(state="run", phase="depart", arm=("S" if s_on_way else None),
-                    h=0, spray=False)
-        if not self._travel(cx, dock_y, cx, cy, phase="depart",
-                            arm=("S" if s_on_way else None), h=0, spray=False):
+        # 1) 출발: 차고 → 서쪽 출입구 → N 도로 가운데 → 남쪽으로 교차로 중심
+        self._state(state="run", phase="depart", arm=None, h=dock_h, spray=False)
+        if not self._travel(dock_x, dock_y, cx, dock_y, phase="depart", arm=None, h=dock_h, spray=False):
             return
-        if s_on_way:
-            self._emit("spray_on", "S")
-            self._state(phase="depart", spray=True)
-            if self._cancel.wait(self.arm_s):
-                return
-            self._emit("spray_off", "S")
-            self._state(phase="depart", spray=False, arm=None)
-            self._emit("arm_done", "S")
+        if not self._travel(cx, dock_y, cx, cy, phase="depart", arm=None, h=180, spray=False):
+            return
 
         # 2) 갈래: 회전 → 나가며 살포 → 복귀
-        for arm in [a for a in order if a != "S"]:
+        for arm in order:
             if self._cancel.is_set():
                 return
             heading = self.BEARING.get(arm, 0)
@@ -488,14 +479,16 @@ class FakeCar(object):
             self._emit("arm_done", arm)
             self._state(phase="back", arm=None, spray=False)
 
-        # 3) 귀환: 중심 → 기지(후진)
+        # 3) 귀환: 중심 → 북쪽으로 출입구 높이 → 출입구를 보고 후진해 차고로
         self._state(state="run", phase="home", h=0, spray=False, arm=None)
         if not self._travel(cx, cy, cx, dock_y, phase="home", h=0, spray=False, arm=None):
+            return
+        if not self._travel(cx, dock_y, dock_x, dock_y, phase="home", h=dock_h, spray=False, arm=None):
             return
         self._emit("plan_done", None)
         with self._lock:
             self._running = False
-        self._state(state="idle", phase="idle", x=cx, y=dock_y, h=0, spray=False, arm=None)
+        self._state(state="idle", phase="idle", x=dock_x, y=dock_y, h=dock_h, spray=False, arm=None)
 
 
 # ---------------------------------------------------------------------------
@@ -773,12 +766,12 @@ class Model(object):
 
         # 차의 초기 추측 자세는 기지 도킹 위치다(계약 7절).
         try:
-            dock_x = float(self.board.get("CENTER_X", 480))
-            dock_y = float(self.board.get("CENTER_Y", 340)) + float(self.board.get("BASE_DIST_MM", 500))
+            dock_x, dock_y = (float(v) for v in self.board.get("BASE_XY", [775, 250]))
+            dock_h = float(self.board.get("BASE_H", 270))
         except (TypeError, ValueError):
-            dock_x, dock_y = 480.0, 840.0
+            dock_x, dock_y, dock_h = 775.0, 250.0, 270.0
         self.car_state = {"state": "idle", "phase": "idle", "arm": None, "x": dock_x, "y": dock_y,
-                          "h": 0, "spray": False, "obst_cm": None, "up": 0}
+                          "h": dock_h, "spray": False, "obst_cm": None, "up": 0}
         self.car_seen = 0.0
         self.car_id = ""
 
@@ -1354,17 +1347,12 @@ class Model(object):
                 return
             if time.time() < self._auto_cooldown:
                 return
-            # 눈 감지(기지 조도센서 = 젖음 입력)면 바로, 아니면 모델이 출동을 권할 때만.
-            # 모델 출동은 사거리를 이미 처리해 효과가 남아 있으면 다시 하지 않는다.
+            # 출동은 눈을 봤을 때만 한다(패드 사진은 vision_detect, 여기는 기지 조도센서 = 젖음 입력).
+            # 날씨 예보 모델은 화면 참고용이고 출동을 정하지 않는다. 조도센서는 어느 갈래인지 모르니 네 갈래를 다 돈다.
             tel = self.sensor_state.get("tel") or {}
-            snow = self.sensor_fresh_locked() and bool(tel.get("wet"))
-            dispatch = self.step.get("dispatch") or {}
-            if not snow:
-                if not dispatch.get("recommend"):
-                    return
-                if set(SWEEP_ORDER) & self._treated_now_locked():
-                    return
-            order = list(SWEEP_ORDER)
+            if not (self.sensor_fresh_locked() and tel.get("wet")):
+                return
+            order = route.plan({a: {"area_mm2": 1000} for a in ("C",) + ARMS})["order"]
             if not self.car_idle_locked():
                 return
             if not self.base_gate_locked():
@@ -1415,7 +1403,7 @@ class Model(object):
 
     # -- 사진 인식(패드) ----------------------------------------------------
     def vision_detect(self, body):
-        """패드 사진 한 장 → 도로 위 눈을 갈래별로 센다 → 차가 닿는 갈래에 눈이 있거나 모델 확률이 높으면 출동."""
+        """패드 사진 한 장 → 도로 위 눈을 갈래별로 센다 → 기지에서 눈 있는 갈래를 도는 최적 순서로 출동."""
         try:
             img = vision.decode_image(body.get("image"))
         except Exception:
@@ -1423,20 +1411,16 @@ class Model(object):
         found = vision.analyze(img, float(self.board.get("ROAD_MM", 135)))
         if found is None:
             raise HttpError(422, "검은 도로를 찾지 못했습니다. 보드 전체가 보이게 위에서 찍어 주세요")
-        with self.lock:
-            arm = ((self.step or {}).get("arms") or {}).get("N") or {}
-            p = arm.get("p_max")
-            threshold = ((self.step or {}).get("dispatch") or {}).get("threshold", 0.5)
-        decision = vision.decide(found["arms"], p, threshold)
+        decision = route.decide(found["arms"])
+        plan = decision.pop("plan")
         dispatch = None
-        if decision["go"] and body.get("go", True):
+        if plan and body.get("go", True):
             try:
-                dispatch = self.dispatch(order=list(SWEEP_ORDER), source="vision")
+                dispatch = self.dispatch(order=plan["order"], source="vision")
             except HttpError as e:
                 dispatch = {"error": e.message}
-        result = {"time": time.strftime("%H:%M:%S"), "arms": found["arms"], "reach": list(vision.REACH),
-                  "turns": found["turns"], "decision": decision, "p": p, "threshold": threshold,
-                  "dispatch": dispatch}
+        result = {"time": time.strftime("%H:%M:%S"), "arms": found["arms"], "turns": found["turns"],
+                  "decision": decision, "route": plan, "dispatch": dispatch}
         with self.lock:
             self.vision_last = result
         self.event("vision", decision["text"])
@@ -2038,9 +2022,9 @@ def main(argv=None):
         print("  후보 밤: %s" % ", ".join(model.nights[:5]))
     print("  기지 링크: %s / 젖음 갈래 %s" % (
         path if port is not None else "없음", model.wet_arm))
-    print("  보드: 중심 (%s, %s) · 기지 %smm · %s" % (
+    print("  보드: 중심 (%s, %s) · 기지 차고 %s · %s" % (
         model.board.get("CENTER_X"), model.board.get("CENTER_Y"),
-        model.board.get("BASE_DIST_MM"), model.board.get("note") or ""))
+        model.board.get("BASE_XY"), model.board.get("note") or ""))
     print("  차 링크: %s" % ("가짜 제설차" if args.car == "fake"
                              else ("UDP %d" % args.udp_port if args.car == "udp" else "없음(모의 실행)")))
     print("  자동 출동: %s / 예산 %d갈래" % ("켜짐" if model.auto else "꺼짐", model.budget))

@@ -2,22 +2,22 @@
 
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
+import BoardMap, { type Arm, type Pose } from "@/components/BoardMap";
 import { ARM_NAMES, padUrl } from "@/lib/vision";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 보내지 않는다)
 
-interface Arm { area_mm2: number; far_mm: number }
 interface Result {
-  view: string; time: string; arms: Record<string, Arm>; reach: string[];
-  decision: { go: boolean; why: string; text: string };
+  view: string; time: string; arms: Record<string, Arm>;
+  decision: { go: boolean; text: string };
+  route: { order: string[]; seconds: number; path: Pose[] } | null;
   dispatch: { plan_id?: string; mode?: string; error?: string } | null;
 }
 interface ServerState {
   monitor_url?: string;
   car?: { ok: boolean };
   execution?: { state?: string; plan_id?: string };
-  step?: { arms?: { N?: { p_max?: number } }; dispatch?: { threshold?: number } };
 }
 
 function shrink(file: File): Promise<string> {
@@ -86,7 +86,6 @@ export default function Vision() {
     }
   }
 
-  const p = state.step?.arms?.N?.p_max;
   const running = state.execution?.state === "running";
   const stop = () => fetch("/api/car/stop", { method: "POST" }).catch(() => setError("정지 명령을 보내지 못했습니다"));
   const picker = (ref: React.RefObject<HTMLInputElement | null>, capture: boolean) => (
@@ -102,7 +101,6 @@ export default function Vision() {
           <h1>사진으로 출동</h1>
           <span className={`st ${api === "ok" ? "on" : "off"}`}>서버 {api === "ok" ? "연결" : api === "checking" ? "확인 중" : "없음"}</span>
           <span className={`st ${state.car?.ok ? "on" : "off"}`}>제설차 {state.car?.ok ? "연결" : "끊김"}</span>
-          <span className="st">N 결빙확률 {p == null ? "–" : `${Math.round(p * 100)}%`}</span>
           <span className="spacer" />
           {running && <button className="btn dark" type="button" onClick={stop}>■ 정지 ({state.execution?.plan_id} 출동 중)</button>}
         </div>
@@ -128,7 +126,7 @@ export default function Vision() {
               {picker(album, false)}
               <label className="vopt"><input type="checkbox" checked={go} onChange={(e) => setGo(e.target.checked)} /> 차 경로에 눈이 보이면 바로 출동</label>
               <p className="vhint">방향은 상관없습니다. 노란 코트가 교차로 왼쪽 아래에 오도록 맥이 돌려서 봅니다.
-                차는 S 대기 칸에서 교차로를 지나 N 끝까지 밉니다.</p>
+                차는 북동쪽 제설 기지에서 나와 눈 있는 갈래를 끝까지 밀고 돌아옵니다.</p>
               {qr && (
                 <div className="qr">
                   <img src={qr} alt="패드로 열기 QR" width={120} height={120} />
@@ -152,6 +150,7 @@ export default function Vision() {
                     {result.decision.go && !result.dispatch && " · 바로 출동이 꺼져 있어 보내지 않았습니다"}
                   </p>
                   <img className="vimg" src={result.view} alt="도로와 눈 인식 결과" />
+                  {result.route && <BoardMap arms={result.arms} path={result.route.path} order={result.route.order} />}
                   <table>
                     <tbody>
                       {Object.entries(result.arms).map(([name, a]) => (
@@ -159,7 +158,7 @@ export default function Vision() {
                           <td className="t1 nowrap">{ARM_NAMES[name] ?? name}</td>
                           <td className="nowrap">{a.area_mm2} mm²</td>
                           <td className="far">{a.far_mm ? `중심에서 ${a.far_mm} mm까지` : "–"}</td>
-                          <td><span className="tag">{result.reach.includes(name) ? "차 경로" : "닿지 않음"}</span></td>
+                          <td><span className="tag">{result.route?.order.includes(name) ? `${result.route.order.indexOf(name) + 1}번째로 치움` : name === "C" ? "갈래를 돌며 밀림" : "기준 아래"}</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -173,8 +172,8 @@ export default function Vision() {
         )}
       </main>
       <footer>
-        맥이 사진에서 검은 도로만 찾고, 도로 위 흰 알갱이를 갈래별로 셉니다(기준 사진·학습 없음). 차 경로의 눈이 300mm²를 넘거나
-        N 갈래 결빙확률이 출동 기준({Math.round((state.step?.dispatch?.threshold ?? 0.5) * 100)}%)을 넘으면 사거리 왕복을 보냅니다.
+        맥이 사진에서 검은 도로만 찾고 도로 위 흰 알갱이를 갈래별로 셉니다(기준 사진·학습 없음). 눈이 100mm² 넘는 갈래를
+        북동쪽 제설 기지에서 도는 모든 순서를 비교해 가장 빠른 순서로 제설차를 보냅니다.
       </footer>
     </>
   );

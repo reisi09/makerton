@@ -1,8 +1,8 @@
 # makerton — 고색고 ICE-ZERO 자동 제설 모형
 
-수원 고색고등학교 주변 도로를 대상으로 ICE-ZERO 지면온도 예보 모델을 다시 학습하고, **예측 동결확률**이 기준을 넘거나 **패드 사진에서 도로 위 눈**이 보이면 사거리 모형의 제설차가 **자동으로** 출동하는 메이커톤 작품이다. 판단은 학습한 예보 모델과 코드 규칙이 한다. LLM은 쓰지 않는다.
+사거리 모형을 패드로 한 장 찍으면 **도로 위 눈을 갈래별로 인식**하고, 북동쪽 **제설 기지**에서 출발해 눈 있는 갈래를 도는 **가장 빠른 순서(최적 경로)**를 계산해 제설차가 그대로 출동하는 메이커톤 작품이다. 인식은 규칙 기반 영상 처리, 경로는 펌웨어 경로 계획으로 모든 순서를 비교해 정한다. LLM은 쓰지 않는다.
 
-- 웹 데모(모델이 2025년 겨울밤을 판단하는 재생): https://reisi09.github.io/makerton/
+- 웹 데모(팀 모형 사진 → 눈 인식 → 최적 경로 → 출동 애니메이션): https://reisi09.github.io/makerton/
 - 패드 사진 출동 화면: 맥 서버를 켜고 같은 핫스팟에서 `http://<맥 IP>:8000/app/vision/`
 
 ![모니터 화면](docs/img/monitor.png)
@@ -11,14 +11,14 @@
 
 | 항목 | 상태 |
 |---|---|
-| 자동 시험 | Python 226개(`python3 -m unittest discover -s tests`), 웹 5개(`cd web && npm test`) 통과 |
-| 모델 | 수원 ASOS **119**(학교에서 0.4km) 2020~2025 시간자료로 학습. 2025년 시험 결과는 아래 |
-| 웹 데모 | Next.js 정적 사이트. `main`에 푸시하면 GitHub Actions가 GitHub Pages에 배포한다 |
-| 패드 사진 출동 | 사진 한 장 → 검은 도로 위 흰 알갱이를 갈래별로 센다 → 출동 판단. 실제 모형 사진 26장 중 25장을 맞혔다(낮은 각도로 비스듬히 찍은 1장이 반사로 오탐) |
+| 자동 시험 | Python 228개(`python3 -m unittest discover -s tests`), 웹 1개(`cd web && npm test`) 통과 |
+| 출동 판단 | 사진 인식(`server/vision.py`) + 최적 경로(`server/route.py`). 날씨 예보 모델은 화면 참고용이고 출동을 정하지 않는다 |
+| 웹 데모 | 팀 모형 사진 6장의 인식 결과·최적 경로·출동 애니메이션(실측 지도). Next.js 정적 사이트, `main` 푸시 시 GitHub Pages 배포 |
+| 패드 사진 출동 | 사진 한 장 → 검은 도로 위 흰 알갱이를 갈래별로 센다 → 눈이 100mm² 넘는 갈래를 최적 순서로 출동. 눈 있음/없음은 실제 모형 사진 26장 중 25장을 맞혔다(낮은 각도로 비스듬히 찍은 1장이 반사로 오탐) |
 | 제설차 Pico | 실물로 확인: 펌웨어 업로드(SHA-256 일치), 모터 방향(T3), 서버↔차 UDP 양방향(T5), 바퀴를 돌리지 않은 출동 드라이런 46초. 실제 주행과 바퀴 보정(T4·T6)은 차체 완성 뒤 |
 | 기지(센서) Pico | 코드와 시험만 있다. 눈 감지는 패드 사진이 대신할 수 있어 시연에는 선택이다 |
 | 보드 실측 | 925×910mm(노란 코트 방향이 가로), 도로 폭 135, 교차로 중심 (582, 480). 아래 구조도 |
-| 차 경로 | 도로 폭 전체를 덮는 차(길이 150 가정). S 대기 칸(중심 남쪽 345) → 교차로 → N(중심 북쪽 385) → 같은 길 후진, 실물 약 87초 |
+| 차 경로 | 제설 기지 = 북동쪽 건물(출입구 서쪽, N 도로). 차고 → 서쪽 193 → 남쪽 230 → 교차로 → 갈래마다 끝까지 밀고 후진 → 같은 길로 차고. 갈래 하나 약 90~110초, 네 갈래 약 260초(실물 환산). 차는 도로 폭을 덮는 길이 150 가정 |
 | 인쇄용 PDF | [`docs/사거리_제설차_설계도.pdf`](docs/사거리_제설차_설계도.pdf), [`docs/단순_제설차_설계도.pdf`](docs/단순_제설차_설계도.pdf), [`docs/실물부품_배선도_조립도.pdf`](docs/실물부품_배선도_조립도.pdf), [`docs/제설기지_제설차_제작가이드.pdf`](docs/제설기지_제설차_제작가이드.pdf), [`docs/라즈베리파이_시스템_설계도.pdf`](docs/라즈베리파이_시스템_설계도.pdf) |
 | 글꼴 | Pretendard(`server/static/fonts/`, OFL). 웹·도면·PDF 공통 |
 
@@ -49,9 +49,9 @@
 
 참고 분석: `model/icezero/roads.py`는 고색고 반경 1.5km의 OSM 도로·건물로 상대 위험도를 계산해 [`docs/img/gosaek_map.svg`](docs/img/gosaek_map.svg)에 남긴다. 이 값은 모형 갈래의 이름·근거로 쓰지 않는다.
 
-### 모델 결과(수원 119, 2025년 시험)
+### 날씨 예보 모델(참고용, 출동 판단에는 쓰지 않음)
 
-학습 ≤2024, 확률 보정 2024, 시험 2025다. 2025년은 학습에 쓰지 않았다.
+수원 ASOS 119(학교에서 0.4km) 2020~2025 시간자료로 학습했다. 학습 ≤2024, 확률 보정 2024, 시험 2025다.
 
 | 시점 | 방법 | RMSE °C | 그대로 두기(persistence) RMSE °C |
 |---|---|---|---|
@@ -67,11 +67,11 @@
 
 ## 무엇이 돌아가나
 
-- **맥북**: 예보 모델, 서버(`0.0.0.0:8000`), 조작 대시보드(`/`)·모니터(`/monitor`), 패드용 화면(`/app`), 사진 눈 인식(`server/vision.py`).
-- **제설차 Pico #2(Wi-Fi UDP)**: 28BYJ-48 두 개와 병뚜껑 바퀴, 앞에 붙인 날로 S 대기 칸에서 N 끝까지 도로 폭 전체를 밀고 같은 길로 후진한다. 서보·초음파는 쓰지 않는다. 서버의 정지 명령과 차 버튼이 항상 우선한다.
+- **맥북**: 서버(`0.0.0.0:8000`), 사진 눈 인식(`server/vision.py`), 최적 경로(`server/route.py`), 패드용 화면(`/app`), 조작 대시보드(`/`)·모니터(`/monitor`), 참고용 날씨 모델.
+- **제설차 Pico #2(Wi-Fi UDP)**: 28BYJ-48 두 개와 병뚜껑 바퀴, 앞에 붙인 날. 북동쪽 기지 차고에서 나와 서버가 정한 순서대로 갈래를 끝까지 밀고 후진하고, 차고로 후진해 들어간다. 서보·초음파는 쓰지 않는다. 서버의 정지 명령과 차 버튼이 항상 우선한다.
 - **패드**: 보드를 위에서 찍어 맥으로 보낸다. 판정·출동 결과와 정지 버튼이 같은 화면에 있다.
-- **기지(센서) Pico #1(USB, 선택)**: DHT11·조도·도킹 스위치. 연결하면 현장 온도로 예보를 보정하고, 도킹했을 때만 자동 출동한다.
-- **웹 데모(GitHub Pages)**: 같은 모델이 2025년 밤을 시간 단위로 판단하는 재생과 실측 사거리 지도.
+- **기지(센서) Pico #1(USB, 선택)**: 조도·도킹 스위치. 조도센서가 덮이면 네 갈래를 최적 순서로 돌고, 도킹했을 때만 자동 출동한다.
+- **웹 데모(GitHub Pages)**: 팀 모형 사진을 고르면 같은 코드로 미리 계산한 인식 결과와 최적 경로를 실측 지도 위 애니메이션으로 보여 준다.
 
 ## 폴더
 
@@ -83,11 +83,11 @@ makerton/
   model/icezero/       kma.py · features.py · train.py · engine.py · roads.py
   model/data/          source/119(원본) · raw/119(QC) · roads/cross_arms.json
   model/models/119/    학습 산출물(metrics.json 등)
-  server/              gosaek_server.py · vision.py(사진 눈 인식) · board.json(보드 실측) · static/
+  server/              gosaek_server.py · vision.py(사진 눈 인식) · route.py(최적 경로) · board.json(보드 실측) · static/
   pico/car/            config.py · car_core.py · main.py · hwtest.py · sweep_test.py
   pico/sensors/        config.py · sensor_core.py · main.py · hwtest.py · ssd1306.py · lcd1602.py
-  tools/               pico.py(Pico 업로드) · fetch_asos.py(기상청 자료) · export_demo.py(웹 재생 자료)
-  web/                 Next.js: 재생 데모(/) · 사진 출동(/vision)
+  tools/               pico.py(Pico 업로드) · export_vision_demo.py(웹 데모 자료) · fetch_asos.py·export_demo.py(날씨 모델용)
+  web/                 Next.js: 사진 데모(/) · 패드 사진 출동(/vision) · components/BoardMap.tsx(실측 지도)
   tests/               python3 -m unittest discover -s tests
 ```
 
@@ -141,15 +141,15 @@ cd web && npm run build:app      # 서버가 /app 에서 내는 패드용 화면
 - 패드를 맥과 같은 핫스팟에 붙이고 `http://<맥 IP>:8000/app/vision/`을 연다(맥에서 열면 QR이 나온다).
 - 보드 전체가 보이게 **위에서 내려다보며** 사진 한 장을 찍는다. 기준 사진·모서리 찍기는 없고, 방향은 노란 코트로 맞춘다.
 - 서버는 검은 도로만 찾아 그 위 흰 알갱이를 교차로·N·S·E·W 갈래별로 센다. 중앙선 투명 테이프 반사와 길쭉한 반사는 뺀다.
-- 차 경로(S·교차로·N)의 눈이 300mm²를 넘거나 N 결빙확률이 출동 기준(50%)을 넘으면 사거리 왕복을 보낸다. E·W 갈래 눈은 '닿지 않음'으로 표시만 한다.
+- 눈이 100mm² 넘는 갈래를 기지에서 도는 모든 순서(최대 24가지)를 비교해 가장 빠른 순서로 보낸다. 결과 화면에 순서, 예상 시간, 지도 위 경로가 나온다.
 - '바로 출동'을 끄면 판정만 보고 보내지 않는다. 출동 중에는 화면 위쪽 '정지' 버튼으로 멈춘다.
-- 차 길이가 정해지면 `pico/car/config.py`와 `server/board.json`의 `BASE_DIST_MM`·`ARM_OUT_MM["N"]`만 고친다(중심→끝 거리 − 차 반길이 − 여유 10).
+- 차 길이가 정해지면 `pico/car/config.py`와 `server/board.json`의 `BASE_X`(`BASE_XY`)·`ARM_OUT_MM`만 고친다(중심→보드 끝 − 차 반길이 − 날 10 − 여유 10). 펌웨어를 바꾸면 `tools/pico.py put car --wifi`로 다시 올린다.
 
 ### 5. 웹 데모
 
 ```
 cd web && npm run dev             # 로컬 미리보기
-python3 tools/export_demo.py      # 재생 자료(web/public/demo/replay.json)를 실제 엔진으로 다시 만든다
+python3 tools/export_vision_demo.py   # web/public/demo/photos/*.jpg → 인식·최적 경로 자료(vision.json, overlay/)
 ```
 
 `main`에 `web/`나 `docs/` 변경을 푸시하면 `.github/workflows/pages.yml`이 빌드·시험·배포한다. GitHub Pages의 `/vision`은 브라우저 보안 때문에 맥으로 사진을 보낼 수 없어 안내만 띄운다.

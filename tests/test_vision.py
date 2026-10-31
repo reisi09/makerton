@@ -73,13 +73,11 @@ class VisionTest(unittest.TestCase):
         self.assertGreater(arms["E"]["area_mm2"], 120, arms)
         self.assertLess(arms["S"]["area_mm2"] + arms["W"]["area_mm2"], 40, arms)
         self.assertLess(abs(arms["N"]["far_mm"] - 420), 60, arms)       # 중심(480)에서 가장 먼 N 알갱이(y 60). 축척 하나라 원근 오차가 있다
-        self.assertEqual(vision.decide(arms, None, 0.5)["why"], "snow")
 
     def test_clean_board_with_centerline_glare_is_not_snow(self):
         found = vision.analyze(photo(board(glare=True)), 135.0)
         total = sum(a["area_mm2"] for a in found["arms"].values())
         self.assertLess(total, 40, found["arms"])
-        self.assertFalse(vision.decide(found["arms"], None, 0.5)["go"])
 
     def test_rotated_photo_still_names_the_arms_by_the_yellow_court(self):
         found = vision.analyze(np.ascontiguousarray(np.rot90(photo(board(snow=N_SNOW)), -1)), 135.0)
@@ -88,13 +86,6 @@ class VisionTest(unittest.TestCase):
 
     def test_photo_without_roads_is_rejected(self):
         self.assertIsNone(vision.analyze(floor(), 135.0))
-
-    def test_decide_prefers_reachable_snow_then_the_model(self):
-        arms = {a: {"area_mm2": 0, "far_mm": 0} for a in vision.ARMS}
-        arms["E"]["area_mm2"] = 900
-        self.assertFalse(vision.decide(arms, 0.2, 0.5)["go"])
-        self.assertIn("E 갈래 눈은 차가 닿지 않음", vision.decide(arms, 0.2, 0.5)["text"])
-        self.assertEqual(vision.decide(arms, 0.8, 0.5)["why"], "model")
 
 
 if __name__ == "__main__":

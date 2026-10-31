@@ -79,6 +79,12 @@ tr:last-child td { border-bottom: 0; }
 .map { width: 100%; height: auto; display: block; }
 .legend { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
 
+.sub { font-size: 14px; color: var(--muted); }
+.samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; padding-top: 18px; }
+.thumb { display: grid; gap: 6px; padding: 6px; border: 2px solid var(--line); border-radius: 12px; background: var(--card); cursor: pointer; font-weight: 700; font-size: 13px; color: var(--ink); }
+.thumb img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; display: block; }
+.thumb[aria-pressed="true"] { border-color: var(--ink); background: var(--soft); }
+.sec-h .btn { margin-left: auto; }
 .vgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 24px; padding-top: 18px; }
 .vgrid > section + section { border-left: 1px solid var(--line); padding-left: 24px; }
 .vcard { margin-top: 18px; padding: 18px 20px; border-radius: 14px; background: var(--soft); line-height: 1.6; }
