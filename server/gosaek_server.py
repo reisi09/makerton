@@ -585,6 +585,18 @@ def open_sensor_base_serial(spec, model=None):
 # ---------------------------------------------------------------------------
 
 
+def local_ip_for(ip, port):
+    """ip로 보낼 때 운영체제가 고르는 이 노트북의 출발 주소. 패킷은 보내지 않는다."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect((ip, port))
+        return sock.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        sock.close()
+
+
 class CarLink(threading.Thread):
     """UDP 로 듣고(기본 9200) hello·tel 을 보낸 주소로 plan·stop·home·ping 을 보낸다."""
 
@@ -631,6 +643,8 @@ class CarLink(threading.Thread):
                 except ValueError:
                     body = None
                 if isinstance(body, dict):
+                    if self.addr is None or self.addr[0] != addr[0]:
+                        self._check_route(addr[0])
                     self.addr = (addr[0], addr[1])
                     self.last_seen = time.time()
                     self.model.car_message(body, self.addr)
@@ -640,6 +654,15 @@ class CarLink(threading.Thread):
                 self.sock.close()
             except OSError:
                 pass
+
+    def _check_route(self, ip):
+        """맥이 IPv6 전용(CLAT, 192.0.0.x)이면 차의 브로드캐스트는 들어와도 차로 보내는 명령은 사라진다.
+        SKT 아이폰 핫스팟에서 2026-10-31에 실제로 겪었다."""
+        local = local_ip_for(ip, self.car_port)
+        if local and local.startswith("192.0.0."):
+            self.model.event("car", "맥이 IPv6 전용(CLAT %s)이라 차(%s)로 명령이 가지 않습니다. "
+                                    "맥 Wi-Fi > 세부사항 > TCP/IP > IPv6 구성을 '링크-로컬 전용'으로 바꾸고 "
+                                    "핫스팟에 다시 연결하세요" % (local, ip))
 
     def _maybe_ping(self):
         if self.addr is None:

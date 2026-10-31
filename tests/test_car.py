@@ -740,6 +740,30 @@ class DeviceTest(unittest.TestCase):
             self.assertEqual(world.sonar_reads, 0)
             self.assertEqual(dev.core.state, core_mod.STATE_RUN)
 
+    def test_no_udp_send_without_wifi(self):
+        """Wi-Fi가 안 붙었으면 보내지 않는다(실기에서 EHOSTUNREACH 로그가 0.5초마다 쏟아졌다)."""
+        with fake_pico() as (dev, world, core_mod, cfg):
+            world.wifi_connected = False
+            run_ms(dev, world, 2000, tick_us=1000)
+            self.assertEqual(world.sent, [])
+            world.wifi_connected = True
+            run_ms(dev, world, cfg.TEL_MS + 100, tick_us=1000)
+            self.assertIsNotNone(tel_last(world))
+
+    def test_sweep_test_returns_to_start(self):
+        """sweep_test.py run: 서버 계획 ["N"]과 같은 거리를 전진한 뒤 같은 스텝만큼 후진한다."""
+        with fake_pico() as (dev, world, core_mod, cfg):
+            sweep = load_module("sweep_test", "sweep_test.py")
+            with contextlib.redirect_stdout(io.StringIO()):
+                fwd, back = sweep.sweep(dev.motors)
+                sweep.MODE = "calib"
+                sweep.main()
+            want = core_mod.mm_to_steps(cfg.BASE_DIST_MM) + core_mod.mm_to_steps(cfg.ARM_OUT_MM["N"])
+            self.assertEqual(fwd, want)
+            self.assertEqual(back, want)
+            self.assertTrue(world.coils_off(cfg.PIN_LEFT))
+            self.assertTrue(world.coils_off(cfg.PIN_RIGHT))
+
 
 if __name__ == "__main__":
     unittest.main()

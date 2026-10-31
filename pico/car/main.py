@@ -254,6 +254,7 @@ class Link(object):
     def __init__(self, cfg):
         self.cfg = cfg
         self.sock = None
+        self.up = False                  # Wi-Fi가 붙었을 때만 보낸다(안 붙으면 EHOSTUNREACH가 쏟아진다)
         if cfg.SERVER_IP:
             self.addr = (cfg.SERVER_IP, cfg.SERVER_PORT)
         else:
@@ -270,7 +271,7 @@ class Link(object):
             print("UDP 소켓 열기 실패:", e)
 
     def send(self, obj):
-        if self.sock is None:
+        if self.sock is None or not self.up:
             return False
         data = car_core.encode(obj)
         try:
@@ -352,7 +353,8 @@ class CarDevice(object):
             self.next_tel_ms = now_ms
             self.next_sonar_ms = now_ms
             self.next_hello_ms = now_ms
-        self.online = self.wifi.ensure(now_ms) or not self.cfg.WIFI_SSID
+        self.link.up = self.wifi.ensure(now_ms)
+        self.online = self.link.up or not self.cfg.WIFI_SSID
         self.read_sonar(now_ms)
         self.poll_input(now_ms)
         self.core.tick(now_ms)

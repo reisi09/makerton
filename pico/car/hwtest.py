@@ -1,7 +1,7 @@
 # 배선 시험용 스크립트. 주행 로직(main.py의 loop)은 돌지 않는다. Thonny에서 열고 실행(F5)한다.
 #
-#   왼쪽 1바퀴 정·역 → 오른쪽 1바퀴 정·역 → 서보 열기/닫기
-#   → 초음파 5회 → 버튼 5초 → LED 3색·부저
+#   왼쪽 1바퀴 정·역 → 오른쪽 1바퀴 정·역 → 두 바퀴 함께 반 바퀴
+#   MOTORS_ONLY = False면 이어서 서보 열기/닫기 → 초음파 5회 → 버튼 5초 → LED 3색·부저
 #
 # 바퀴를 보드에서 들어 올리고(헛돌게) 실행한다. 1바퀴는 %d스텝이라 한 번에 약 %.1f초 걸린다.
 # 바퀴가 반대로 돌면 config.LEFT_INVERT / RIGHT_INVERT를 뒤집는다.
@@ -11,6 +11,8 @@
 import car_core
 import config
 from main import Buzzer, Button, Led, Motors, Servo, Sonar, sleep_ms, sleep_us, ticks_ms
+
+MOTORS_ONLY = True    # 사거리 제설차는 모터만 단다. 서보·초음파·버튼·LED·부저까지 보려면 False
 
 
 def spin(motors, left, right, steps):
@@ -99,10 +101,11 @@ def main():
     sonar = Sonar(config)
     try:
         motor_test(motors)
-        servo_test(servo)
-        sonar_test(sonar)
-        button_test(button, buzzer)
-        led_test(led, buzzer)
+        if not MOTORS_ONLY:
+            servo_test(servo)
+            sonar_test(sonar)
+            button_test(button, buzzer)
+            led_test(led, buzzer)
     finally:
         motors.off()
         servo.set(config.SERVO_CLOSED_DEG)

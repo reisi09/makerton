@@ -682,6 +682,21 @@ class FakeCarTest(ServerBase):
         self.assertIsNotNone(plan, "plan 데이터그램을 받지 못했습니다")
         self.assertEqual(plan["order"], ["E"])
 
+    def test_warns_when_mac_is_ipv6_only_clat(self):
+        """차 hello는 왔는데 맥 출발 주소가 CLAT(192.0.0.x)이면 명령이 안 간다고 알린다."""
+        model = self.make_model(night=NIGHT, auto=False)
+        link = srv.CarLink(model, listen_port=0)
+        real = srv.local_ip_for
+        srv.local_ip_for = lambda ip, port: "192.0.0.2"
+        try:
+            link._check_route("172.20.10.5")
+        finally:
+            srv.local_ip_for = real
+        self.assertTrue(any("CLAT" in e["text"] for e in model.events))
+        before = len(model.events)
+        link._check_route("127.0.0.1")              # 정상 경로면 조용하다
+        self.assertEqual(len(model.events), before)
+
 
 if __name__ == "__main__":
     unittest.main()
