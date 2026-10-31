@@ -132,7 +132,8 @@ export default function Demo() {
           </div>
           <div>
             <div className="goal">
-              {resting(s) ? <><b>제설 완료</b>{hhmm(s.restUntil!)}까지 모델 출동은 쉰다</>
+              {!s.playing && s.si === 0 && s.runs === 0 ? <><b>재생 전</b>▶ 재생을 누르면 이 확률로 출동을 판단한다</>
+                : resting(s) ? <><b>제설 완료</b>{hhmm(s.restUntil!)}까지 모델 출동은 쉰다</>
                 : gap <= 0 ? <><b>출동 기준을 넘었다</b>제설차를 보낸다</>
                 : <><b>{gap}%p</b>더 오르면 출동</>}
             </div>
@@ -183,6 +184,7 @@ export default function Demo() {
             <div className="sec-h"><h2>사거리</h2>
               <span className="state">{s.run ? (s.run.p < 0.5 ? "🚜 출동 중" : "🚜 돌아오는 중") : resting(s) ? "✓ 제설 완료" : "대기"}</span></div>
             <CrossMap sim={s} p={p} resting={resting(s)} />
+            <p className="legend">도로가 어두울수록 얼 확률이 높다 · 차는 S 대기 칸에서 N 끝까지 같은 길을 왕복한다</p>
           </section>
         </div>
       </div>
@@ -206,37 +208,47 @@ function Ring({ p }: { p: number }) {
   );
 }
 
-// 사거리 평면. 광장 420mm = 240px. 차는 대기 칸(중심 남쪽 250mm)과 북쪽 멈춤(170mm) 사이를 오간다.
-const K = 240 / 420, CX = 300, CY = 270, PW = 297 * K, PH = 420 * K, ROAD = 150 * K;
-const HOME = CY + 250 * K, STOP = CY - 170 * K;
+// 실제 모형 평면(2026-10-31 사진 실측, 단위 mm 그대로). 보드 925×910, 도로 폭 135, 교차로 중심 (582, 480).
+// 차는 도로 폭을 덮는 길이 150으로 잡았고, 대기 칸(중심 남쪽 345)과 북쪽 멈춤(385) 사이를 같은 길로 왕복한다.
+const CX = 582, CY = 480, ROAD_X0 = 515, ROAD_X1 = 650, ROAD_Y0 = 404, ROAD_Y1 = 552;
+const HOME = CY + 345, STOP = CY - 385, BLADE = 88;   // BLADE = 차 중심에서 날 앞까지
+const SNOW = [[560, 330], [608, 270], [570, 205]];   // 눈 올리기 때 N 갈래에 놓이는 알갱이
 const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
 
 function CrossMap({ sim, p, resting }: { sim: Sim; p: number; resting: boolean }) {
   const run = sim.run;
   let y = HOME;
   if (run) y = run.p < 0.5 ? HOME + (STOP - HOME) * ease(run.p / 0.5) : STOP + (HOME - STOP) * ease((run.p - 0.5) / 0.5);
-  if (run && sim.snow && run.p < 0.5 && y - 58 < CY + 18) run.pushed = true;
+  if (run && sim.snow && run.p < 0.5 && y - BLADE < SNOW[0][1]) run.pushed = true;
   const gone = run?.pushed ? Math.min(1, (run.p - 0.2) * 3) : 0;
-  const ice = resting || (run && run.p > 0.25) ? 0 : p * 0.45;
+  const ice = p * 0.45;
+  const routeIce = resting || (run && run.p > 0.25) ? 0 : ice;     // 차가 지나간 S·교차로·N 길만 깨끗해진다
   return (
-    <svg className="map" viewBox="0 0 600 560" role="img" aria-label="사거리와 제설차">
-      <rect width="600" height="560" rx="18" fill="#e9ecef" />
-      {[[24, 24], [426, 24], [24, 366], [426, 366]].map(([x, yy]) => <rect key={`${x}-${yy}`} x={x} y={yy} width="150" height="170" rx="14" fill="#dee2e6" />)}
-      <rect x={CX - ROAD / 2} y="0" width={ROAD} height="560" fill="#ced4da" />
-      <rect x="0" y={CY - ROAD / 2} width="600" height={ROAD} fill="#ced4da" />
-      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="#adb5bd" />
-      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="#212529" opacity={ice} />
-      <rect x={CX - PW / 2} y={CY - PH / 2} width={PW} height={PH} fill="none" stroke="#212529" strokeWidth="1.5" strokeDasharray="7 6" opacity=".45" />
-      <circle cx={CX} cy={CY} r="7" fill="#343a40" stroke="#f8f9fa" strokeWidth="2" />
-      <rect x={CX - 18 + gone * 90} y={CY - 18} width="36" height="36" rx="6" fill="#f8f9fa" stroke="#6c757d" strokeWidth="2" opacity={sim.snow ? 1 - gone : 0} />
+    <svg className="map" viewBox="0 0 925 910" role="img"
+      aria-label={`사거리 모형과 제설차, ${run ? "출동 중" : "대기 칸에 있음"}`}>
+      <rect width="925" height="910" rx="24" fill="#e9ecef" />
+      {[[16, 16, 274, 334], [690, 16, 219, 334], [16, 716, 340, 178], [745, 670, 164, 210]].map(([x, yy, w, h]) =>
+        <rect key={`${x}-${yy}`} x={x} y={yy} width={w} height={h} rx="14" fill="#dee2e6" />)}
+      <rect x="300" y="45" width="170" height="345" rx="70" fill="#dee2e6" />
+      <rect x="16" y="566" width="340" height="140" rx="8" fill="none" stroke="#adb5bd" strokeWidth="4" />
+      <rect x="383" y="566" width="122" height="186" rx="8" fill="none" stroke="#adb5bd" strokeWidth="4" />
+      <rect x="0" y={ROAD_Y0} width="925" height={ROAD_Y1 - ROAD_Y0} fill="#ced4da" />
+      <rect x="0" y={ROAD_Y0} width="925" height={ROAD_Y1 - ROAD_Y0} fill="#212529" opacity={ice} />
+      <rect x={ROAD_X0} y="0" width={ROAD_X1 - ROAD_X0} height="910" fill="#ced4da" />
+      <rect x={ROAD_X0} y="0" width={ROAD_X1 - ROAD_X0} height="910" fill="#212529" opacity={routeIce} />
+      <rect x={ROAD_X0 - 3} y={ROAD_Y0 + 8} width={ROAD_X1 - ROAD_X0 + 6} height={ROAD_Y1 - ROAD_Y0 - 16} fill="none"
+        stroke="#212529" strokeWidth="3" strokeDasharray="12 10" opacity=".45" />
+      <circle cx={CX} cy={CY} r="11" fill="#343a40" stroke="#f8f9fa" strokeWidth="3" />
+      {sim.snow && SNOW.map(([x, yy]) =>
+        <circle key={`${x}-${yy}`} cx={x} cy={yy - gone * 160} r="14" fill="#f8f9fa" stroke="#495057" strokeWidth="3" opacity={1 - gone} />)}
       <g transform={`translate(${CX},${y.toFixed(1)})`}>
-        <rect x="-26" y="-34" width="52" height="69" rx="9" fill="#212529" />
-        <rect x="-17" y="-21" width="34" height="24" rx="5" fill="#dee2e6" />
-        <rect x="-38" y="-52" width="76" height="6" rx="3" fill="#6c757d" transform="rotate(-15)" />
+        <rect x="-62" y="-75" width="124" height="150" rx="16" fill="#212529" />
+        <rect x="-40" y="-48" width="80" height="50" rx="8" fill="#dee2e6" />
+        <rect x="-70" y={-BLADE} width="140" height="12" rx="4" fill="#495057" />
       </g>
       {(["N", "E", "S", "W"] as const).map((a, i) => {
-        const [x, yy] = [[CX, 18], [588, CY + 5], [CX, 552], [12, CY + 5]][i];
-        return <text key={a} x={x} y={yy} fill="#6c757d" fontSize="13" fontWeight="700" textAnchor={i === 1 ? "end" : i === 3 ? "start" : "middle"}>{a}</text>;
+        const [x, yy, anchor] = ([[ROAD_X0 - 16, 46, "end"], [905, ROAD_Y0 - 16, "end"], [ROAD_X0 - 16, 892, "end"], [20, ROAD_Y0 - 16, "start"]] as const)[i];
+        return <text key={a} x={x} y={yy} fill="#343a40" fontSize="36" fontWeight="800" textAnchor={anchor}>{a}</text>;
       })}
     </svg>
   );

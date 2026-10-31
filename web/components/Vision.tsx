@@ -70,6 +70,7 @@ export default function Vision() {
     if (!file) return;
     setBusy(true);
     setError("");
+    setResult(null);                 // 이전 사진의 출동 판정을 새 사진 결과로 오해하지 않게 지운다
     try {
       const image = await shrink(file);
       const r = await fetch("/api/vision/detect", {
@@ -86,6 +87,8 @@ export default function Vision() {
   }
 
   const p = state.step?.arms?.N?.p_max;
+  const running = state.execution?.state === "running";
+  const stop = () => fetch("/api/car/stop", { method: "POST" }).catch(() => setError("정지 명령을 보내지 못했습니다"));
   const picker = (ref: React.RefObject<HTMLInputElement | null>, capture: boolean) => (
     <input ref={ref} type="file" accept="image/*" hidden {...(capture ? { capture: "environment" as const } : {})}
       onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
@@ -97,10 +100,11 @@ export default function Vision() {
         <div className="top">
           <a className="logo" href={`${BASE}/`} aria-label="재생 화면으로">❄</a>
           <h1>사진으로 출동</h1>
-          <span className="pill">서버 {api === "ok" ? "연결" : api === "checking" ? "확인 중" : "없음"}</span>
-          <span className="pill">제설차 {state.car?.ok ? "연결" : "끊김"}</span>
-          <span className="pill">N 결빙확률 {p == null ? "–" : `${Math.round(p * 100)}%`}</span>
-          {state.execution?.state === "running" && <span className="pill">출동 중 {state.execution.plan_id}</span>}
+          <span className={`st ${api === "ok" ? "on" : "off"}`}>서버 {api === "ok" ? "연결" : api === "checking" ? "확인 중" : "없음"}</span>
+          <span className={`st ${state.car?.ok ? "on" : "off"}`}>제설차 {state.car?.ok ? "연결" : "끊김"}</span>
+          <span className="st">N 결빙확률 {p == null ? "–" : `${Math.round(p * 100)}%`}</span>
+          <span className="spacer" />
+          {running && <button className="btn dark" type="button" onClick={stop}>■ 정지 ({state.execution?.plan_id} 출동 중)</button>}
         </div>
 
         {api === "missing" && (
@@ -116,7 +120,8 @@ export default function Vision() {
             <section>
               <div className="sec-h"><h2>찍기</h2><small>보드 전체가 보이게 위에서</small></div>
               <div className="vbtns">
-                <button className="btn dark" type="button" disabled={busy} onClick={() => camera.current?.click()}>눈 사진 찍기</button>
+                <button className="btn dark xl" type="button" disabled={busy} onClick={() => camera.current?.click()}>
+                  {busy ? "맥이 계산 중…" : "눈 사진 찍기"}</button>
                 <button className="btn" type="button" disabled={busy} onClick={() => album.current?.click()}>앨범에서 고르기</button>
               </div>
               {picker(camera, true)}
@@ -124,8 +129,6 @@ export default function Vision() {
               <label className="vopt"><input type="checkbox" checked={go} onChange={(e) => setGo(e.target.checked)} /> 차 경로에 눈이 보이면 바로 출동</label>
               <p className="vhint">방향은 상관없습니다. 노란 코트가 교차로 왼쪽 아래에 오도록 맥이 돌려서 봅니다.
                 차는 S 대기 칸에서 교차로를 지나 N 끝까지 밉니다.</p>
-              {busy && <p className="vhint">맥에서 계산 중…</p>}
-              {error && <p className="verr">{error}</p>}
               {qr && (
                 <div className="qr">
                   <img src={qr} alt="패드로 열기 QR" width={120} height={120} />
@@ -136,21 +139,26 @@ export default function Vision() {
 
             <section>
               <div className="sec-h"><h2>인식 결과</h2><small>파랑 = 도로, 빨강 = 눈</small></div>
-              {result ? (
+              {busy ? (
+                <p className="empty" role="status">맥이 사진에서 도로와 눈을 찾는 중…</p>
+              ) : error ? (
+                <p className="verr" role="alert">{error}</p>
+              ) : result ? (
                 <>
-                  <img className="map" src={result.view} alt="도로와 눈 인식 결과" />
-                  <p className={`vdecide ${result.decision.go ? "go" : ""}`}>
+                  <p className={`vdecide ${result.decision.go ? "go" : ""}`} role="status">
                     {result.decision.text}
                     {result.dispatch?.plan_id && ` · ${result.dispatch.plan_id} ${result.dispatch.mode === "car" ? "제설차" : "모의 실행"}`}
                     {result.dispatch?.error && ` · ${result.dispatch.error}`}
+                    {result.decision.go && !result.dispatch && " · 바로 출동이 꺼져 있어 보내지 않았습니다"}
                   </p>
+                  <img className="vimg" src={result.view} alt="도로와 눈 인식 결과" />
                   <table>
                     <tbody>
                       {Object.entries(result.arms).map(([name, a]) => (
                         <tr key={name}>
-                          <td className="t1">{ARM_NAMES[name] ?? name}</td>
-                          <td>{a.area_mm2} mm²</td>
-                          <td className="time">{a.far_mm ? `중심에서 ${a.far_mm} mm까지` : "–"}</td>
+                          <td className="t1 nowrap">{ARM_NAMES[name] ?? name}</td>
+                          <td className="nowrap">{a.area_mm2} mm²</td>
+                          <td className="far">{a.far_mm ? `중심에서 ${a.far_mm} mm까지` : "–"}</td>
                           <td><span className="tag">{result.reach.includes(name) ? "차 경로" : "닿지 않음"}</span></td>
                         </tr>
                       ))}

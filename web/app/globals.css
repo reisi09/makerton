@@ -2,7 +2,7 @@
   --bright-snow: #f8f9fa; --platinum: #e9ecef; --alabaster-grey: #dee2e6; --pale-slate: #ced4da; --pale-slate-2: #adb5bd;
   --slate-grey: #6c757d; --iron-grey: #495057; --gunmetal: #343a40; --carbon-black: #212529;
   --ink: var(--carbon-black); --ink2: var(--gunmetal); --accent: var(--iron-grey); --pressed: var(--alabaster-grey);
-  --bg: var(--platinum); --card: var(--bright-snow); --line: var(--alabaster-grey); --soft: var(--platinum); --muted: var(--slate-grey);
+  --bg: var(--platinum); --card: var(--bright-snow); --line: var(--alabaster-grey); --soft: var(--platinum); --muted: var(--iron-grey);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink);
@@ -10,15 +10,25 @@ html, body { margin: 0; background: var(--bg); color: var(--ink);
 a { color: var(--iron-grey); }
 button, select { font: inherit; color: inherit; }
 
-.app { max-width: 1180px; margin: 24px auto; background: var(--card); border-radius: 22px; padding: 22px 28px 26px;
+.app { width: min(1180px, calc(100% - 48px)); margin: 24px auto; background: var(--card); border-radius: 22px; padding: 22px 28px 26px;
   box-shadow: 0 10px 40px rgba(33, 37, 41, .06); }
 
 .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--ink); display: grid; place-items: center; color: var(--bright-snow); font-size: 15px; }
+a.logo { width: 44px; height: 44px; border-radius: 12px; text-decoration: none; }
 .top h1 { margin: 0; font-size: 22px; font-weight: 800; }
 .pill { border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 7px 14px; font-size: 14px; color: var(--muted); }
+select.pill { min-height: 44px; }
+/* 상태 칩: 누르는 것처럼 보이지 않게 각진 모양. 끊김은 반전으로 가장 먼저 눈에 띈다 */
+.st { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--ink2); background: var(--soft); }
+.st.on::before, .st.off::before { content: ""; width: 9px; height: 9px; border-radius: 50%; }
+.st.on::before { background: var(--ink); }
+.st.off { background: var(--ink); color: var(--bright-snow); }
+.st.off::before { box-shadow: inset 0 0 0 2px currentColor; }
 .spacer { flex: 1; }
-.btn { border-radius: 999px; padding: 9px 18px; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--line); background: var(--card); }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; padding: 0 18px; font-size: 14px; font-weight: 700;
+  cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; }
+.btn.xl { min-height: 56px; padding: 0 28px; font-size: 17px; flex: 1 1 220px; }
 .btn.dark { background: var(--ink); color: var(--bright-snow); border-color: var(--ink); min-width: 96px; }
 .btn[aria-pressed="true"] { background: var(--pressed); border-color: var(--pale-slate); }
 .btn:disabled { opacity: .45; cursor: default; }
@@ -62,28 +72,33 @@ tr:last-child td { border-bottom: 0; }
 .t1 { font-weight: 700; }
 .t2 { font-size: 12px; color: var(--muted); }
 .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--soft); white-space: nowrap; }
-.time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time, .far { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
 .ring { display: flex; align-items: center; gap: 6px; justify-content: flex-end; font-variant-numeric: tabular-nums; font-weight: 700; }
 .empty { color: var(--muted); padding: 18px 0; }
 .map { width: 100%; height: auto; display: block; }
+.legend { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
 
 .vgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 24px; padding-top: 18px; }
 .vgrid > section + section { border-left: 1px solid var(--line); padding-left: 24px; }
 .vcard { margin-top: 18px; padding: 18px 20px; border-radius: 14px; background: var(--soft); line-height: 1.6; }
 .vcard h2 { margin: 0 0 6px; font-size: 16px; }
 .vbtns { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
-.vopt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); margin: 6px 0; }
+.vopt { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 15px; color: var(--ink); margin: 6px 0; }
+.vopt input { width: 24px; height: 24px; margin: 0; accent-color: var(--ink); }
 .vhint { font-size: 14px; color: var(--muted); }
 .vhint b { color: var(--ink); }
 .verr { font-size: 14px; color: var(--ink); background: var(--pressed); border-radius: 10px; padding: 8px 12px; }
 .qr { display: flex; gap: 12px; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); word-break: break-all; }
-.vdecide { font-weight: 800; padding: 10px 14px; border-radius: 10px; background: var(--soft); }
+.vdecide { font-size: 17px; font-weight: 800; padding: 12px 16px; border-radius: 10px; background: var(--soft); margin: 0; }
+.vimg { display: block; max-width: 100%; max-height: 56vh; width: auto; margin: 10px auto; border-radius: 10px; }
 .vdecide.go { background: var(--ink); color: var(--bright-snow); }
 
-footer { max-width: 1180px; margin: 0 auto 30px; padding: 0 28px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+footer { width: min(1180px, calc(100% - 48px)); margin: 0 auto 30px; padding: 0 28px; font-size: 12px; color: var(--muted); line-height: 1.6; }
 
-@media (max-width: 860px) {
-  .app { margin: 0; border-radius: 0; padding: 18px 16px 22px; }
+/* 폰만 한 줄로 접는다. iPad 세로(810~834)는 데스크톱 배치를 그대로 쓴다 */
+@media (max-width: 640px) {
+  .app { width: auto; margin: 0; border-radius: 0; padding: 18px 16px 22px; }
   .top .spacer { display: none; }
   .hero { grid-template-columns: 1fr; gap: 16px; padding: 18px 0 30px; }
   .big { font-size: 72px; }
@@ -95,5 +110,5 @@ footer { max-width: 1180px; margin: 0 auto 30px; padding: 0 28px; font-size: 12p
   .time { display: none; }
   .vgrid { grid-template-columns: 1fr; }
   .vgrid > section + section { border-left: 0; padding-left: 0; }
-  footer { padding: 0 16px; }
+  footer { width: auto; padding: 0 16px; }
 }
