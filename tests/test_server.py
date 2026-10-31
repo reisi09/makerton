@@ -463,6 +463,18 @@ class HttpTest(ServerBase):
         self.assertEqual(model.execution["order"], ["N"])
         self.assertEqual(model.snapshot()["vision"]["route"]["order"], ["N"])
 
+    def test_sweep_all_dispatches_every_arm_in_the_best_order(self):
+        model = self.make_model(night=NIGHT)
+        self.attach_fake_car(model, arm_s=0.3)
+        port = self.start_http(model)
+        status, body = self.post(port, "/api/sweep", {})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(sorted(body["route"]["order"]), ["E", "N", "S", "W"])
+        self.assertEqual(model.execution["order"], body["route"]["order"])     # 고른 순서 그대로 보낸다
+        self.assertEqual(body["dispatch"]["source"], "sweep")
+        status, body = self.post(port, "/api/sweep", {})
+        self.assertEqual(status, 409, "출동 중에 또 보냈습니다")
+
     def test_state_api_and_pages(self):
         model = self.make_model(night=NIGHT)
         port = self.start_http(model)

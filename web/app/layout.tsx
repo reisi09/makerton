@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ICE-ZERO 사거리 제설",
-  description: "수원 119 결빙 예측 모델이 2025년 겨울밤에 판단하고 제설차를 출동시키는 모습을 재생한다",
+  description: "사거리 모형 사진에서 도로 위 눈을 찾고, 북동쪽 제설 기지에서 가장 빠른 경로로 제설차를 출동시킵니다.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

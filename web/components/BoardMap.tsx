@@ -69,7 +69,7 @@ export default function BoardMap({ arms, min = 100, path, upto, order }: {
       <rect x="690" y="180" width="160" height="140" fill={PALE} />
       <line x1="690" y1="180" x2="690" y2="320" stroke={INK2} strokeWidth="4" strokeDasharray="10 8" />
       <text x="800" y="96" textAnchor="middle" fontSize="38" fontWeight="800" fill={INK}>제설 기지</text>
-      <text x="800" y="138" textAnchor="middle" fontSize="24" fontWeight="600" fill={GREY}>출입구 ← N 도로</text>
+      <text x="800" y="138" textAnchor="middle" fontSize="24" fontWeight="600" fill={GREY}>출입구 ← N 갈래</text>
 
       {/* 남서: 노란 코트(골대 둘)와 H자 건물 */}
       <rect x="16" y="560" width="340" height="146" rx="6" fill={PALE} stroke={MID} strokeWidth="3" />

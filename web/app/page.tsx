@@ -1,5 +1,5 @@
-import Demo from "@/components/Demo";
+import Vision from "@/components/Vision";
 
 export default function Page() {
-  return <Demo />;
+  return <Vision />;
 }

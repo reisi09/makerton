@@ -2,8 +2,8 @@
 
 사거리 모형을 패드로 한 장 찍으면 **도로 위 눈을 갈래별로 인식**하고, 북동쪽 **제설 기지**에서 출발해 눈 있는 갈래를 도는 **가장 빠른 순서(최적 경로)**를 계산해 제설차가 그대로 출동하는 메이커톤 작품이다. 인식은 규칙 기반 영상 처리, 경로는 펌웨어 경로 계획으로 모든 순서를 비교해 정한다. LLM은 쓰지 않는다.
 
-- 웹 데모(팀 모형 사진 → 눈 인식 → 최적 경로 → 출동 애니메이션): https://reisi09.github.io/makerton/
-- 패드 사진 출동 화면: 맥 서버를 켜고 같은 핫스팟에서 `http://<맥 IP>:8000/app/vision/`
+- 조작 화면(사진 출동·전체 청소·정지): 맥 서버를 켜고 같은 핫스팟에서 `http://<맥 IP>:8000/app/`
+- GitHub Pages(https://reisi09.github.io/makerton/)는 같은 화면이지만 맥 서버에 닿지 못해 안내와 지도만 보인다.
 
 ![모니터 화면](docs/img/monitor.png)
 
@@ -11,10 +11,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 자동 시험 | Python 228개(`python3 -m unittest discover -s tests`), 웹 1개(`cd web && npm test`) 통과 |
+| 자동 시험 | Python 229개(`python3 -m unittest discover -s tests`), 웹 1개(`cd web && npm test`) 통과 |
 | 출동 판단 | 사진 인식(`server/vision.py`) + 최적 경로(`server/route.py`). 날씨 예보 모델은 화면 참고용이고 출동을 정하지 않는다 |
-| 웹 데모 | 팀 모형 사진 6장의 인식 결과·최적 경로·출동 애니메이션(실측 지도). Next.js 정적 사이트, `main` 푸시 시 GitHub Pages 배포 |
-| 패드 사진 출동 | 사진 한 장 → 검은 도로 위 흰 알갱이를 갈래별로 센다 → 눈이 100mm² 넘는 갈래를 최적 순서로 출동. 눈 있음/없음은 실제 모형 사진 26장 중 25장을 맞혔다(낮은 각도로 비스듬히 찍은 1장이 반사로 오탐) |
+| 조작 화면 | Next.js 정적 사이트 한 장. 맥 서버가 `/app`에서 낸다. 사진 출동, 네 갈래를 최적 순서로 도는 '전체 청소'(`/api/sweep`), 정지 버튼, 실측 지도 위 경로. 예시 사진 데모는 뺐다 |
+| 사진 출동 | 사진 한 장 → 검은 도로 위 흰 알갱이를 갈래별로 센다 → 눈이 100mm² 넘는 갈래를 최적 순서로 출동. 눈 있음/없음은 실제 모형 사진 26장 중 25장을 맞혔다(낮은 각도로 비스듬히 찍은 1장이 반사로 오탐) |
 | 제설차 Pico | 실물로 확인: 펌웨어 업로드(SHA-256 일치), 모터 방향(T3), 서버↔차 UDP 양방향(T5), 바퀴를 돌리지 않은 출동 드라이런 46초. 실제 주행과 바퀴 보정(T4·T6)은 차체 완성 뒤 |
 | 기지(센서) Pico | 코드와 시험만 있다. 눈 감지는 패드 사진이 대신할 수 있어 시연에는 선택이다 |
 | 보드 실측 | 925×910mm(노란 코트 방향이 가로), 도로 폭 135, 교차로 중심 (582, 480). 아래 구조도 |
@@ -69,9 +69,8 @@
 
 - **맥북**: 서버(`0.0.0.0:8000`), 사진 눈 인식(`server/vision.py`), 최적 경로(`server/route.py`), 패드용 화면(`/app`), 조작 대시보드(`/`)·모니터(`/monitor`), 참고용 날씨 모델.
 - **제설차 Pico #2(Wi-Fi UDP)**: 28BYJ-48 두 개와 병뚜껑 바퀴, 앞에 붙인 날. 북동쪽 기지 차고에서 나와 서버가 정한 순서대로 갈래를 끝까지 밀고 후진하고, 차고로 후진해 들어간다. 서보·초음파는 쓰지 않는다. 서버의 정지 명령과 차 버튼이 항상 우선한다.
-- **패드**: 보드를 위에서 찍어 맥으로 보낸다. 판정·출동 결과와 정지 버튼이 같은 화면에 있다.
+- **패드**: 보드를 위에서 찍어 맥으로 보내거나 '전체 청소'를 누른다. 판정·출동 결과와 정지 버튼이 같은 화면에 있다.
 - **기지(센서) Pico #1(USB, 선택)**: 조도·도킹 스위치. 조도센서가 덮이면 네 갈래를 최적 순서로 돌고, 도킹했을 때만 자동 출동한다.
-- **웹 데모(GitHub Pages)**: 팀 모형 사진을 고르면 같은 코드로 미리 계산한 인식 결과와 최적 경로를 실측 지도 위 애니메이션으로 보여 준다.
 
 ## 폴더
 
@@ -86,8 +85,8 @@ makerton/
   server/              gosaek_server.py · vision.py(사진 눈 인식) · route.py(최적 경로) · board.json(보드 실측) · static/
   pico/car/            config.py · car_core.py · main.py · hwtest.py · sweep_test.py
   pico/sensors/        config.py · sensor_core.py · main.py · hwtest.py · ssd1306.py · lcd1602.py
-  tools/               pico.py(Pico 업로드) · export_vision_demo.py(웹 데모 자료) · fetch_asos.py·export_demo.py(날씨 모델용)
-  web/                 Next.js: 사진 데모(/) · 패드 사진 출동(/vision) · components/BoardMap.tsx(실측 지도)
+  tools/               pico.py(Pico 업로드) · fetch_asos.py·export_demo.py(날씨 모델용)
+  web/                 Next.js 조작 화면(/, 예전 주소 /vision도 같은 화면) · components/BoardMap.tsx(실측 지도)
   tests/               python3 -m unittest discover -s tests
 ```
 
@@ -132,27 +131,27 @@ python3 tools/pico.py reset              # main.py가 돌고 서버를 찾는다
 - 보조배터리로 돌릴 때는 맥에 꽂던 마이크로 USB를 보조배터리에 꽂는다. 배선은 그대로다.
 - 기지 Pico는 `pico/sensors/`를 USB로 복사한다(Thonny 또는 같은 방식).
 
-### 4. 패드 사진으로 출동
+### 4. 패드로 출동
 
 ```
 cd web && npm run build:app      # 서버가 /app 에서 내는 패드용 화면
 ```
 
-- 패드를 맥과 같은 핫스팟에 붙이고 `http://<맥 IP>:8000/app/vision/`을 연다(맥에서 열면 QR이 나온다).
+- 패드를 맥과 같은 핫스팟에 붙이고 `http://<맥 IP>:8000/app/`을 연다(맥에서 열면 QR이 나온다).
 - 보드 전체가 보이게 **위에서 내려다보며** 사진 한 장을 찍는다. 기준 사진·모서리 찍기는 없고, 방향은 노란 코트로 맞춘다.
 - 서버는 검은 도로만 찾아 그 위 흰 알갱이를 교차로·N·S·E·W 갈래별로 센다. 중앙선 투명 테이프 반사와 길쭉한 반사는 뺀다.
 - 눈이 100mm² 넘는 갈래를 기지에서 도는 모든 순서(최대 24가지)를 비교해 가장 빠른 순서로 보낸다. 결과 화면에 순서, 예상 시간, 지도 위 경로가 나온다.
+- '전체 청소'는 사진 없이 네 갈래를 모두 최적 순서로 돈다(`POST /api/sweep`, 출동 중이면 409).
 - '바로 출동'을 끄면 판정만 보고 보내지 않는다. 출동 중에는 화면 위쪽 '정지' 버튼으로 멈춘다.
 - 차 길이가 정해지면 `pico/car/config.py`와 `server/board.json`의 `BASE_X`(`BASE_XY`)·`ARM_OUT_MM`만 고친다(중심→보드 끝 − 차 반길이 − 날 10 − 여유 10). 펌웨어를 바꾸면 `tools/pico.py put car --wifi`로 다시 올린다.
 
-### 5. 웹 데모
+### 5. GitHub Pages
 
 ```
 cd web && npm run dev             # 로컬 미리보기
-python3 tools/export_vision_demo.py   # web/public/demo/photos/*.jpg → 인식·최적 경로 자료(vision.json, overlay/)
 ```
 
-`main`에 `web/`나 `docs/` 변경을 푸시하면 `.github/workflows/pages.yml`이 빌드·시험·배포한다. GitHub Pages의 `/vision`은 브라우저 보안 때문에 맥으로 사진을 보낼 수 없어 안내만 띄운다.
+`main`에 `web/`나 `docs/` 변경을 푸시하면 `.github/workflows/pages.yml`이 빌드·시험·배포한다. https 페이지는 브라우저 보안 때문에 맥으로 사진을 보낼 수 없어 안내와 지도만 띄운다.
 
 ### 6. 모니터에 띄우기
 

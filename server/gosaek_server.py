@@ -1365,7 +1365,7 @@ class Model(object):
     def dispatch(self, order=None, source="manual"):
         with self.lock:
             if self.execution.get("state") == "running":
-                raise HttpError(409, "이미 출동 중입니다")
+                raise HttpError(409, "이미 출동 중입니다.")
             if order is None:
                 order = ((self.step or {}).get("dispatch") or {}).get("order")
             order = _arms_of(order)
@@ -1393,7 +1393,7 @@ class Model(object):
                     self.execution["mode"] = "mock"
                     self.execution["message"] = "차 링크가 끊겨 모의 실행"
         self.event("dispatch", "%s 출동 %s: %s (%s)" % (
-            {"auto": "자동", "vision": "사진"}.get(source, "수동"), plan_id, " → ".join(order),
+            {"auto": "자동", "vision": "사진", "sweep": "전체 청소"}.get(source, "수동"), plan_id, " → ".join(order),
             "제설차" if mode == "car" else "모의 실행"))
         thread = threading.Thread(target=self._run_plan, args=(order, plan_id, mode, run_id),
                                   name="plan", daemon=True)
@@ -1407,10 +1407,10 @@ class Model(object):
         try:
             img = vision.decode_image(body.get("image"))
         except Exception:
-            raise HttpError(400, "사진을 읽지 못했습니다(JPEG base64 가 필요합니다)")
+            raise HttpError(400, "사진을 읽지 못했습니다. JPEG base64가 필요합니다.")
         found = vision.analyze(img, float(self.board.get("ROAD_MM", 135)))
         if found is None:
-            raise HttpError(422, "검은 도로를 찾지 못했습니다. 보드 전체가 보이게 위에서 찍어 주세요")
+            raise HttpError(422, "검은 도로를 찾지 못했습니다. 보드 전체가 보이도록 위에서 찍으면 됩니다.")
         decision = route.decide(found["arms"])
         plan = decision.pop("plan")
         dispatch = None
@@ -1425,6 +1425,17 @@ class Model(object):
             self.vision_last = result
         self.event("vision", decision["text"])
         return dict(result, view=found["view"])
+
+    def sweep_all(self, body):
+        """전체 청소: 사진 없이 네 갈래를 모두 최적 순서로 돈다. 이미 출동 중이면 409."""
+        plan = route.plan({a: {"area_mm2": route.ARM_MIN_MM2} for a in ("C",) + ARMS})
+        dispatch = self.dispatch(order=plan["order"], source="sweep")
+        text = "전체 청소 → 최적 순서 %s, 약 %d초" % ("→".join(plan["order"]), plan["seconds"])
+        result = {"time": time.strftime("%H:%M:%S"), "arms": None, "turns": 0,
+                  "decision": {"go": True, "text": text}, "route": plan, "dispatch": dispatch}
+        with self.lock:
+            self.vision_last = result
+        return result
 
     def _alive(self, run_id):
         return self._run_id == run_id and not self._estop_flag
@@ -1871,6 +1882,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/sensors/baseline": self._baseline,
             "/api/reset": self._reset,
             "/api/vision/detect": lambda body: (200, self.model.vision_detect(body)),
+            "/api/sweep": lambda body: (200, self.model.sweep_all(body)),
         }.get(path)
         if route is None:
             self._send(404, {"error": "없는 경로입니다: %s" % path})
