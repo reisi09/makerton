@@ -13,7 +13,7 @@
 | 자동 시험 | `python3 -m unittest discover -s tests` → 205개 통과 |
 | Pico 펌웨어 | `pico/car` 4개, `pico/sensors`(기지 Pico) 6개 파일 `mpy-cross` 통과. 실물 배선·주행은 미검증 |
 | 제설기지 | S 도로 끝. 차고(안내 레일·도킹 스위치), 보충 사일로(SG90 게이트), 관제실, 지붕 경광등. 차는 기지에서 출동하고 후진으로 도킹한다 |
-| 인쇄용 PDF | [`docs/제설기지_제설차_제작가이드.pdf`](docs/제설기지_제설차_제작가이드.pdf), [`docs/라즈베리파이_시스템_설계도.pdf`](docs/라즈베리파이_시스템_설계도.pdf). `python3 docs/build_design_pdf.py [--doc base]`로 다시 만든다 |
+| 인쇄용 PDF | [`docs/실물부품_배선도_조립도.pdf`](docs/실물부품_배선도_조립도.pdf)(실물 모양 부품), [`docs/제설기지_제설차_제작가이드.pdf`](docs/제설기지_제설차_제작가이드.pdf), [`docs/라즈베리파이_시스템_설계도.pdf`](docs/라즈베리파이_시스템_설계도.pdf). `python3 docs/build_design_pdf.py [--doc real\|base]`로 다시 만든다 |
 | 글꼴 | Pretendard(`server/static/fonts/`, OFL). 웹·도면·PDF 공통 |
 | 모델 | 서울 108로 파이프라인 검증 완료. 수원 119 원본 CSV를 받으면 `--stn 119`로 다시 학습한다 |
 | 모형 갈래 | 임의 도로 4갈래(아래 표). 이름·속성은 `cross_arms.json`에서 읽는다 |
@@ -136,6 +136,7 @@ open -a "Google Chrome" --args --kiosk http://localhost:8000/monitor
 | `CONTRACT.md` | 핀·상수·JSON 형식. 다른 문서와 코드가 어긋나면 이 문서를 먼저 고친다 |
 | `docs/SYSTEM_DESIGN.md` | 구성, 데이터 흐름, 핀표, 전원, 프로토콜, 상태기계, 안전, 보정 |
 | `docs/BASE_AND_CAR.md` | 보드 사진 기준 실측표, 건물 배치, 제설기지, 제설차 제작 12단계, 도킹 보정 |
+| `docs/REAL_PARTS.md` | 실물 모양 부품 도감, 제설차·기지 실물 배선도(선 색·핀 번호)와 조립도. 그림 생성: `docs/realparts/draw_*.py` |
 | `docs/MODEL.md` | 학습 자료, 피처, 검증 수치, 방법 선택 |
 | `docs/BUILD.md` | 부품표, 제작 순서, 시험 T1~T12, 90초 시연 대본, 문제 해결 |
 

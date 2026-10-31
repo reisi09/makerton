@@ -26,6 +26,9 @@ DOCS = {
     "base": {"src": "BASE_AND_CAR.md", "out": "제설기지_제설차_제작가이드.pdf", "title": "제설기지 · 제설차 제작 가이드",
              "sub": "사거리 보드(사진 기준) · 남쪽 제설기지 · 스텝모터 제설차 · 실측 기입표 · 조립 순서 · 보정",
              "cover_img": "img/board_v2.svg", "appendix": False},
+    "real": {"src": "REAL_PARTS.md", "out": "실물부품_배선도_조립도.pdf", "title": "실물 부품 배선도 · 조립도",
+             "sub": "키트 실물 모양 그대로 · 제설차 Pico #2 · 기지 Pico #1 · 선 색·핀 번호까지",
+             "cover_img": "img/real_car_wiring.svg", "appendix": False},
 }
 
 CSS = """
@@ -164,7 +167,9 @@ def convert(md):
                 notes = render_list(items)
             title = m.group(1)
             if pending_title[0]:
-                title = "%s — %s" % (pending_title[0], m.group(1))
+                alt = m.group(1)
+                # 그림 이름이 절 제목에 이미 들어 있으면 절 제목만 쓴다(같은 말 반복 방지)
+                title = pending_title[0] if (not alt or alt in pending_title[0]) else "%s — %s" % (pending_title[0], alt)
                 pending_title[0] = None
             out.append(figure(title, m.group(2), "docs/%s" % m.group(2), notes))
             continue
