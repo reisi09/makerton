@@ -120,6 +120,7 @@ export default function Demo() {
             ))}
           </select>
           <span className="spacer" />
+          <a className="btn" href={`${BASE}/vision/`}>사진으로 출동</a>
           <button className="btn" type="button" aria-pressed={s.snow} disabled={!!s.run} onClick={onSnow}>눈 올리기</button>
           <button className="btn dark" type="button" onClick={onPlay}>{s.playing ? "❚❚ 멈춤" : ended ? "↺ 다시" : "▶ 재생"}</button>
         </div>

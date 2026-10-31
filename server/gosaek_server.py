@@ -16,6 +16,7 @@ import argparse
 import datetime
 import glob
 import json
+import mimetypes
 import os
 import socket
 import subprocess
@@ -32,8 +33,11 @@ INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
 MONITOR_PATH = os.path.join(STATIC_DIR, "monitor.html")
 BOARD_PATH = os.path.join(HERE, "board.json")
 EVENTS_PATH = os.environ.get("GOSAEK_EVENTS", os.path.join(HERE, "events.jsonl"))
+APP_DIR = os.path.join(ROOT, "web", "out-app")   # npm run build:app 결과(패드용 화면)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+
+from server import vision  # noqa: E402
 
 HTTP_PORT = 8000
 ARMS = ("N", "E", "S", "W")
@@ -54,17 +58,18 @@ DEFAULT_BUDGET = 2
 DEFAULT_SEC_PER_HOUR = 6.0
 TICK_S = 0.1
 
-# board.json 이 없을 때 쓰는 기본값(계약 7·8·9절). 모두 사진 추정값이다.
+# board.json 이 없을 때 쓰는 기본값(계약 7·8·9절). board.json 과 같은 2026-10-31 실측값이다.
 BOARD_DEFAULTS = {
     "note": "사진 추정값. 줄자로 재서 pico/car/config.py 와 함께 고친다.",
-    "CENTER_X": 480, "CENTER_Y": 340, "BASE_DIST_MM": 500, "DOCK_OVERDRIVE_MM": 15,
-    "ROAD_MM": 150, "PLAZA_MM": [297, 420],
+    "CENTER_X": 582, "CENTER_Y": 480, "BASE_DIST_MM": 345, "DOCK_OVERDRIVE_MM": 0,
+    "ROAD_MM": 135, "PLAZA_MM": [297, 420],
     "PLAZA_EDGE_MM": {"N": 243, "S": 176, "W": 157, "E": 140},
-    "ARM_END_MM": {"N": 340, "E": 470, "W": 500, "S": 395},
-    "ARM_OUT_MM": {"N": 170, "E": 380, "W": 400, "S": 390},
-    "SPRAY_WIN": {"N": [100, 170], "E": [100, 380], "S": [100, 240], "W": [100, 400]},
+    "ARM_END_MM": {"N": 480, "E": 343, "W": 582, "S": 430},
+    "ARM_OUT_MM": {"N": 385, "E": 380, "W": 400, "S": 390},
+    "SPRAY_WIN": {"N": [100, 385], "E": [100, 380], "S": [100, 345], "W": [100, 400]},
     "BASE_MM": [320, 230],
     "WET_ARM": "W",
+    "BOARD_MM": [925, 910],
 }
 AUTO_COOLDOWN_S = 10.0  # 출동이 끝난 뒤 자동 출동을 다시 판단하기까지(눈이 남아 있으면 한 번 더)
 SWEEP_ORDER = ["N"]     # 사거리 왕복: 대기 칸 → 광장 북쪽 끝 → 같은 길 후진
@@ -723,6 +728,7 @@ class Model(object):
         self.mode = "live" if mode == "live" else "replay"
         self.board = board if isinstance(board, dict) else load_board()
         self.wet_arm = _arm(wet_arm) or _arm(self.board.get("WET_ARM")) or "W"
+        self.vision_last = None
 
         self.car_link = car_link
         self.sensor_link = sensor_link
@@ -1399,13 +1405,42 @@ class Model(object):
                     self.execution["mode"] = "mock"
                     self.execution["message"] = "차 링크가 끊겨 모의 실행"
         self.event("dispatch", "%s 출동 %s: %s (%s)" % (
-            "자동" if source == "auto" else "수동", plan_id, " → ".join(order),
+            {"auto": "자동", "vision": "사진"}.get(source, "수동"), plan_id, " → ".join(order),
             "제설차" if mode == "car" else "모의 실행"))
         thread = threading.Thread(target=self._run_plan, args=(order, plan_id, mode, run_id),
                                   name="plan", daemon=True)
         thread.start()
         return {"plan_id": plan_id, "order": order, "mode": mode, "seq": seq,
                 "sent": sent, "source": source}
+
+    # -- 사진 인식(패드) ----------------------------------------------------
+    def vision_detect(self, body):
+        """패드 사진 한 장 → 도로 위 눈을 갈래별로 센다 → 차가 닿는 갈래에 눈이 있거나 모델 확률이 높으면 출동."""
+        try:
+            img = vision.decode_image(body.get("image"))
+        except Exception:
+            raise HttpError(400, "사진을 읽지 못했습니다(JPEG base64 가 필요합니다)")
+        found = vision.analyze(img, float(self.board.get("ROAD_MM", 135)))
+        if found is None:
+            raise HttpError(422, "검은 도로를 찾지 못했습니다. 보드 전체가 보이게 위에서 찍어 주세요")
+        with self.lock:
+            arm = ((self.step or {}).get("arms") or {}).get("N") or {}
+            p = arm.get("p_max")
+            threshold = ((self.step or {}).get("dispatch") or {}).get("threshold", 0.5)
+        decision = vision.decide(found["arms"], p, threshold)
+        dispatch = None
+        if decision["go"] and body.get("go", True):
+            try:
+                dispatch = self.dispatch(order=list(SWEEP_ORDER), source="vision")
+            except HttpError as e:
+                dispatch = {"error": e.message}
+        result = {"time": time.strftime("%H:%M:%S"), "arms": found["arms"], "reach": list(vision.REACH),
+                  "turns": found["turns"], "decision": decision, "p": p, "threshold": threshold,
+                  "dispatch": dispatch}
+        with self.lock:
+            self.vision_last = result
+        self.event("vision", decision["text"])
+        return dict(result, view=found["view"])
 
     def _alive(self, run_id):
         return self._run_id == run_id and not self._estop_flag
@@ -1607,6 +1642,7 @@ class Model(object):
                 "auto": self.auto,
                 "board": json.loads(json.dumps(self.board)),
                 "wet_arm": self.wet_arm,
+                "vision": json.loads(json.dumps(self.vision_last)),
                 "base": {
                     "ok": bool(sensor_ok and self.sensor_state["mode"] != "none"),
                     "dock": self.base_state.get("dock"),
@@ -1812,8 +1848,30 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, data, ctype)
         elif path == "/favicon.ico":
             self._send(204, b"", "image/x-icon")
+        elif path == "/app" or path.startswith("/app/"):
+            self._send_app(urllib.parse.unquote(path[len("/app"):]))
         else:
             self._send(404, {"error": "없는 경로입니다: %s" % path})
+
+    def _send_app(self, rel):
+        """web/out-app(BASE_PATH=/app 정적 빌드)을 그대로 낸다. 폴더 밖 경로는 거절한다."""
+        root = os.path.realpath(APP_DIR)
+        target = os.path.realpath(os.path.join(root, rel.lstrip("/")))
+        if target != root and not target.startswith(root + os.sep):
+            self._send(404, {"error": "없는 경로입니다"})
+            return
+        if os.path.isdir(target):
+            target = os.path.join(target, "index.html")
+        if not os.path.isfile(target):
+            hint = "" if os.path.isdir(root) else " 패드용 화면을 먼저 빌드하세요: cd web && npm run build:app"
+            self._send(404, {"error": "없는 경로입니다: /app%s.%s" % (rel, hint)})
+            return
+        with open(target, "rb") as f:
+            data = f.read()
+        ctype = mimetypes.guess_type(target)[0] or "application/octet-stream"
+        if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
+            ctype += "; charset=utf-8"
+        self._send(200, data, ctype)
 
     def do_POST(self):
         path = urllib.parse.urlsplit(self.path).path.rstrip("/") or "/"
@@ -1828,6 +1886,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/budget": self._budget,
             "/api/sensors/baseline": self._baseline,
             "/api/reset": self._reset,
+            "/api/vision/detect": lambda body: (200, self.model.vision_detect(body)),
         }.get(path)
         if route is None:
             self._send(404, {"error": "없는 경로입니다: %s" % path})

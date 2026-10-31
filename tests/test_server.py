@@ -259,17 +259,18 @@ class BaseTest(ServerBase):
     def test_board_json_loaded(self):
         model = self.make_model()
         board = model.snapshot()["board"]
-        self.assertEqual(board["CENTER_X"], 480)
-        self.assertEqual(board["CENTER_Y"], 340)
-        self.assertEqual(board["BASE_DIST_MM"], 250)
-        self.assertEqual(board["ROAD_MM"], 150)
+        self.assertEqual(board["CENTER_X"], 582)
+        self.assertEqual(board["CENTER_Y"], 480)
+        self.assertEqual(board["BASE_DIST_MM"], 345)
+        self.assertEqual(board["ROAD_MM"], 135)            # 2026-10-31 사진 실측
+        self.assertEqual(board["BOARD_MM"], [925, 910])
         self.assertEqual(board["PLAZA_MM"], [297, 420])
-        self.assertEqual(board["ARM_END_MM"]["N"], 340)
-        self.assertEqual(board["ARM_END_MM"]["E"], 470)
-        self.assertEqual(board["ARM_END_MM"]["W"], 500)
-        self.assertEqual(board["ARM_END_MM"]["S"], 395)
+        self.assertEqual(board["ARM_END_MM"]["N"], 480)
+        self.assertEqual(board["ARM_END_MM"]["E"], 343)
+        self.assertEqual(board["ARM_END_MM"]["W"], 582)
+        self.assertEqual(board["ARM_END_MM"]["S"], 430)
         self.assertEqual(board["WET_ARM"], "W")
-        self.assertIn("추정", board["note"])
+        self.assertIn("가정", board["note"])           # 차체 길이는 아직 가정값이다
 
     def test_wet_arm_default_and_option(self):
         model = self.make_model()
@@ -449,6 +450,31 @@ class HttpTest(ServerBase):
     def post(self, port, path, body):
         status, raw = self.request(port, path, body)
         return status, json.loads(raw.decode("utf-8"))
+
+    def test_vision_photo_dispatches_when_snow_is_on_the_car_route(self):
+        from tests.test_vision import N_SNOW, board, floor, photo
+        model = self.make_model(night=NIGHT)
+        self.attach_fake_car(model)
+        port = self.start_http(model)
+        clean = srv.vision.to_data_url(photo(board(glare=True)))
+        snowy = srv.vision.to_data_url(photo(board(snow=N_SNOW)))
+
+        status, body = self.post(port, "/api/vision/detect", {"image": srv.vision.to_data_url(floor())})
+        self.assertEqual(status, 422, "도로가 없는 사진을 판정했습니다")
+
+        status, body = self.post(port, "/api/vision/detect", {"image": clean, "go": False})
+        self.assertEqual(status, 200, body)
+        self.assertNotEqual(body["decision"]["why"], "snow")
+        self.assertIsNone(body["dispatch"])
+
+        status, body = self.post(port, "/api/vision/detect", {"image": snowy})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["decision"]["why"], "snow")
+        self.assertGreater(body["arms"]["N"]["area_mm2"], 250)
+        self.assertTrue(body["view"].startswith("data:image/jpeg;base64,"))
+        self.assertEqual(body["dispatch"]["source"], "vision")
+        self.assertEqual(model.execution["order"], srv.SWEEP_ORDER)
+        self.assertEqual(model.snapshot()["vision"]["decision"]["why"], "snow")
 
     def test_state_api_and_pages(self):
         model = self.make_model(night=NIGHT)

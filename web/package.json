@@ -5,15 +5,18 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:app": "BASE_PATH=/app next build && rm -rf out-app && mv out out-app",
     "test": "node --test lib/*.test.ts"
   },
   "dependencies": {
     "next": "15.5.28",
+    "qrcode": "1.5.4",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
+    "@types/qrcode": "1.5.5",
     "@types/react": "19.1.12",
     "typescript": "5.9.2"
   }

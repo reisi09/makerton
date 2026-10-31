@@ -116,9 +116,22 @@ python3 server/gosaek_server.py --stn 119 --mode replay --auto
 ```
 
 - 센서 Pico #1: `pico/sensors/`의 `config.py`·`sensor_core.py`·`main.py`·`ssd1306.py`를 USB로 복사한다.
-- 제설차 Pico #2: `pico/car/`의 `config.py`·`car_core.py`·`main.py`를 복사한다.
+- 제설차 Pico #2: `python3 tools/pico.py put car --wifi`(Wi-Fi 이름·비밀번호는 이때 입력받아 Pico에만 쓴다), `python3 tools/pico.py reset`.
 - `config.py`의 Wi-Fi SSID·비밀번호와 `SERVER_IP`는 **업로드할 때만** 채운다. 저장소에는 빈 문자열로 둔다.
-- 부팅 뒤 `hwtest.py`로 핀을 하나씩 확인한다.
+- 부팅 뒤 `hwtest.py`로 핀을 하나씩 확인한다. 왕복 실험은 `sweep_test.py`.
+- 아이폰 핫스팟은 '호환성 최대화'(2.4GHz)를 켠다. 맥이 IPv6 전용(CLAT)으로 붙으면 차로 명령이 안 가니, 맥 Wi-Fi 세부사항 > TCP/IP > IPv6를 '링크-로컬 전용'으로 둔다(서버가 경고를 띄운다).
+
+### 4-1. 패드 사진으로 출동
+
+```
+cd web && npm run build:app      # 서버가 /app 에서 내는 패드용 화면
+```
+
+- 패드를 맥과 같은 핫스팟에 붙이고 `http://<맥 IP>:8000/app/vision/`을 연다(맥에서 열면 QR이 나온다).
+- 보드 전체가 보이게 위에서 눈 사진 한 장을 찍는다. 기준 사진·모서리 찍기는 없다. 방향은 노란 코트로 맞춘다.
+- 서버는 검은 도로만 찾아 그 위 흰 알갱이를 교차로·N·S·E·W 갈래별로 센다(`server/vision.py`). 중앙선 투명 테이프 반사는 뺀다.
+- 차 경로(S 대기 칸 → 교차로 → N 끝, 도로 폭 전체)의 눈이 300mm²를 넘거나 N 결빙확률이 기준을 넘으면 사거리 왕복을 보낸다.
+- 보드 실측(2026-10-31): 925×910mm, 도로 폭 135, 교차로 중심 (582, 480). 차는 도로 폭을 덮는 길이 150으로 가정했다(`BASE_DIST_MM` 345, `ARM_OUT_MM["N"]` 385).
 
 ### 5. 모니터에 띄우기
 

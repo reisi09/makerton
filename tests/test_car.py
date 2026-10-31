@@ -184,7 +184,7 @@ class PlanTest(unittest.TestCase):
         self.assertEqual([s["phase"] for s in segs],
                          ["depart", "turn", "out", "back", "home", "home"])
         self.assertEqual([s["steps"] for s in segs],
-                         [10865, 3686, 16515, 16515, 3686, 10865])
+                         [14994, 3686, 16515, 16515, 3686, 14994])
         # 갈래에서는 돌지 않고 같은 길을 후진으로 되짚는다. 귀환 회전은 동쪽(90도)에서 북쪽으로 도는 −90도다
         self.assertEqual([s["dir"] for s in segs], [1, 1, 1, -1, -1, -1])
         self.assertEqual([bool(s["spray"]) for s in segs],
@@ -289,22 +289,22 @@ class PlanTest(unittest.TestCase):
         # E에서 후진으로 돌아오면 여전히 동쪽을 보므로, W로 가려면 180도 돈다
         segs = car_core.plan_for_order(["E", "W"], car_core.Pose())
         self.assertEqual([s["steps"] for s in segs],
-                         [10865, 3686, 16515, 16515, 7373, 17384, 17384, 3686, 10865])
+                         [14994, 3686, 16515, 16515, 7373, 17384, 17384, 3686, 14994])
         self.assertEqual(segs[5]["arm"], "W")
         self.assertEqual(segs[5]["phase"], "out")
 
     def test_estimate_seconds(self):
-        # 사거리 왕복(N): 출발 250 + 북쪽 170 + 후진 170 + 귀환 후진 250, 회전 없음 → 약 44초
+        # 사거리 왕복(N): 출발 345 + 북쪽 385 + 후진 385 + 귀환 후진 345, 회전 없음 → 약 76초(실기 약 87초)
         self.assertAlmostEqual(car_core.estimate_seconds(["N"]),
-                               36506 * config.STEP_US / 1000000.0)
+                               63452 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["S"]),
-                               21730 * config.STEP_US / 1000000.0)
+                               29988 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["E", "W"]),
-                               104273 * config.STEP_US / 1000000.0)
+                               112531 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["S", "W"]),
-                               63870 * config.STEP_US / 1000000.0)
+                               72128 * config.STEP_US / 1000000.0)
         self.assertAlmostEqual(car_core.estimate_seconds(["N", "E", "S", "W"]),
-                               119049 * config.STEP_US / 1000000.0)
+                               145995 * config.STEP_US / 1000000.0)
 
     def test_sweep_has_no_turns(self):
         segs = car_core.plan_for_order(["N"], car_core.Pose())
