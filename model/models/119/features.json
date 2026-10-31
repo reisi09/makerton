@@ -1,0 +1,75 @@
+{
+  "station": "119",
+  "features": [
+    "temp",
+    "temp_6h_mean",
+    "humidity",
+    "dewpoint_depression",
+    "wind",
+    "precip_6h",
+    "snow",
+    "new_snow_6h",
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "gt_lag1",
+    "gt_lag2",
+    "gt_lag3",
+    "gt_lag6",
+    "gt_roll6",
+    "gt_trend3",
+    "air_gt_gap_lag1",
+    "solar",
+    "solar_3h_sum",
+    "sunshine",
+    "dewpoint",
+    "humidity_trend3",
+    "gt_min24"
+  ],
+  "base": [
+    "temp",
+    "temp_6h_mean",
+    "humidity",
+    "dewpoint_depression",
+    "wind",
+    "precip_6h",
+    "snow",
+    "new_snow_6h",
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos"
+  ],
+  "lags": [
+    "gt_lag1",
+    "gt_lag2",
+    "gt_lag3",
+    "gt_lag6",
+    "gt_roll6",
+    "gt_trend3",
+    "air_gt_gap_lag1"
+  ],
+  "solar": [
+    "solar",
+    "solar_3h_sum",
+    "sunshine"
+  ],
+  "extras": [
+    "dewpoint",
+    "humidity_trend3",
+    "gt_min24"
+  ],
+  "horizons": [
+    0,
+    1,
+    3,
+    6
+  ],
+  "targets": {
+    "h0": "target_h0",
+    "h1": "target_h1",
+    "h3": "target_h3",
+    "h6": "target_h6"
+  }
+}

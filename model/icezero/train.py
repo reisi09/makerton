@@ -160,13 +160,28 @@ def _rows(frame, cols, h):
     return frame.dropna(subset=list(cols) + [features.target_column(h)])
 
 
+def _fit_rows(data, h, last_year):
+    """last_year까지의 학습 행. 목표 시각(t+h)이 다음 해로 넘어가는 12/31 밤 행은 뺀다.
+
+    연도로 자르면 12/31 18~23시 행의 +h 목표가 다음 해(검증·보정·시험) 정답이 된다.
+    """
+    target_year = (data.index + pd.Timedelta(hours=h)).year
+    return data[(data.index.year <= last_year) & (target_year <= last_year)]
+
+
+def _year_rows(data, h, year):
+    """그 해 안에서 목표까지 끝나는 행(보정·검증용)."""
+    target_year = (data.index + pd.Timedelta(hours=h)).year
+    return data[(data.index.year == year) & (target_year == year)]
+
+
 def evaluate_rmse(frame, cols, year, fit_end):
     """연도 하나의 시점별 RMSE(회귀). 자료가 모자라면 None."""
     out = {}
     for h in HORIZONS:
         data = _rows(frame, cols, h)
-        tr = data[data.index.year <= fit_end]
-        te = data[data.index.year == year]
+        tr = _fit_rows(data, h, fit_end)
+        te = _year_rows(data, h, year)
         if len(tr) < 200 or len(te) < 20:
             out["h%d" % h] = None
             continue
@@ -218,9 +233,9 @@ def select_methods(frame, cols):
         key = "h%d" % h
         target = features.target_column(h)
         data = _rows(frame, cols, h)
-        tr = data[data.index.year <= SELECT_FIT_END]
-        cal = data[data.index.year == SELECT_CAL_YEAR]
-        va = data[data.index.year == SELECT_VAL_YEAR]
+        tr = _fit_rows(data, h, SELECT_FIT_END)
+        cal = _year_rows(data, h, SELECT_CAL_YEAR)
+        va = _year_rows(data, h, SELECT_VAL_YEAR)
         if len(tr) < 200 or len(cal) < 50 or len(va) < 50:
             methods[key] = "reg"
             detail[key] = {"method": "reg", "reason": "자료 부족으로 회귀 고정"}
@@ -261,7 +276,7 @@ def fit_final(frame, cols):
     for h in HORIZONS:
         target = features.target_column(h)
         data = _rows(frame, cols, h)
-        tr = data[data.index.year <= TRAIN_END]
+        tr = _fit_rows(data, h, TRAIN_END)
         reg[h] = fit_regressor(tr, cols, target)
         if h in CLASS_HORIZONS:
             clf[h] = fit_classifier(tr, cols, target)
@@ -269,8 +284,8 @@ def fit_final(frame, cols):
     for h in HORIZONS:
         target = features.target_column(h)
         data = _rows(frame, cols, h)
-        early = data[data.index.year <= TRAIN_END - 1]
-        cal = data[data.index.year == CALIB_YEAR]
+        early = _fit_rows(data, h, TRAIN_END - 1)
+        cal = _year_rows(data, h, CALIB_YEAR)
         if len(early) < 200 or len(cal) < 50:
             xs, ys = isotonic_curve(data[target], (data[target] <= 0.0).astype(float))
             note = "자료 부족: 지점 전체로 적합"
@@ -340,7 +355,7 @@ def rolling_validation(frame, cols):
             key = "h%d" % h
             target = features.target_column(h)
             data = _rows(frame, cols, h)
-            tr = data[data.index.year < year]
+            tr = _fit_rows(data, h, year - 1)
             te = data[data.index.year == year]
             if len(tr) < 200 or len(te) < 20:
                 per[key] = None
@@ -733,7 +748,7 @@ def train(stn, models_dir=None, quiet=False):
     train_rows = 0
     for h in HORIZONS:
         data = _rows(frame, cols, h)
-        train_rows = max(train_rows, int((data.index.year <= TRAIN_END).sum()))
+        train_rows = max(train_rows, int(len(_fit_rows(data, h, TRAIN_END))))
 
     metrics = {
         "model": MODEL_NAME,

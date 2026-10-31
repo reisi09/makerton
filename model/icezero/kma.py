@@ -57,6 +57,9 @@ COLUMN_MAP = {
     "지면온도": "ground_temp", "ground_temp": "ground_temp",
 }
 
+# 빈칸이 '없음(0)'을 뜻하는 열
+ZERO_WHEN_BLANK = ("precip", "snow", "sunshine", "solar")
+
 # 시도할 인코딩 순서. utf-8-sig는 BOM 있는 정리본, cp949는 포털 원본.
 ENCODINGS = ("utf-8-sig", "cp949", "euc-kr")
 
@@ -102,6 +105,11 @@ def _to_standard(df):
         if col == "time":
             continue
         out[col] = pd.to_numeric(out[col], errors="coerce")
+    # 포털 원본은 비·눈이 없거나 밤이라 일조·일사가 없으면 빈칸이다. 관측된 시각의 빈칸은 0이다.
+    # (관측 자체가 없는 시각은 reindex_hourly에서 NaN 행으로 남는다.)
+    for col in ZERO_WHEN_BLANK:
+        if col in out.columns:
+            out[col] = out[col].fillna(0.0)
     return out
 
 

@@ -126,6 +126,20 @@ class ModelTest(unittest.TestCase):
             self.assertIn("sunshine", frame.columns)
             self.assertIn("solar", frame.columns)
 
+            # 포털 원본의 빈칸(비·눈 없음, 밤 일조·일사)은 0, 관측이 없는 시각은 NaN으로 남는다
+            blank = root / "data" / "raw" / "B"
+            blank.mkdir(parents=True)
+            (blank / "OBS_ASOS_TIM_c.csv").write_text(
+                header + "\n119,2025-01-01 00:00,-3.0,,1.0,70,,,,-1.5\n"
+                "119,2025-01-01 02:00,-3.4,0.5,1.2,75,,,1.0,-1.9\n", encoding="utf-8-sig")
+            frame = kma.load_station("B", data_dir=root / "data")
+            self.assertEqual(len(frame), 3)
+            for col in ("precip", "snow", "sunshine", "solar"):
+                self.assertEqual(float(frame[col].iloc[0]), 0.0)
+                self.assertTrue(np.isnan(frame[col].iloc[1]))
+            self.assertAlmostEqual(float(frame["precip"].iloc[2]), 0.5)
+            self.assertTrue(np.isnan(frame["ground_temp"].iloc[1]))
+
             empty = root / "data" / "raw" / "NONE"
             empty.mkdir(parents=True)
             with self.assertRaises(kma.StationDataMissing):

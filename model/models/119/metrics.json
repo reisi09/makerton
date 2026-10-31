@@ -1,0 +1,512 @@
+{
+  "model": "ICE-ZERO 고색 경량(XGBoost 시점별 회귀·분류 혼합)",
+  "station": "119",
+  "station_name": "수원",
+  "trained_at": "2026-10-31T14:13:53",
+  "models_dir": "model/models/119",
+  "data": {
+    "files": [
+      "OBS_ASOS_TIM_119_api.csv"
+    ],
+    "rows": 52608,
+    "observed_rows": 17199,
+    "start": "2020-01-01T00:00:00",
+    "end": "2025-12-31T23:00:00",
+    "solar": [
+      "solar",
+      "solar_3h_sum",
+      "sunshine"
+    ]
+  },
+  "split": {
+    "train": "≤2024",
+    "test": "2025",
+    "calibration": "2024",
+    "method_selection": {
+      "fit": "≤2022",
+      "calibration": "2023",
+      "validation": "2024"
+    }
+  },
+  "rows": {
+    "train": 14156
+  },
+  "features": {
+    "used": [
+      "temp",
+      "temp_6h_mean",
+      "humidity",
+      "dewpoint_depression",
+      "wind",
+      "precip_6h",
+      "snow",
+      "new_snow_6h",
+      "hour_sin",
+      "hour_cos",
+      "day_sin",
+      "day_cos",
+      "gt_lag1",
+      "gt_lag2",
+      "gt_lag3",
+      "gt_lag6",
+      "gt_roll6",
+      "gt_trend3",
+      "air_gt_gap_lag1",
+      "solar",
+      "solar_3h_sum",
+      "sunshine",
+      "dewpoint",
+      "humidity_trend3",
+      "gt_min24"
+    ],
+    "base": [
+      "temp",
+      "temp_6h_mean",
+      "humidity",
+      "dewpoint_depression",
+      "wind",
+      "precip_6h",
+      "snow",
+      "new_snow_6h",
+      "hour_sin",
+      "hour_cos",
+      "day_sin",
+      "day_cos"
+    ],
+    "lags": [
+      "gt_lag1",
+      "gt_lag2",
+      "gt_lag3",
+      "gt_lag6",
+      "gt_roll6",
+      "gt_trend3",
+      "air_gt_gap_lag1"
+    ],
+    "solar": [
+      "solar",
+      "solar_3h_sum",
+      "sunshine"
+    ],
+    "extras": [
+      "dewpoint",
+      "humidity_trend3",
+      "gt_min24"
+    ],
+    "rejected": {},
+    "experiment": {
+      "base": {
+        "h0": 1.0777,
+        "h1": 1.5061,
+        "h3": 2.0577,
+        "h6": 2.5429
+      },
+      "dewpoint": {
+        "accepted": true,
+        "rmse": {
+          "h0": 1.0604,
+          "h1": 1.5131,
+          "h3": 2.0601,
+          "h6": 2.5399
+        },
+        "rmse_before": {
+          "h0": 1.0777,
+          "h1": 1.5061,
+          "h3": 2.0577,
+          "h6": 2.5429
+        },
+        "wins": [
+          "h0",
+          "h6"
+        ]
+      },
+      "humidity_trend3": {
+        "accepted": true,
+        "rmse": {
+          "h0": 1.065,
+          "h1": 1.5403,
+          "h3": 2.0552,
+          "h6": 2.5291
+        },
+        "rmse_before": {
+          "h0": 1.0604,
+          "h1": 1.5131,
+          "h3": 2.0601,
+          "h6": 2.5399
+        },
+        "wins": [
+          "h3",
+          "h6"
+        ]
+      },
+      "gt_min24": {
+        "accepted": true,
+        "rmse": {
+          "h0": 1.074,
+          "h1": 1.5298,
+          "h3": 2.0709,
+          "h6": 2.5042
+        },
+        "rmse_before": {
+          "h0": 1.065,
+          "h1": 1.5403,
+          "h3": 2.0552,
+          "h6": 2.5291
+        },
+        "wins": [
+          "h1",
+          "h6"
+        ]
+      }
+    }
+  },
+  "params": {
+    "n_estimators": 600,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "subsample": 0.9,
+    "colsample_bytree": 0.9,
+    "random_state": 42,
+    "n_jobs": 4
+  },
+  "baselines": {
+    "persistence": "h>0: 그 시각 관측 지면온도, h0: 직전 시각(gt_lag1)",
+    "air": "그 시각 기온"
+  },
+  "methods": {
+    "h0": "reg",
+    "h1": "blend",
+    "h3": "blend",
+    "h6": "blend"
+  },
+  "method_selection": {
+    "h0": {
+      "method": "reg",
+      "reason": "h0은 현재 지면온도라 회귀만 쓴다"
+    },
+    "h1": {
+      "method": "blend",
+      "validation_year": 2024,
+      "fit": "≤2022",
+      "calibration": "2023",
+      "brier": {
+        "reg": 0.0377,
+        "clf": 0.0448,
+        "blend": 0.0372
+      },
+      "rmse_reg": 1.6821,
+      "rows": 2884
+    },
+    "h3": {
+      "method": "blend",
+      "validation_year": 2024,
+      "fit": "≤2022",
+      "calibration": "2023",
+      "brier": {
+        "reg": 0.0526,
+        "clf": 0.0641,
+        "blend": 0.0526
+      },
+      "rmse_reg": 2.2008,
+      "rows": 2880
+    },
+    "h6": {
+      "method": "blend",
+      "validation_year": 2024,
+      "fit": "≤2022",
+      "calibration": "2023",
+      "brier": {
+        "reg": 0.0915,
+        "clf": 0.0835,
+        "blend": 0.0791
+      },
+      "rmse_reg": 2.6922,
+      "rows": 2874
+    }
+  },
+  "horizons": {
+    "h0": {
+      "method": "reg",
+      "rmse": 0.8017,
+      "mae": 0.4641,
+      "persistence_rmse": 1.8923,
+      "persistence_mae": 1.0947,
+      "air_rmse": 3.2938,
+      "air_mae": 2.3269,
+      "brier": 0.0243,
+      "brier_reg": 0.0243,
+      "brier_clf": null,
+      "brier_blend": null,
+      "freeze_rate": 0.4885,
+      "rows": 2862
+    },
+    "h1": {
+      "method": "blend",
+      "rmse": 1.2552,
+      "mae": 0.7595,
+      "persistence_rmse": 1.8926,
+      "persistence_mae": 1.0947,
+      "air_rmse": 3.6454,
+      "air_mae": 2.6061,
+      "brier": 0.0322,
+      "brier_reg": 0.0378,
+      "brier_clf": 0.0332,
+      "brier_blend": 0.0322,
+      "freeze_rate": 0.4885,
+      "rows": 2860
+    },
+    "h3": {
+      "method": "blend",
+      "rmse": 1.8617,
+      "mae": 1.1758,
+      "persistence_rmse": 4.6721,
+      "persistence_mae": 2.969,
+      "air_rmse": 4.8619,
+      "air_mae": 3.5004,
+      "brier": 0.0462,
+      "brier_reg": 0.057,
+      "brier_clf": 0.0448,
+      "brier_blend": 0.0462,
+      "freeze_rate": 0.4884,
+      "rows": 2856
+    },
+    "h6": {
+      "method": "blend",
+      "rmse": 2.2429,
+      "mae": 1.4991,
+      "persistence_rmse": 7.0126,
+      "persistence_mae": 4.8843,
+      "air_rmse": 6.5315,
+      "air_mae": 4.7441,
+      "brier": 0.0588,
+      "brier_reg": 0.0686,
+      "brier_clf": 0.0595,
+      "brier_blend": 0.0588,
+      "freeze_rate": 0.4884,
+      "rows": 2850
+    }
+  },
+  "rolling": {
+    "2022": {
+      "h0": {
+        "rmse": 0.6807,
+        "persistence_rmse": 1.3979,
+        "air_rmse": 3.2608,
+        "rows": 2854
+      },
+      "h1": {
+        "rmse": 1.1338,
+        "persistence_rmse": 1.3972,
+        "air_rmse": 3.5339,
+        "rows": 2852
+      },
+      "h3": {
+        "rmse": 1.6872,
+        "persistence_rmse": 3.5509,
+        "air_rmse": 4.5137,
+        "rows": 2850
+      },
+      "h6": {
+        "rmse": 2.0503,
+        "persistence_rmse": 5.5011,
+        "air_rmse": 5.9019,
+        "rows": 2847
+      }
+    },
+    "2023": {
+      "h0": {
+        "rmse": 0.8907,
+        "persistence_rmse": 1.6853,
+        "air_rmse": 3.6323,
+        "rows": 2699
+      },
+      "h1": {
+        "rmse": 1.3487,
+        "persistence_rmse": 1.6859,
+        "air_rmse": 3.9137,
+        "rows": 2696
+      },
+      "h3": {
+        "rmse": 1.9769,
+        "persistence_rmse": 4.2217,
+        "air_rmse": 4.8979,
+        "rows": 2690
+      },
+      "h6": {
+        "rmse": 2.4581,
+        "persistence_rmse": 6.3712,
+        "air_rmse": 6.284,
+        "rows": 2684
+      }
+    },
+    "2024": {
+      "h0": {
+        "rmse": 1.074,
+        "persistence_rmse": 1.9424,
+        "air_rmse": 2.9011,
+        "rows": 2886
+      },
+      "h1": {
+        "rmse": 1.5295,
+        "persistence_rmse": 1.9426,
+        "air_rmse": 3.2706,
+        "rows": 2885
+      },
+      "h3": {
+        "rmse": 2.0699,
+        "persistence_rmse": 4.6815,
+        "air_rmse": 4.4883,
+        "rows": 2883
+      },
+      "h6": {
+        "rmse": 2.5017,
+        "persistence_rmse": 6.9194,
+        "air_rmse": 6.1203,
+        "rows": 2880
+      }
+    },
+    "2025": {
+      "h0": {
+        "rmse": 0.8017,
+        "persistence_rmse": 1.8923,
+        "air_rmse": 3.2938,
+        "rows": 2862
+      },
+      "h1": {
+        "rmse": 1.2552,
+        "persistence_rmse": 1.8926,
+        "air_rmse": 3.6454,
+        "rows": 2860
+      },
+      "h3": {
+        "rmse": 1.8617,
+        "persistence_rmse": 4.6721,
+        "air_rmse": 4.8619,
+        "rows": 2856
+      },
+      "h6": {
+        "rmse": 2.2429,
+        "persistence_rmse": 7.0126,
+        "air_rmse": 6.5315,
+        "rows": 2850
+      }
+    }
+  },
+  "events": {
+    "year": 2025,
+    "definition": {
+      "night": "18:00~다음 날 09:00(16시간)",
+      "alarm": "밤 창 어느 시각이든 p_max(h1·h3·h6) ≥ 0.5",
+      "freeze": "밤 창 관측 지면온도 최저 ≤ 0°C",
+      "hit_rate": "결빙 밤 가운데 경보가 난 비율",
+      "lead_hours": "첫 관측 결빙 시각 − 첫 경보 시각(시간). 양수면 결빙 전에 알린 것",
+      "lead_hours_onset": "18시에는 아직 0°C 위였다가 창 안에서 결빙이 시작된 밤만의 선행 시간",
+      "false_alarm_rate": "결빙 없던 밤 가운데 경보가 난 비율",
+      "min_obs": "밤 창 관측 지면온도 최소 14개"
+    },
+    "nights_total": 118,
+    "freezing_nights": 85,
+    "clear_nights": 33,
+    "alarm_nights": 91,
+    "hits": 85,
+    "misses": 0,
+    "false_alarms": 6,
+    "hit_rate": 1.0,
+    "false_alarm_rate": 0.1818,
+    "median_lead_hours": 0.0,
+    "start_frozen_nights": 58,
+    "onset_nights": 27,
+    "median_lead_hours_onset": 2.0,
+    "late_nights": 1,
+    "lead_hours": [
+      -1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      2.0,
+      2.0,
+      2.0,
+      2.0,
+      2.0,
+      2.0,
+      3.0,
+      3.0,
+      3.0,
+      3.0,
+      3.0,
+      3.0,
+      4.0,
+      5.0,
+      5.0,
+      5.0,
+      7.0,
+      10.0
+    ],
+    "p_threshold": 0.5
+  },
+  "timing": {
+    "seconds": 27.42
+  }
+}
