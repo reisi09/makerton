@@ -35,8 +35,9 @@ function shrink(file: File): Promise<string> {
 const jpegUrl = (dataUrl: string) =>
   URL.createObjectURL(new Blob([Uint8Array.from(atob(dataUrl.split(",")[1]), (c) => c.charCodeAt(0))], { type: "image/jpeg" }));
 
-/** 사진을 찍으면 AI가 눈이 있는 곳을 상자로 표시한다. 표시 전용이며 제설차를 움직이지 않는다. */
-export default function SnowBoxes() {
+/** 사진을 찍으면 AI가 눈이 있는 곳을 상자로 표시한다. 표시 전용이며 제설차를 움직이지 않는다.
+ *  enabled가 false면(맥 서버가 없는 GitHub 페이지 등) 보안키를 받지도, 사진을 보내지도 않는다. 키가 엉뚱한 곳으로 가지 않게 한다. */
+export default function SnowBoxes({ enabled }: { enabled: boolean }) {
   const [key, setKey] = useState("");          // "" = 아직 입력 전
   const [draft, setDraft] = useState("");
   const [keyMsg, setKeyMsg] = useState("");
@@ -75,7 +76,7 @@ export default function SnowBoxes() {
   }
 
   async function analyze(file: File | undefined) {
-    if (!file || !key || busy) return;
+    if (!enabled || !file || !key || busy) return;
     setBusy(true);
     setError("");
     setView(null);                             // 이전 상자를 새 결과로 오해하지 않게 지운다
@@ -111,13 +112,15 @@ export default function SnowBoxes() {
       onChange={(e) => { analyze(e.target.files?.[0]); e.target.value = ""; }} />
   );
   const n = view?.boxes.length ?? 0;
-  const locked = !key || busy;
+  const locked = !enabled || !key || busy;
 
   return (
     <section>
       <div className="sec-h"><h2>눈 위치 표시</h2><small>사진에서 눈이 있는 곳을 AI가 상자로 표시합니다. 표시만 하고 제설차는 움직이지 않습니다.</small></div>
 
-      {key ? (
+      {!enabled ? (
+        <p className="vhint">맥 서버에 접속한 화면에서만 쓸 수 있습니다. 보안키도 그때 입력합니다.</p>
+      ) : key ? (
         <div className={styles.keyRow}>
           <span className="st on">보안키 입력됨</span>
           <button className="btn" type="button" onClick={() => askKeyAgain("")}>다시 입력</button>
@@ -131,8 +134,8 @@ export default function SnowBoxes() {
           <button className="btn dark" type="submit">확인</button>
         </form>
       )}
-      {keyMsg && <p id={`${id}-msg`} className="verr" role="alert">{keyMsg}</p>}
-      {!key && <p className="vhint">보안키를 입력해야 사진을 보낼 수 있습니다.</p>}
+      {enabled && keyMsg && <p id={`${id}-msg`} className="verr" role="alert">{keyMsg}</p>}
+      {enabled && !key && <p className="vhint">보안키를 입력해야 사진을 보낼 수 있습니다.</p>}
 
       <div className="vbtns">
         <button className="btn dark xl" type="button" disabled={locked} onClick={() => camera.current?.click()}>눈 사진 찍기</button>

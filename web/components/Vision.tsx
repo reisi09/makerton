@@ -12,7 +12,7 @@ const PHASE: Record<string, string> = { depart: "기지에서 나가는 중", tu
 
 interface Eye { usable?: boolean; arms?: Record<string, boolean>; note?: string; thinking?: string; secs?: number; error?: string }
 interface Result {
-  view?: string; time: string; arms: Record<string, Arm> | null;
+  time: string; arms: Record<string, Arm> | null;
   decision: { go: boolean; text: string };
   route: { order: string[]; seconds: number; path: Pose[] } | null;
   dispatch: { plan_id?: string; mode?: string; error?: string } | null;
@@ -108,7 +108,7 @@ export default function Vision() {
 
         <div className="vgrid">
           <section>
-            <SnowBoxes />
+            <SnowBoxes enabled={api === "ok"} />
 
             {onMac ? <PicoPad /> : (
               <p className="vhint">Pico 수동 조작은 맥에서 <b>http://localhost:8000/app/</b>을 Chrome·Edge로 열었을 때만 쓸 수 있습니다.</p>
@@ -127,7 +127,7 @@ export default function Vision() {
           </section>
 
           <section>
-            <div className="sec-h"><h2>결과</h2><small>파랑 = 도로, 빨강 = 눈</small></div>
+            <div className="sec-h"><h2>결과</h2><small>흰 점 = 눈, 주황 선 = 경로</small></div>
             {busy || state.vision_live ? (
               <>
                 <p className="empty" role="status">{busy || "다른 기기에서 올린 사진을 Claude가 보는 중…"}</p>
@@ -154,7 +154,6 @@ export default function Vision() {
                 </>}
               </div>
             )}
-            {shown?.view && <img className="vimg" src={shown.view} alt="도로와 눈 인식 결과" />}
             {moving && <p className="sub" role="status">제설차 {tel?.arm ? `${ARM_NAMES[tel.arm] ?? tel.arm} ` : ""}{moving}{tel?.state === "pause" ? " (일시 정지)" : ""}</p>}
             <BoardMap arms={shown?.arms ?? undefined} path={shown?.route?.path} order={shown?.route?.order} car={live} />
             {shown?.arms && (

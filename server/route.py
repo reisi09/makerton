@@ -1,9 +1,10 @@
 """사진에서 센 갈래별 눈 → 기지에서 출발해 눈 있는 갈래를 도는 가장 빠른 순서(최적 경로).
 
 차가 실제로 도는 경로는 펌웨어(pico/car/car_core.py)의 plan_for_order 하나로만 만든다.
-여기서는 그 함수로 가능한 순서를 모두(최대 4! = 24가지) 만들어 스텝 수(= 시간)가 가장 적은 것을 고른다.
+여기서는 그 함수로 가능한 순서를 모두(최대 4! = 24가지) 만들어 펌웨어 시간 모형(car_core.estimate_seconds)으로 가장 빠른 것을 고른다.
+구간마다 정지에서 가감속하므로 시간은 스텝 수에 비례하지 않는다(전체 청소: 스텝이 가장 적은 E→S→W→N 141.7초, S→E→W→N 140.3초).
 갈래 하나는 '중심에서 그 방위로 돌기 → 끝까지 밀기 → 같은 길 후진'이라, 순서가 바꾸는 것은 회전량이다.
-시간이 같으면 눈이 많은 갈래를 먼저 간다.
+시간이 같으면(1ms 이내) 눈이 많은 갈래를 먼저 간다.
 """
 
 import importlib.util
@@ -43,10 +44,6 @@ def _load_car_core():
 car_core = _load_car_core()
 
 
-def steps(order):
-    return car_core.plan_steps(car_core.plan_for_order(list(order)))
-
-
 def seconds(order):
     return car_core.estimate_seconds(list(order)) * REAL_FACTOR
 
@@ -71,11 +68,11 @@ def plan(arms):
     """arms: {갈래: {"area_mm2": …}} (C·N·E·S·W). 치울 갈래가 없으면 None."""
     need = [a for a in "NESW" if arms[a]["area_mm2"] >= ARM_MIN_MM2]
     if not need and arms["C"]["area_mm2"] >= ARM_MIN_MM2:
-        need = [min("NESW", key=lambda a: steps([a]))]      # 교차로 눈만 있으면 가장 짧은 갈래로 밀어낸다
+        need = [min("NESW", key=lambda a: seconds([a]))]    # 교차로 눈만 있으면 가장 빨리 다녀오는 갈래로 밀어낸다
     if not need:
         return None
     ranked = sorted(itertools.permutations(need),
-                    key=lambda o: (steps(o), [-arms[a]["area_mm2"] for a in o]))
+                    key=lambda o: (round(seconds(o), 3), [-arms[a]["area_mm2"] for a in o]))
     best, worst = ranked[0], ranked[-1]
     return {"order": list(best), "seconds": round(seconds(best)),
             "worst_order": list(worst), "worst_seconds": round(seconds(worst)),

@@ -7,6 +7,8 @@ export type Pose = [number, number, number];
 export interface Arm { area_mm2: number; far_mm: number }
 
 const CX = 582, CY = 480, RX0 = 515, RX1 = 650, RY0 = 404, RY1 = 552;
+// 차 치수(pico/car/config.py CAR_FRONT_MM·CAR_REAR_MM, 2026-11-01 실측): 자세 점 = 바퀴 축 가운데, 폭은 범퍼 폭 152로 그린다
+const CAR_FRONT = 95, CAR_REAR = 135, CAR_HALF_W = 76;
 const ARM_END: Record<string, [number, number]> = { N: [CX, 70], E: [880, CY], S: [CX, 860], W: [60, CY] };
 const INK = "#212529", GREY = "#495057", EDGE = "#adb5bd", SHADOW = "#ced4da", ROOF = "#e9ecef", WHITE = "#ffffff", BOARD = "#f1f3f5";
 const ROAD = "#2b2f33", LANE = "#f2c230", WINDOW = "#2f8fd0", GRASS = "#40a34f", GRASS_D = "#2b7a3a", TREE = "#2f8a3e";
@@ -121,11 +123,12 @@ export default function BoardMap({ arms, min = 100, path, upto, order, car }: {
         );
       })}
 
-      {/* 제설차: 도로 폭을 덮는 날이 앞에 붙어 있다 */}
+      {/* 제설차: 자세 점(바퀴 축)에서 앞(회전 전 -y)으로 범퍼 앞면까지 95, 뒤로 135. 범퍼 날이 앞면에 붙어 있다 */}
       <g transform={`translate(${pose[0]},${pose[1]}) rotate(${pose[2]})`}>
-        <rect x="-62" y="-75" width="124" height="150" rx="16" fill={CAR} stroke={WHITE} strokeWidth="4" />
-        <rect x="-40" y="-48" width="80" height="50" rx="8" fill={WHITE} opacity=".85" />
-        <rect x="-70" y="-90" width="140" height="14" rx="4" fill={CAR_D} stroke={WHITE} strokeWidth="2" />
+        <rect x={-CAR_HALF_W} y={-CAR_FRONT} width={2 * CAR_HALF_W} height={CAR_FRONT + CAR_REAR} rx="16" fill={CAR} stroke={WHITE} strokeWidth="4" />
+        <rect x="-40" y={-CAR_FRONT + 30} width="80" height="50" rx="8" fill={WHITE} opacity=".85" />
+        <rect x={-CAR_HALF_W} y={-CAR_FRONT} width={2 * CAR_HALF_W} height="14" rx="4" fill={CAR_D} stroke={WHITE} strokeWidth="2" />
+        <circle r="7" fill={WHITE} stroke={CAR_D} strokeWidth="3" />
       </g>
 
       {(["N", "E", "S", "W"] as const).map((a, i) => {

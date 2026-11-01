@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """server/claude_vision.py 시험: 네트워크 없이 Anthropic 스트림(SSE)을 흉내 내 판정과 사고 요약 전달을 본다."""
 import base64
+import http.client
 import io
 import json
 import os
@@ -131,8 +132,31 @@ class ClaudeVisionTest(unittest.TestCase):
 
     def test_enabled_only_with_a_key(self):
         self.assertTrue(claude_vision.enabled())
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
-            self.assertFalse(claude_vision.enabled())
+        for bad in ("", "test-key\r", " test-key", "test-key\n", "test key", "테스트-key"):
+            with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": bad}):
+                self.assertFalse(claude_vision.enabled(), repr(bad))
+
+    def test_malformed_key_error_does_not_contain_the_key(self):
+        # 키 끝에 CR이 붙으면 http.client가 키를 거의 그대로 담은 ValueError를 낸다. 그 문구가 판정 글·events.jsonl·/api/state로 새면 안 된다.
+        key = "sk-ant-api03-" + "Q7x" * 20
+        def no_network(*args, **kwargs):
+            raise AssertionError("헤더 검사보다 먼저 연결하면 안 된다(시험은 네트워크를 쓰지 않는다)")
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": key + "\r"}), \
+                mock.patch.object(http.client.HTTPSConnection, "connect", no_network), \
+                mock.patch.object(http.client.HTTPConnection, "connect", no_network):
+            for call in (lambda: claude_vision.judge(self.img), lambda: claude_vision.boxes(self.img)):
+                with self.assertRaises(RuntimeError) as ctx:
+                    call()
+                self.assertEqual(str(ctx.exception), "ANTHROPIC_API_KEY 형식이 올바르지 않습니다")
+                self.assertTrue(ctx.exception.__suppress_context__, "원래 예외(키 포함)를 트레이스백에 잇지 않는다")
+                self.assertNotIn(key[:20], repr(ctx.exception))
+
+    def test_network_failure_is_a_generic_message(self):
+        def down(req, timeout):
+            raise urllib.error.URLError(OSError(8, "nodename nor servname provided"))
+        with mock.patch.object(claude_vision.urllib.request, "urlopen", down):
+            with self.assertRaisesRegex(RuntimeError, "^Anthropic API에 연결하지 못했습니다"):
+                claude_vision.judge(self.img)
 
 
 if __name__ == "__main__":

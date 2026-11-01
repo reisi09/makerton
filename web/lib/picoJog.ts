@@ -6,6 +6,8 @@ export const BAUD_RATE = 115200;
 
 /** 조작 글자. 프로그램의 MOVES 키와 정지 글자가 이것과 같아야 한다(테스트가 비교한다). */
 export const JOG = { forward: "F", back: "B", left: "L", right: "R", stop: "S" } as const;
+/** 연결돼 있는 동안 KEEPALIVE_MS마다 보내는 글자. 움직임과는 무관하고, 프로그램이 '화면이 아직 있다'고 알게 한다. */
+export const KEEPALIVE = "K";
 export type JogLetter = (typeof JOG)[keyof typeof JOG];
 export const ARROW_JOG: Record<string, JogLetter> = { ArrowUp: JOG.forward, ArrowDown: JOG.back, ArrowLeft: JOG.left, ArrowRight: JOG.right };
 
@@ -17,6 +19,8 @@ export const CTRL_D = 0x04;   // raw REPL에서는 실행, 일반 REPL에서는 
 
 export const JOG_REPEAT_MS = 100;         // 누르고 있는 동안 같은 글자를 다시 보내는 간격
 export const DEAD_MAN_MS = 300;           // 프로그램이 이 시간 동안 조작 글자를 못 받으면 스스로 선다
+export const KEEPALIVE_MS = 5000;         // 연결돼 있는 동안 KEEPALIVE를 보내는 간격
+export const IDLE_RESET_MS = 20_000;      // 프로그램이 이 시간 동안 아무 글자도 못 받으면 코일을 끄고 Pico를 다시 켠다(main.py로 돌아간다)
 export const CTRL_GAP_MS = 100;           // Ctrl-C 사이, 그리고 종료 때 Ctrl 문자 사이의 간격(프로그램이 끝날 시간을 준다)
 export const BANNER_WAIT_MS = 300;        // Ctrl-A 뒤 raw REPL 안내문을 기다리는 시간(안 오면 그냥 진행)
 export const OK_WAIT_MS = 2000;           // Ctrl-D 뒤 raw REPL이 'OK'를 보내길 기다리는 시간
@@ -30,12 +34,18 @@ export const WRITE_CHUNK_GAP_MS = 10;
  * - 현재 배선: 왼쪽 6,7,8,9번은 그대로, 오른쪽 2,3,4,5번은 마주 보게 달려 뒤집는다(Pico에 올라간 config는 옛 값이라 쓰지 않는다).
  * - F·B·L·R이 오면 그 방향으로 가고, S가 오거나 DEAD_MS 동안 조작 글자가 없으면 서며 코일을 모두 끈다.
  * - 2상 풀스텝으로 민다: 걸음마다 코일 두 개가 늘 켜져 있어 하프스텝보다 힘이 세다(모터당 약 200mA, 맥 USB로 충분하다).
- *   2026-11-01 사용자 요청 '좀 느려도 되니 힘을 세게': 초당 약 23mm(하프스텝 0.6ms의 초당 38mm보다 느리다).
+ *   2026-11-01 사용자 요청 '모터 힘 최대로': 28BYJ-48은 느릴수록 토크가 크므로 4ms 간격으로 민다(초당 약 11mm).
+ *   전에는 2ms(초당 약 23mm)였다.
  * - 출발하거나 방향이 바뀌면 간격을 SLOW_US에서 시작해 RAMP_STEPS 걸음 동안 FAST_US까지 줄인다(부하가 걸린 채 빠르게 출발하면 탈조한다).
  * - Ctrl-C(KeyboardInterrupt)로 코일을 끄고 조용히 끝난다.
+ * - IDLE_MS 동안 글자가 하나도 없으면(화면이 닫혔거나 새로 고쳐졌다) 코일을 끄고 machine.reset()으로 다시 켠다.
+ *   하드 리셋이라 raw REPL에 남지 않고 main.py가 다시 돈다. 화면은 연결돼 있는 동안 KEEPALIVE를 보낸다.
+ * - 닫히는 탭은 Ctrl-C·B·D를 한 번에 보낸다. 프로그램이 끝나기 전에 Ctrl-B를 글자로 읽어 버리면 남은 Ctrl-D가
+ *   raw REPL에서 소프트 리셋만 해 main.py가 안 돈다. 그래서 마지막으로 읽은 글자가 Ctrl-B·D면 끝날 때 다시 켠다.
+ * - 프로그램 안 주석도 ASCII여야 해서 설명은 여기에 둔다.
  */
 export const JOG_PROGRAM = `import sys, time, select
-from machine import Pin
+from machine import Pin, reset
 
 LEFT = [Pin(n, Pin.OUT, value=0) for n in (6, 7, 8, 9)]
 RIGHT = [Pin(n, Pin.OUT, value=0) for n in (2, 3, 4, 5)]
@@ -44,9 +54,10 @@ RIGHT_SIGN = -1
 FULL = ((1, 1, 0, 0), (0, 1, 1, 0), (0, 0, 1, 1), (1, 0, 0, 1))
 MOVES = {"F": (1, 1), "B": (-1, -1), "L": (-1, 1), "R": (1, -1)}
 DEAD_MS = 300
-SLOW_US = 3200
-FAST_US = 2000
-RAMP_STEPS = 600
+IDLE_MS = 20000
+SLOW_US = 6000
+FAST_US = 4000
+RAMP_STEPS = 300
 
 poll = select.poll()
 poll.register(sys.stdin, select.POLLIN)
@@ -63,10 +74,13 @@ def off():
 move = None
 li = ri = steps = 0
 heard = next_us = 0
+c = ""
+last = time.ticks_ms()
 try:
     while True:
         while poll.poll(0):
             c = sys.stdin.read(1)
+            last = time.ticks_ms()
             if c in MOVES:
                 if MOVES[c] != move:
                     steps = 0
@@ -79,6 +93,9 @@ try:
         if move is not None and time.ticks_diff(time.ticks_ms(), heard) > DEAD_MS:
             move = None
             off()
+        if time.ticks_diff(time.ticks_ms(), last) > IDLE_MS:
+            off()
+            reset()
         if move is None:
             time.sleep_ms(1)
             continue
@@ -94,7 +111,9 @@ try:
             if time.ticks_diff(now, next_us) > gap:
                 next_us = time.ticks_add(now, gap)
 except KeyboardInterrupt:
-    pass
+    if c in ("\\x02", "\\x04"):
+        off()
+        reset()
 finally:
     off()
 `;

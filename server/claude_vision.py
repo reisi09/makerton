@@ -75,7 +75,9 @@ BOXES_SCHEMA = {
 
 
 def enabled():
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    """키가 있고 헤더에 그대로 실을 수 있는 모양(앞뒤 공백 없는 출력 가능 ASCII)일 때만 켠다."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return bool(key) and key == key.strip() and all(" " < ch < "\x7f" for ch in key)
 
 
 def _jpeg_b64(img, turns):
@@ -128,14 +130,22 @@ def _run(req, on_thinking):
     """요청 하나를 스트리밍으로 보내 → (JSON 본문, 사고 요약, 걸린 초). 실패하면 RuntimeError."""
     t0 = time.time()
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
-            thinking, text, stop = read_stream(resp, on_thinking)
+        resp = urllib.request.urlopen(req, timeout=TIMEOUT_S)
     except urllib.error.HTTPError as e:
         try:
             msg = json.loads(e.read())["error"]["message"]
         except Exception:
             msg = e.reason
         raise RuntimeError("HTTP %d %s" % (e.code, msg))
+    except OSError:          # URLError·연결 실패·시간 초과
+        raise RuntimeError("Anthropic API에 연결하지 못했습니다(네트워크 확인)") from None
+    except ValueError:       # 키 끝의 CR 등: http.client 오류 문구에 키가 거의 그대로 들어 있어 원문을 버린다
+        raise RuntimeError("ANTHROPIC_API_KEY 형식이 올바르지 않습니다") from None
+    with resp:
+        try:
+            thinking, text, stop = read_stream(resp, on_thinking)
+        except OSError:      # 받는 도중 끊김·시간 초과
+            raise RuntimeError("Anthropic API 응답을 받다가 연결이 끊겼습니다") from None
     if stop != "end_turn":
         raise RuntimeError("응답이 끝나지 않음(%s)" % stop)
     return json.loads(text), thinking, round(time.time() - t0, 1)

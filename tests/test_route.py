@@ -28,18 +28,26 @@ class RouteTest(unittest.TestCase):
     def test_chosen_order_is_the_fastest_of_all_orders(self):
         snow = arms(N=720, E=163, S=101, W=387)
         p = route.plan(snow)
-        every = [route.steps(o) for o in itertools.permutations("NESW")]
-        self.assertEqual(route.steps(p["order"]), min(every))
+        every = [route.seconds(o) for o in itertools.permutations("NESW")]
+        self.assertAlmostEqual(route.seconds(p["order"]), min(every), places=3)
         self.assertEqual(p["tried"], 24)
         self.assertGreater(p["worst_seconds"], p["seconds"])
 
+    def test_fastest_is_by_time_not_by_step_count(self):
+        # 구간마다 가감속하므로 스텝이 가장 적은 순서가 가장 빠르지 않을 수 있다(E·S·W: E→S→W가 1스텝 적지만 1초 넘게 느리다)
+        orders = list(itertools.permutations("ESW"))
+        by_steps = min(orders, key=lambda o: route.car_core.plan_steps(route.car_core.plan_for_order(list(o))))
+        p = route.plan(arms(E=200, S=200, W=200))
+        self.assertGreater(route.seconds(by_steps) - route.seconds(p["order"]), 1.0)
+        self.assertAlmostEqual(route.seconds(p["order"]), min(route.seconds(o) for o in orders), places=3)
+
     def test_ties_go_to_the_arm_with_more_snow_first(self):
-        # E·W 두 갈래는 어느 순서든 회전량이 같다(90 + 180 + 90)
-        self.assertEqual(route.steps(["E", "W"]), route.steps(["W", "E"]))
+        # E·W 두 갈래는 어느 순서든 회전·주행이 같아 걸리는 시간이 같다(90 + 180 + 90)
+        self.assertAlmostEqual(route.seconds(["E", "W"]), route.seconds(["W", "E"]), places=3)
         self.assertEqual(route.plan(arms(E=500, W=200))["order"], ["E", "W"])
         self.assertEqual(route.plan(arms(E=200, W=500))["order"], ["W", "E"])
 
-    def test_snow_only_in_the_crossroad_is_pushed_out_the_shortest_arm(self):
+    def test_snow_only_in_the_crossroad_is_pushed_out_the_fastest_arm(self):
         self.assertEqual(route.plan(arms(C=300))["order"], ["E"])
 
     def test_no_snow_no_route(self):

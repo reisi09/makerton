@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
-  ARROW_JOG, BANNER_WAIT_MS, BAUD_RATE, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_GAP_MS, JOG, JOG_PROGRAM, JOG_REPEAT_MS, OK_WAIT_MS,
-  PICO_USB_VENDOR_ID, START_CHECK_MS, TRACEBACK_SETTLE_MS, WRITE_CHUNK, WRITE_CHUNK_GAP_MS, lastErrorLine, type JogLetter,
+  ARROW_JOG, BANNER_WAIT_MS, BAUD_RATE, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_GAP_MS, IDLE_RESET_MS, JOG, JOG_PROGRAM, JOG_REPEAT_MS,
+  KEEPALIVE, KEEPALIVE_MS, OK_WAIT_MS, PICO_USB_VENDOR_ID, START_CHECK_MS, TRACEBACK_SETTLE_MS, WRITE_CHUNK, WRITE_CHUNK_GAP_MS,
+  lastErrorLine, type JogLetter,
 } from "@/lib/picoJog";
 import css from "./PicoPad.module.css";
 
@@ -133,8 +134,21 @@ export default function PicoPad() {
     if (s && !s.closing) void endSession(s);
   }, []);
 
+  // 탭을 닫거나 새로 고칠 때는 기다릴 수 없어 Ctrl-C·B·D를 한 번에 써 둔다(최선 노력). 못 가도 조작 프로그램이
+  // IDLE_RESET_MS 뒤 스스로 Pico를 다시 켠다. beforeunload는 다운로드 링크에서도 불려 페이지가 남을 수 있어 쓰지 않는다.
+  useEffect(() => {
+    const leave = () => {
+      const s = session.current;
+      if (!s || s.closing) return;
+      s.closing = true;
+      put(s, CTRL_C, CTRL_B, CTRL_D).catch(() => {});
+    };
+    window.addEventListener("pagehide", leave);
+    return () => window.removeEventListener("pagehide", leave);
+  }, []);
+
   // 누르고 있는 동안 JOG_REPEAT_MS마다 같은 글자를 보내고, 떼면 S를 보낸다. 프로그램은 DEAD_MAN_MS 동안 못 받으면 스스로 선다.
-  const send = (letter: JogLetter) => {
+  const send = (letter: JogLetter | typeof KEEPALIVE) => {
     const s = session.current;
     if (s && !s.closing) put(s, letter.charCodeAt(0)).catch(() => {});   // 쓰기가 실패하면 읽기 루프가 끊김을 알린다
   };
@@ -169,7 +183,9 @@ export default function PicoPad() {
     window.addEventListener("keyup", up);
     window.addEventListener("blur", stop);
     document.addEventListener("visibilitychange", stop);
+    const alive = window.setInterval(() => send(KEEPALIVE), KEEPALIVE_MS);   // 화면이 살아 있다고 알린다(움직임과 무관)
     return () => {
+      window.clearInterval(alive);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", stop);
@@ -243,7 +259,7 @@ export default function PicoPad() {
   const hint = running ? "누르고 있는 동안만 움직이고, 떼면 섭니다. 맥에서는 방향키로도 됩니다. 연결을 해제하면 제설차 프로그램이 다시 시작됩니다."
     : phase === "connecting" ? "Pico에 조작 프로그램을 올리는 중입니다."
     : phase === "closing" ? "제설차 프로그램을 다시 시작하는 중입니다."
-    : ports.length ? "연결하면 제설차 프로그램(main.py)을 멈추고 이 화면의 조작 프로그램으로 바꿉니다."
+    : ports.length ? `연결하면 Pico에서 돌던 프로그램을 멈추고 이 화면의 조작 프로그램으로 바꿉니다. 조작 중에 탭을 닫거나 새로 고쳤다면 Pico가 ${IDLE_RESET_MS / 1000}초 안에 스스로 다시 켜져 제설차 프로그램(main.py)으로 돌아갑니다.`
     : "처음 한 번은 ‘연결’을 눌러 목록에서 Pico를 골라야 합니다. 허용한 뒤에는 USB를 꽂기만 해도 감지됩니다.";
 
   return (

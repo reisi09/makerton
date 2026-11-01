@@ -3,7 +3,7 @@
 #   왼쪽 1바퀴 정·역 → 오른쪽 1바퀴 정·역 → 두 바퀴 함께 반 바퀴
 #   MOTORS_ONLY = False면 이어서 서보 열기/닫기 → 초음파 5회 → 버튼 5초 → LED 3색·부저
 #
-# 바퀴를 보드에서 들어 올리고(헛돌게) 실행한다. 1바퀴는 %d스텝이라 한 번에 약 %.1f초 걸린다.
+# 바퀴를 보드에서 들어 올리고(헛돌게) 실행한다. 주행처럼 가감속하며, 걸리는 시간은 시작할 때 찍는다(1바퀴 약 3.9초).
 # 바퀴가 반대로 돌면 config.LEFT_INVERT / RIGHT_INVERT를 뒤집는다.
 # 살포통이 반대로 움직이면 config.SERVO_OPEN_DEG / SERVO_CLOSED_DEG를 바꾼다.
 # 초음파가 늘 None이면 ECHO 분압(1kΩ·2kΩ)과 핀 번호를 확인한다.
@@ -16,17 +16,18 @@ MOTORS_ONLY = True    # 사거리 제설차는 모터만 단다. 서보·초음�
 
 
 def spin(motors, left, right, steps):
-    """스텝 steps번 민다."""
-    for _ in range(steps):
+    """스텝 steps번 민다. 주행처럼 START_US에서 가속하고 끝에서 감속한다(정지에서 STEP_US로 바로 밀면 부하가 걸렸을 때 떨기만 한다)."""
+    for i in range(steps):
         motors.step(left, right)
-        sleep_us(config.STEP_US)
+        sleep_us(car_core.ramp_us(i, steps - i))
     motors.off()
     sleep_ms(300)
 
 
 def motor_test(motors):
     one_rev = config.STEPS_PER_REV
-    print(" ── 모터 (한 바퀴 = %d스텝, 약 %.1f초)" % (one_rev, one_rev * config.STEP_US / 1000000.0))
+    secs = car_core.plan_seconds([{"steps": one_rev}])
+    print(" ── 모터 (한 바퀴 = %d스텝, 가감속 포함 약 %.1f초)" % (one_rev, secs))
     print(" - 왼쪽 정방향")
     spin(motors, 1, 0, one_rev)
     print(" - 왼쪽 역방향")
