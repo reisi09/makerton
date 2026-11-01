@@ -8,45 +8,47 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <style>
   :root {
-    --deep: #012a4a; --yale: #013a63; --yale2: #01497c; --yale3: #014f86; --rich: #2a6f97;
-    --cer: #2c7da0; --afb: #468faf; --steel: #61a5c2; --sky: #89c2d9; --light: #a9d6e5;
-    --bg: #f4f8fb; --card: #ffffff; --text: #0f172a; --muted: #475569; --line: #c7dce8;
+    /* 흑백(회색조) 디자인: 조작 화면·모니터와 같은 토큰. 강조는 색이 아니라 반전(검정 바탕·밝은 글자)으로 한다. */
+    --bright-snow: #f8f9fa; --platinum: #e9ecef; --alabaster: #dee2e6; --pale-slate: #ced4da; --pale-slate-2: #adb5bd;
+    --slate: #6c757d; --iron: #495057; --gunmetal: #343a40; --carbon: #212529;
+    --bg: var(--platinum); --card: var(--bright-snow); --text: var(--carbon); --muted: var(--iron); --line: var(--pale-slate);
+    --ink: var(--carbon);
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6;
          font-family: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', sans-serif; }
-  a { color: var(--yale3); }
+  a { color: var(--iron); }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
-  header { background: linear-gradient(135deg, var(--deep), var(--yale2)); color: #fff; padding: 48px 0 40px; }
+  header { background: var(--ink); color: var(--bright-snow); padding: 48px 0 40px; }
   header h1 { margin: 0 0 8px; font-size: clamp(26px, 4vw, 40px); line-height: 1.25; }
-  header p { margin: 0; color: var(--light); font-size: 17px; max-width: 760px; }
+  header p { margin: 0; color: var(--pale-slate); font-size: 17px; max-width: 760px; }
   .btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
   .btn { display: inline-block; padding: 10px 18px; border-radius: 999px; text-decoration: none; font-weight: 700; }
-  .btn.primary { background: var(--sky); color: var(--deep); }
-  .btn.ghost { border: 1.5px solid var(--sky); color: #fff; }
+  .btn.primary { background: var(--bright-snow); color: var(--ink); }
+  .btn.ghost { border: 1.5px solid var(--pale-slate-2); color: var(--bright-snow); }
   section { padding: 36px 0 8px; }
-  h2 { font-size: 24px; margin: 0 0 16px; color: var(--deep); }
+  h2 { font-size: 24px; margin: 0 0 16px; color: var(--ink); }
   .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; counter-reset: s; }
   .step { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
-  .step b { display: block; color: var(--yale3); margin-bottom: 4px; }
+  .step b { display: block; color: var(--ink); margin-bottom: 4px; }
   .step b::before { counter-increment: s; content: counter(s) ". "; }
   .docs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
   .doc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
-  .doc.latest { border: 2px solid var(--cer); }
-  .tag { align-self: flex-start; font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; background: var(--light); color: var(--deep); }
-  .doc.latest .tag { background: var(--cer); color: #fff; }
+  .doc.latest { border: 2px solid var(--ink); }
+  .tag { align-self: flex-start; font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; background: var(--alabaster); color: var(--ink); }
+  .doc.latest .tag { background: var(--ink); color: var(--bright-snow); }
   .doc h3 { margin: 4px 0 0; font-size: 18px; }
   .doc p { margin: 0; color: var(--muted); font-size: 14px; flex: 1; }
   .doc a.open { margin-top: 8px; font-weight: 700; }
   .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
   figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-  figure a { display: block; background: #fff; }
+  figure a { display: block; background: var(--card); }
   figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9.5; object-fit: contain; }
-  figcaption { padding: 10px 14px; font-weight: 700; color: var(--deep); border-top: 1px solid var(--line); font-size: 15px; }
-  .note { background: #eef6fa; border-left: 6px solid var(--cer); border-radius: 10px; padding: 12px 16px; color: var(--muted); font-size: 14px; }
+  figcaption { padding: 10px 14px; font-weight: 700; color: var(--ink); border-top: 1px solid var(--line); font-size: 15px; }
+  .note { background: var(--card); border-left: 6px solid var(--ink); border-radius: 10px; padding: 12px 16px; color: var(--muted); font-size: 14px; }
   table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; font-size: 14px; }
   th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
-  th { background: var(--light); color: var(--deep); }
+  th { background: var(--alabaster); color: var(--ink); }
   .tablewrap { overflow-x: auto; }
   footer { padding: 32px 0 48px; color: var(--muted); font-size: 13px; }
 </style>
@@ -67,8 +69,8 @@
   <section>
     <h2>어떻게 움직이나</h2>
     <div class="steps">
-      <div class="step"><b>사진 한 장</b>패드로 보드를 위에서 찍으면 맥 서버가 검은 도로만 찾고, 그 위의 흰 알갱이를 교차로와 N·E·S·W 갈래별로 센다. 기준 사진이나 학습 자료는 쓰지 않는다.</div>
-      <div class="step"><b>최적 순서</b>눈이 덮인 면적이 100 mm² 이상인 갈래만 고른다. 눈이 덮인 면적이 30 mm² 이상 100 mm² 미만인 갈래가 있거나 사진이 비스듬하면 네 갈래를 모두 치운다. 제설차 펌웨어의 경로 계획에 따라 기지에서 그 갈래들을 도는 모든 순서(최대 24가지)의 소요 시간을 계산해 가장 빠른 순서를 고른다.</div>
+      <div class="step"><b>사진 한 장</b>패드로 보드를 위에서 찍으면 맥 서버가 검은 도로만 찾고, 그 위의 흰 알갱이를 교차로와 N·E·S·W 갈래별로 센다. 기준 사진이나 학습 자료는 쓰지 않는다. 서버에 Claude 키가 있으면 Claude도 같은 사진을 보고 갈래별로 눈이 있는지 답하며, 생각하는 과정이 화면에 실시간으로 뜬다.</div>
+      <div class="step"><b>최적 순서</b>눈이 덮인 면적이 100 mm² 이상인 갈래만 고른다. 눈이 덮인 면적이 30 mm² 이상 100 mm² 미만인 갈래가 있거나 사진이 비스듬하거나 Claude와 규칙의 판단이 다르면 네 갈래를 모두 치운다. 제설차 펌웨어의 경로 계획에 따라 기지에서 그 갈래들을 도는 모든 순서(최대 24가지)의 소요 시간을 계산해 가장 빠른 순서를 고른다.</div>
       <div class="step"><b>출동</b>제설차가 북동쪽 제설 기지의 서쪽 출입구로 나와 N 도로를 따라 교차로로 간다. 갈래마다 끝까지 눈을 밀고 같은 길로 후진해 돌아온다. 제설을 모두 마치면 차고로 후진해 들어간다.</div>
       <div class="step"><b>전체 청소·정지</b>'전체 청소'를 누르면 사진 없이 네 갈래를 모두 가장 빠른 순서로 돈다. 출동 중에는 화면의 정지 버튼으로 내린 명령이 항상 우선한다. 날씨 예보 모델은 참고용이며 출동 여부를 정하는 데 쓰지 않는다.</div>
     </div>
@@ -127,7 +129,7 @@
 
   <section>
     <h2>모니터 화면</h2>
-    <figure><img src="img/monitor.png" alt="모니터 화면 캡처" loading="lazy" style="aspect-ratio:auto"><figcaption>맥북 서버의 /monitor (가상 제설차로 전체 청소를 돌리며 캡처)</figcaption></figure>
+    <figure><img src="img/monitor.png" alt="모니터 화면 캡처" loading="lazy" style="aspect-ratio:auto"><figcaption>맥북 서버의 /monitor (패드 사진을 규칙과 Claude가 판정한 직후 캡처)</figcaption></figure>
     <p class="note">이 페이지는 설계도를 보여 주는 정적 사이트다. 실제 모니터 화면은 맥북에서 <code>python3 server/gosaek_server.py</code>를 실행한 뒤 같은 Wi-Fi에서 <code>http://&lt;맥 IP&gt;:8000/monitor</code>로 연다.</p>
   </section>
 

@@ -82,21 +82,39 @@ def plan(arms):
             "tried": len(ranked), "path": path(best)}
 
 
-def decide(arms, sure=True):
-    """출동 여부와 화면·로그 문구. 판단이 애매하면(믿기 어려운 사진, 기준 근처의 눈) 전체 청소로 다 치운다."""
+def _doubt(arms, sure, eye):
+    """판단이 애매한 이유(없으면 None). eye는 claude_vision.judge 결과 또는 None(꺼짐·실패)."""
+    if not sure:
+        return "사진이 비스듬하거나 노란 코트가 안 보여 판단이 애매함"
     vague = [a for a in NAMES if ARM_VAGUE_MM2 <= arms[a]["area_mm2"] < ARM_MIN_MM2]
-    if not sure or vague:
+    if vague:
+        return "눈이 덮인 면적이 기준 근처여서 판단이 애매함(%s)" % ", ".join("%s %dmm²" % (NAMES[a], arms[a]["area_mm2"]) for a in vague)
+    if eye is None:
+        return None
+    if not eye["usable"]:
+        return "Claude가 사진으로는 판단하기 어렵다고 봄"
+    rules = [a for a in NAMES if arms[a]["area_mm2"] >= ARM_MIN_MM2]
+    claude = [a for a in NAMES if eye["arms"][a]]
+    if rules != claude:
+        return "Claude와 규칙의 판단이 엇갈림(눈 있는 곳: Claude %s, 규칙 %s)" % (
+            "·".join(claude) or "없음", "·".join(rules) or "없음")
+    return None
+
+
+def decide(arms, sure=True, eye=None):
+    """출동 여부와 화면·로그 문구. 판단이 애매하면(믿기 어려운 사진, 기준 근처의 눈, Claude와 규칙이 다름) 전체 청소로 다 치운다."""
+    why = _doubt(arms, sure, eye)
+    if why:
         p = plan(ALL)
-        why = ("사진이 비스듬하거나 노란 코트가 안 보여 판단이 애매함" if not sure else
-               "눈이 덮인 면적이 기준 근처여서 판단이 애매함(%s)" % ", ".join("%s %dmm²" % (NAMES[a], arms[a]["area_mm2"]) for a in vague))
         return {"go": True, "text": "%s → 전체 청소, 최적 순서 %s, 약 %d초" % (why, "→".join(p["order"]), p["seconds"]),
                 "plan": p}
+    same = "" if eye is None else " (Claude도 같은 판단)"
     p = plan(arms)
     if p is None:
-        return {"go": False, "text": "도로에 치울 눈이 없음", "plan": None}
+        return {"go": False, "text": "도로에 치울 눈이 없음" + same, "plan": None}
     snowy = [a for a in "NESW" if arms[a]["area_mm2"] >= ARM_MIN_MM2]
     head = "%s 갈래에 눈" % "·".join(snowy) if snowy else "교차로에만 눈 → %s 갈래로 밀어냄" % p["order"][0]
     text = "%s → 최적 순서 %s, 약 %d초" % (head, "→".join(p["order"]), p["seconds"])
     if p["tried"] > 1:
         text += " (%d가지 순서 중 가장 빠름, 가장 느린 순서보다 %d초 빠름)" % (p["tried"], p["worst_seconds"] - p["seconds"])
-    return {"go": True, "text": text, "plan": p}
+    return {"go": True, "text": text + same, "plan": p}

@@ -9,7 +9,8 @@
 - model/icezero/engine.py 의 Engine 으로 겨울밤 한 밤을 재생하거나 실시간으로 계산한다.
 - 센서 Pico(#1, USB 시리얼)의 @@TEL 을 받아 갈래별 현장 보정(local_dt)을 만든다.
 - 제설차 Pico(#2, Wi-Fi UDP)와 plan·stop·home·ping 을 주고받는다.
-- 예측 동결확률이 기준을 넘으면 auto 조건에서 저절로 출동한다. LLM 은 쓰지 않는다.
+- 예측 동결확률이 기준을 넘으면 auto 조건에서 저절로 출동한다.
+- 패드 사진은 규칙(vision.py)과, ANTHROPIC_API_KEY 가 있으면 Claude(claude_vision.py)가 함께 본다. 둘이 다르면 전체 청소.
 """
 
 import argparse
@@ -37,7 +38,7 @@ APP_DIR = os.path.join(ROOT, "web", "out-app")   # npm run build:app 결과(패�
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from server import route, vision  # noqa: E402
+from server import claude_vision, route, vision  # noqa: E402
 
 HTTP_PORT = 8000
 ARMS = ("N", "E", "S", "W")
@@ -707,7 +708,7 @@ class Model(object):
     def __init__(self, engine=None, station=None, engine_error=None, events_path=None,
                  night=None, budget=DEFAULT_BUDGET, auto=True, mode="replay",
                  car_link=None, sensor_link=None, monitor_url=None,
-                 board=None, wet_arm=None,
+                 board=None, wet_arm=None, claude=False,
                  mock_arm_s=MOCK_ARM_S, baseline_s=BASELINE_S, sensor_fresh_s=SENSOR_FRESH_S,
                  car_fresh_s=CAR_FRESH_S, tick_s=TICK_S, auto_cooldown_s=AUTO_COOLDOWN_S):
         self.lock = threading.RLock()
@@ -722,6 +723,8 @@ class Model(object):
         self.board = board if isinstance(board, dict) else load_board()
         self.wet_arm = _arm(wet_arm) or _arm(self.board.get("WET_ARM")) or "W"
         self.vision_last = None
+        self.claude = bool(claude)      # 패드 사진을 Claude에게도 보인다(키가 환경변수에 있을 때)
+        self.vision_live = None         # Claude가 보는 중이면 {"thinking": 지금까지의 사고 요약}
 
         self.car_link = car_link
         self.sensor_link = sensor_link
@@ -1411,7 +1414,10 @@ class Model(object):
         found = vision.analyze(img, float(self.board.get("ROAD_MM", 135)))
         if found is None:
             raise HttpError(422, "검은 도로를 찾지 못했습니다. 보드 전체가 보이도록 위에서 찍으면 됩니다.")
-        decision = route.decide(found["arms"], found["sure"])
+        eye = self._ask_claude(img, found["turns"]) if self.claude else None
+        decision = route.decide(found["arms"], found["sure"], eye if eye and "error" not in eye else None)
+        if eye and "error" in eye:
+            decision["text"] += " (Claude 판정 실패로 규칙만 사용: %s)" % eye["error"]
         plan = decision.pop("plan")
         dispatch = None
         if plan and body.get("go", True):
@@ -1419,19 +1425,33 @@ class Model(object):
                 dispatch = self.dispatch(order=plan["order"], source="vision")
             except HttpError as e:
                 dispatch = {"error": e.message}
-        result = {"time": time.strftime("%H:%M:%S"), "arms": found["arms"], "turns": found["turns"],
-                  "decision": decision, "route": plan, "dispatch": dispatch}
+        result = {"time": time.strftime("%H:%M:%S"), "ts": time.time(), "arms": found["arms"], "turns": found["turns"],
+                  "decision": decision, "route": plan, "dispatch": dispatch, "eye": eye}
         with self.lock:
             self.vision_last = result
         self.event("vision", decision["text"])
         return dict(result, view=found["view"])
+
+    def _ask_claude(self, img, turns):
+        """Claude 판정. 사고 요약은 오는 대로 vision_live에 두어 화면이 폴링으로 보게 한다. 실패하면 {"error"}."""
+        def show(text):
+            with self.lock:
+                self.vision_live = {"thinking": text}
+        show("")
+        try:
+            return claude_vision.judge(img, turns, show)
+        except Exception as e:
+            return {"error": str(e)[:120]}
+        finally:
+            with self.lock:
+                self.vision_live = None
 
     def sweep_all(self, body):
         """전체 청소: 사진 없이 네 갈래를 모두 최적 순서로 돈다. 이미 출동 중이면 409."""
         plan = route.plan(route.ALL)
         dispatch = self.dispatch(order=plan["order"], source="sweep")
         text = "전체 청소 → 최적 순서 %s, 약 %d초" % ("→".join(plan["order"]), plan["seconds"])
-        result = {"time": time.strftime("%H:%M:%S"), "arms": None, "turns": 0,
+        result = {"time": time.strftime("%H:%M:%S"), "ts": time.time(), "arms": None, "turns": 0,
                   "decision": {"go": True, "text": text}, "route": plan, "dispatch": dispatch}
         with self.lock:
             self.vision_last = result
@@ -1638,6 +1658,8 @@ class Model(object):
                 "board": json.loads(json.dumps(self.board)),
                 "wet_arm": self.wet_arm,
                 "vision": json.loads(json.dumps(self.vision_last)),
+                "vision_live": dict(self.vision_live) if self.vision_live else None,
+                "claude": self.claude,
                 "base": {
                     "ok": bool(sensor_ok and self.sensor_state["mode"] != "none"),
                     "dock": self.base_state.get("dock"),
@@ -1988,7 +2010,8 @@ def main(argv=None):
     board = load_board(args.board)
     model = Model(engine=engine, station=station, engine_error=error,
                   events_path=args.events, night=args.night, budget=DEFAULT_BUDGET,
-                  auto=args.auto, mode=args.mode, board=board, wet_arm=args.wet_arm)
+                  auto=args.auto, mode=args.mode, board=board, wet_arm=args.wet_arm,
+                  claude=claude_vision.enabled())
 
     car_link = None
     if args.car == "fake":
@@ -2040,6 +2063,8 @@ def main(argv=None):
     print("  차 링크: %s" % ("가짜 제설차" if args.car == "fake"
                              else ("UDP %d" % args.udp_port if args.car == "udp" else "없음(모의 실행)")))
     print("  자동 출동: %s / 예산 %d갈래" % ("켜짐" if model.auto else "꺼짐", model.budget))
+    print("  사진 판정: 규칙%s" % (" + Claude(%s)" % claude_vision.MODEL if model.claude
+                                 else " 만(ANTHROPIC_API_KEY 없음)"))
     print("  이벤트 기록: %s" % model.events_path)
     print("=" * 66)
     try:

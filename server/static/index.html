@@ -13,25 +13,30 @@
   }
   * { box-sizing: border-box; }
   :root{
-    --deep-space-blue:#012a4aff; --yale-blue:#013a63ff; --yale-blue-2:#01497cff; --yale-blue-3:#014f86ff;
-    --rich-cerulean:#2a6f97ff; --cerulean:#2c7da0ff; --air-force-blue:#468fafff; --steel-blue:#61a5c2ff;
-    --sky-blue-light:#89c2d9ff; --light-blue:#a9d6e5ff;
+    /* 흑백(회색조) 디자인: web/app/globals.css 의 :root 와 같은 값. 강조는 색이 아니라 반전(검정 바탕·밝은 글자)으로 한다.
+       반전 = 먼저 봐야 하는 상태(끊김·꺼짐·교체·위험 높음). 정상 상태는 연한 회색. */
+    --bright-snow:#f8f9fa; --platinum:#e9ecef; --alabaster-grey:#dee2e6; --pale-slate:#ced4da; --pale-slate-2:#adb5bd;
+    --slate-grey:#6c757d; --iron-grey:#495057; --gunmetal:#343a40; --carbon-black:#212529;
+    --ink:var(--carbon-black); --bg:var(--platinum); --card:var(--bright-snow); --line:var(--alabaster-grey); --muted:var(--iron-grey);
   }
-  body { margin:0; background:var(--deep-space-blue); color:#fff;
+  body { margin:0; background:var(--bg); color:var(--ink);
          font-family:"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", sans-serif; font-size:14px; }
-  header { background:var(--yale-blue); border-bottom:1px solid var(--yale-blue-3);
+  header { background:var(--card); border-bottom:1px solid var(--pale-slate);
            padding:10px 18px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
   header h1 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.2px; }
-  header h1 span { color:var(--sky-blue-light); }
-  header .sub { font-size:12px; color:var(--sky-blue-light); }
+  header h1 span { color:var(--muted); }
+  header .sub { font-size:12px; color:var(--muted); }
   header .grow { flex:1; }
-  .badge { padding:3px 10px; border-radius:999px; background:var(--yale-blue-2);
-           color:var(--sky-blue-light); font-size:12px; font-weight:700; white-space:nowrap; }
-  .badge.ok { background:var(--cerulean); color:#fff; }
-  .badge.off { background:var(--yale-blue-3); color:var(--sky-blue-light); }
-  .badge.station { background:var(--cerulean); color:#fff; font-size:13px; }
-  .badge.station.warn { background:var(--air-force-blue); color:#fff; }
-  .badge.mon { background:transparent; border:1px solid var(--steel-blue); color:var(--light-blue); }
+  .badge { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px;
+           background:var(--platinum); border:1px solid var(--pale-slate); color:var(--ink);
+           font-size:12px; font-weight:700; white-space:nowrap; }
+  .badge.ok::before, .badge.off::before { content:""; width:8px; height:8px; border-radius:50%; }
+  .badge.ok::before { background:var(--ink); }
+  .badge.off { background:var(--ink); border-color:var(--ink); color:var(--bright-snow); }
+  .badge.off::before { box-shadow:inset 0 0 0 2px currentColor; }
+  .badge.station { font-size:13px; }
+  .badge.station.warn { background:var(--ink); border-color:var(--ink); color:var(--bright-snow); }
+  .badge.mon { background:transparent; border-color:var(--slate-grey); color:var(--ink); }
   main { padding:12px 14px 30px; display:grid; gap:12px;
          grid-template-columns:minmax(0,1.3fr) minmax(330px,1fr);
          grid-template-areas:"cross side" "cross replay" "chart chart" "sensors model" "events events"; }
@@ -39,71 +44,73 @@
     main{ grid-template-columns:minmax(0,1fr);
           grid-template-areas:"cross" "side" "replay" "sensors" "model" "chart" "events"; }
   }
-  .panel { background:var(--yale-blue); border:1px solid var(--yale-blue-3); border-radius:12px;
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px;
            overflow:hidden; }
-  .panel > h2 { margin:0; padding:9px 13px; font-size:13.5px; font-weight:800; color:#fff;
-                background:var(--yale-blue-2); display:flex; align-items:center; gap:8px; }
-  .panel > h2 em { font-style:normal; color:var(--light-blue); }
-  .panel > h2 small { margin-left:auto; font-weight:700; color:var(--sky-blue-light); }
+  .panel > h2 { margin:0; padding:9px 13px; font-size:13.5px; font-weight:800; color:var(--ink);
+                background:var(--platinum); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+  .panel > h2 em { font-style:normal; color:var(--muted); }
+  .panel > h2 small { margin-left:auto; font-weight:700; color:var(--muted); }
   .pad { padding:10px 12px; }
   #cross{grid-area:cross} #side{grid-area:side} #replay{grid-area:replay}
   #sensors{grid-area:sensors} #model{grid-area:model} #chart{grid-area:chart} #events{grid-area:events}
-  svg.cross { display:block; width:100%; height:auto; background:var(--deep-space-blue); }
+  svg.cross { display:block; width:100%; height:auto; background:var(--platinum); }
   .legend { display:flex; gap:12px; flex-wrap:wrap; padding:6px 12px 10px; font-size:12px;
-            color:var(--sky-blue-light); }
+            color:var(--muted); }
   .legend i { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:4px;
               vertical-align:-2px; }
   table.kv { width:100%; border-collapse:collapse; font-size:13px; }
-  table.kv th { text-align:left; color:var(--sky-blue-light); font-weight:700; width:44%; padding:3px 0; }
-  table.kv td { padding:3px 0; font-weight:800; color:#fff; }
+  table.kv th { text-align:left; color:var(--muted); font-weight:700; width:44%; padding:3px 0; }
+  table.kv td { padding:3px 0; font-weight:800; color:var(--ink); }
   table.grid { width:100%; border-collapse:collapse; font-size:12.5px; }
-  table.grid th { text-align:left; padding:5px 6px; color:var(--sky-blue-light);
-                  border-bottom:1px solid var(--yale-blue-3); font-weight:800; }
-  table.grid td { padding:5px 6px; border-bottom:1px solid var(--yale-blue-2); font-weight:700; }
+  table.grid th { text-align:left; padding:5px 6px; color:var(--muted);
+                  border-bottom:1px solid var(--pale-slate); font-weight:800; }
+  table.grid td { padding:5px 6px; border-bottom:1px solid var(--line); font-weight:700; }
   table.grid td.num { text-align:right; font-variant-numeric:tabular-nums; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .row + .row { margin-top:8px; }
   button { font:inherit; font-weight:800; padding:7px 12px; border-radius:9px; cursor:pointer;
-           border:1px solid var(--steel-blue); background:var(--yale-blue-2); color:#fff; }
-  button:hover:not(:disabled) { background:var(--cerulean); }
+           border:1px solid var(--pale-slate-2); background:var(--card); color:var(--ink); }
+  button:hover:not(:disabled) { background:var(--alabaster-grey); }
   button:disabled { opacity:.4; cursor:not-allowed; }
-  button.primary { background:var(--cerulean); border-color:var(--sky-blue-light); }
-  button.primary:hover:not(:disabled) { background:var(--air-force-blue); }
-  button.danger { background:var(--yale-blue-3); border-color:var(--light-blue); color:var(--light-blue); }
-  button.on { background:var(--light-blue); color:var(--deep-space-blue); border-color:var(--light-blue); }
+  /* 주 동작=반전(검정). 비상 정지=굵은 검정 테두리. 켜진 토글=눌린 회색 */
+  button.primary { background:var(--ink); border-color:var(--ink); color:var(--bright-snow); }
+  button.primary:hover:not(:disabled) { background:var(--gunmetal); }
+  button.danger { border:2px solid var(--ink); padding:6px 11px; }
+  button.on { background:var(--alabaster-grey); border-color:var(--ink); color:var(--ink); }
   select, input[type=number] { font:inherit; padding:6px 9px; border-radius:8px;
-    border:1px solid var(--steel-blue); background:var(--yale-blue-2); color:#fff; }
-  select option { background:var(--yale-blue-2); color:#fff; }
+    border:1px solid var(--slate-grey); background:var(--card); color:var(--ink); }
+  select option { background:var(--card); color:var(--ink); }
   input.num { width:64px; }
-  .muted { color:var(--sky-blue-light); }
+  .muted { color:var(--muted); }
   .small { font-size:12px; }
-  .hint { font-size:12px; color:var(--sky-blue-light); line-height:1.5; }
+  .hint { font-size:12px; color:var(--muted); line-height:1.5; }
+  /* 위험 단계: 회색 농도(높을수록 진함), risk3 는 반전 */
   .chip { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:800;
-          background:var(--yale-blue-3); color:#fff; margin:2px 4px 2px 0; }
-  .chip.risk1 { background:var(--rich-cerulean); }
-  .chip.risk2 { background:var(--steel-blue); color:var(--deep-space-blue); }
-  .chip.risk3 { background:var(--light-blue); color:var(--deep-space-blue); }
-  .chip.done { background:var(--yale-blue-3); border:1px solid var(--sky-blue-light); }
-  .chip.plan { background:var(--cerulean); }
-  .chip.off { background:var(--yale-blue); border:1px solid var(--yale-blue-3); }
-  .state { font-weight:900; padding:2px 9px; border-radius:999px; background:var(--yale-blue-3);
-           color:var(--sky-blue-light); }
-  .state.running { background:var(--light-blue); color:var(--deep-space-blue); }
-  .state.done { background:var(--yale-blue-3); color:#fff; }
-  .state.stopped, .state.failed { background:var(--steel-blue); color:var(--deep-space-blue); }
+          background:var(--platinum); color:var(--ink); border:1px solid var(--pale-slate); margin:2px 4px 2px 0; }
+  .chip.risk1 { background:var(--alabaster-grey); border-color:var(--pale-slate); }
+  .chip.risk2 { background:var(--pale-slate-2); border-color:var(--slate-grey); }
+  .chip.risk3 { background:var(--ink); color:var(--bright-snow); border-color:var(--ink); }
+  .chip.done { background:var(--card); border-color:var(--ink); box-shadow:inset 0 0 0 1px var(--ink); }
+  .chip.plan { background:var(--gunmetal); color:var(--bright-snow); border-color:var(--gunmetal); }
+  .chip.off { background:transparent; color:var(--muted); border:1px dashed var(--pale-slate-2); }
+  .state { font-weight:900; padding:2px 9px; border-radius:999px; background:var(--platinum);
+           color:var(--ink); border:1px solid var(--pale-slate); }
+  .state.running { background:var(--ink); color:var(--bright-snow); border-color:var(--ink); }
+  .state.done { background:var(--card); border-color:var(--ink); box-shadow:inset 0 0 0 1px var(--ink); }
+  .state.stopped, .state.failed { background:var(--pale-slate-2); border-color:var(--iron-grey); }
   ul.events { list-style:none; margin:0; padding:0; max-height:180px; overflow:auto; font-size:12.5px; }
   ul.events li { display:grid; grid-template-columns:60px 84px 1fr; gap:6px; padding:3px 0;
-                 border-bottom:1px dashed var(--yale-blue-2); }
-  ul.events time { color:var(--sky-blue-light); font-variant-numeric:tabular-nums; }
-  ul.events .kind { font-weight:800; color:var(--light-blue); }
-  .bar { height:9px; border-radius:999px; background:var(--yale-blue-2); overflow:hidden; }
-  .bar > i { display:block; height:100%; width:0; background:var(--light-blue); }
-  #toast { position:fixed; right:16px; bottom:16px; background:var(--yale-blue-3); color:#fff;
-           border:1px solid var(--sky-blue-light); padding:10px 14px; border-radius:10px; font-size:13px;
+                 border-bottom:1px dashed var(--pale-slate); }
+  ul.events time { color:var(--muted); font-variant-numeric:tabular-nums; }
+  ul.events .kind { font-weight:800; color:var(--ink); }
+  .bar { height:9px; border-radius:999px; background:var(--alabaster-grey); overflow:hidden; }
+  .bar > i { display:block; height:100%; width:0; background:var(--ink); }
+  #toast { position:fixed; right:16px; bottom:16px; background:var(--ink); color:var(--bright-snow);
+           border:1px solid var(--ink); padding:10px 14px; border-radius:10px; font-size:13px;
            opacity:0; transition:opacity .2s; pointer-events:none; max-width:340px; font-weight:700; }
   #toast.on { opacity:.97; }
   .url { position:fixed; left:12px; bottom:8px; font-size:12px; font-weight:700;
-         color:var(--light-blue); background:var(--yale-blue); padding:2px 8px; border-radius:6px;
+         color:var(--muted); background:var(--card); border:1px solid var(--line); padding:2px 8px; border-radius:6px;
          opacity:.9; pointer-events:none; }
 </style>
 </head>
@@ -127,11 +134,11 @@
       <g id="carLayer"></g>
     </svg>
     <div class="legend">
-      <span><i style="background:#2a6f97"></i>risk1 낮음</span>
-      <span><i style="background:#61a5c2"></i>risk2 주의</span>
-      <span><i style="background:#a9d6e5"></i>risk3 높음</span>
-      <span><i style="background:#014f86"></i>✓ 처리됨</span>
-      <span><i style="background:#013a63"></i>자료 없음</span>
+      <span><i style="background:#f8f9fa;box-shadow:inset 0 0 0 2px #adb5bd"></i>risk1 낮음</span>
+      <span><i style="background:#adb5bd;box-shadow:inset 0 0 0 2px #495057"></i>risk2 주의</span>
+      <span><i style="background:#212529;box-shadow:inset 0 0 0 2px #212529"></i>risk3 높음</span>
+      <span><i style="background:#f8f9fa;box-shadow:inset 0 0 0 2px #212529"></i>✓ 처리됨</span>
+      <span><i style="background:#e9ecef;box-shadow:inset 0 0 0 2px #adb5bd"></i>자료 없음</span>
       <span>값: 예측 동결확률 · +3h 유효온도</span>
     </div>
   </section>
@@ -242,7 +249,9 @@
 (function () {
   'use strict';
   var ARMS = ['N', 'E', 'S', 'W'];
-  var LEVEL_COLOR = {risk1: '#2a6f97', risk2: '#61a5c2', risk3: '#a9d6e5', done: '#014f86', off: '#013a63'};
+  // 갈래 카드 채움/테두리: 위험이 높을수록 진한 회색, risk3 는 반전(검정). 처리됨은 흰 바탕+굵은 검정 테두리, 자료 없음은 점선
+  var LEVEL_COLOR = {risk1: '#f8f9fa', risk2: '#adb5bd', risk3: '#212529', done: '#f8f9fa', off: '#e9ecef'};
+  var LEVEL_LINE  = {risk1: '#adb5bd', risk2: '#495057', risk3: '#212529', done: '#212529', off: '#adb5bd'};
   var LEVEL_KR = {risk1: '낮음', risk2: '주의', risk3: '높음', done: '처리됨', off: '자료 없음'};
   var LEVEL_MARK = {risk1: '▲', risk2: '▲▲', risk3: '▲▲▲', done: '✓', off: '·'};
   var EXEC_KR = {idle: '대기', running: '실행 중', done: '완료', failed: '중단', stopped: '정지'};
@@ -300,11 +309,11 @@
 
     // 도로
     out.push('<rect x="' + (B.cx - r) + '" y="' + y0 + '" width="' + B.road +
-             '" height="' + (y1 - y0) + '" fill="#013a63"/>');
+             '" height="' + (y1 - y0) + '" fill="#343a40"/>');
     out.push('<rect x="' + x0 + '" y="' + (B.cy - r) + '" width="' + (x1 - x0) +
-             '" height="' + B.road + '" fill="#013a63"/>');
+             '" height="' + B.road + '" fill="#343a40"/>');
     // 차선(교차로 안은 비운다)
-    var dash = ' stroke="#61a5c2" stroke-width="3" stroke-dasharray="22 16"';
+    var dash = ' stroke="#ced4da" stroke-width="3" stroke-dasharray="22 16"';
     out.push('<line x1="' + B.cx + '" y1="' + y0 + '" x2="' + B.cx + '" y2="' + (B.cy - r) + '"' + dash + '/>');
     out.push('<line x1="' + B.cx + '" y1="' + (B.cy + r) + '" x2="' + B.cx + '" y2="' + y1 + '"' + dash + '/>');
     out.push('<line x1="' + x0 + '" y1="' + B.cy + '" x2="' + (B.cx - r) + '" y2="' + B.cy + '"' + dash + '/>');
@@ -312,17 +321,17 @@
 
     // 제설 기지(북동쪽 건물): 차고는 BASE_XY, 출입구는 서쪽 면이고 N 도로로 이어진다
     out.push('<rect x="' + (B.cx + r) + '" y="' + (B.by - 40) + '" width="' + (G.x - B.cx - r) +
-             '" height="80" fill="#013a63"/>');
+             '" height="80" fill="#343a40"/>');
     out.push('<rect x="' + G.x + '" y="' + G.y + '" width="' + G.w + '" height="' + G.h +
-             '" rx="6" fill="#01497c" stroke="#89c2d9" stroke-width="3"/>');
+             '" rx="6" fill="#f8f9fa" stroke="#212529" stroke-width="3"/>');
     out.push('<line x1="' + G.x + '" y1="' + (B.by - 40) + '" x2="' + G.x + '" y2="' + (B.by + 40) +
-             '" stroke="#01497c" stroke-width="6"/>');
+             '" stroke="#f8f9fa" stroke-width="6"/>');
     out.push('<text x="' + (G.x + G.w / 2) + '" y="' + (G.y + G.h + 28) + '" font-size="22" ' +
-             'font-weight="800" fill="#eaf6fb" text-anchor="middle">제설 기지</text>');
+             'font-weight="800" fill="#212529" text-anchor="middle">제설 기지</text>');
 
     // 나침반
     out.push('<text x="' + B.cx + '" y="' + (y0 + 22) + '" font-size="22" font-weight="800" ' +
-             'fill="#61a5c2" text-anchor="middle">북 N ↑</text>');
+             'fill="#dee2e6" text-anchor="middle">북 N ↑</text>');
     document.getElementById('boardLayer').innerHTML = out.join('');
   }
 
@@ -332,15 +341,15 @@
     var out = [];
     var bx = G.x + G.w - 16, by = G.y + 16;
     out.push('<circle cx="' + bx + '" cy="' + by + '" r="9" fill="' +
-             (base.beacon ? '#a9d6e5' : '#014986') + '" stroke="#89c2d9" stroke-width="2"/>');
+             (base.beacon ? '#212529' : '#f8f9fa') + '" stroke="#212529" stroke-width="2"/>');
     if (base.beacon) {
       out.push('<circle class="pulse" cx="' + bx + '" cy="' + by + '" r="17" fill="none" ' +
-               'stroke="#a9d6e5" stroke-width="3"/>');
+               'stroke="#212529" stroke-width="3"/>');
     }
     var dock = base.dock;
     var refills = (base.refills === null || base.refills === undefined) ? '—' : base.refills;
     out.push('<text x="' + (G.x + G.w / 2) + '" y="' + (G.y + G.h + 54) + '" font-size="17" ' +
-             'font-weight="800" fill="' + (dock ? '#a9d6e5' : '#89c2d9') + '" text-anchor="middle">도킹 ' +
+             'font-weight="800" fill="' + (dock ? '#495057' : '#212529') + '" text-anchor="middle">도킹 ' +
              (dock === null || dock === undefined ? '—' : (dock ? '✓' : '이탈')) + ' · 보충 ' + refills +
              (base.refilling ? ' (보충 중)' : '') + '</text>');
     document.getElementById('baseLayer').innerHTML = out.join('');
@@ -358,18 +367,16 @@
       var a = arms[armId] || {};
       var level = levelOf(armId, a, treated);
       var color = LEVEL_COLOR[level] || LEVEL_COLOR.off;
-      var p = a.p_max;
-      var opacity = (p === undefined || p === null) ? 0.4 : (0.4 + 0.55 * Math.min(1, p));
+      var line = LEVEL_LINE[level] || LEVEL_LINE.off;
       out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
-               '" rx="12" fill="' + color + '" fill-opacity="' + opacity.toFixed(2) +
-               '" stroke="' + color + '" stroke-width="4"/>');
+               '" rx="12" fill="' + color + '" stroke="' + line + '" stroke-width="4"' +
+               (level === 'off' ? ' stroke-dasharray="14 10"' : '') + '/>');
       if (level === 'risk3') {
         out.push('<rect class="pulse" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
-                 '" rx="12" fill="none" stroke="' + color + '" stroke-width="8"/>');
+                 '" rx="12" fill="none" stroke="' + line + '" stroke-width="8"/>');
       }
       var idx = order.indexOf(armId);
-      var dark = (level === 'risk3' || level === 'risk2');
-      var fg = dark ? '#012a4a' : '#eaf6fb';
+      var fg = level === 'risk3' ? '#f8f9fa' : (level === 'off' ? '#495057' : '#212529');
       var cx = x + w / 2;
       var lines = [
         [armId + ' ' + shortName(a.name), 22, 36],
@@ -406,17 +413,19 @@
     var cy = docked ? B.by : Number(car.y);
     var ch = (docked || car.h === null || car.h === undefined) ? B.bh : Number(car.h);
     var moving = (car.state === 'run' || car.state === 'pause');
-    var fill = moving ? '#a9d6e5' : '#89c2d9';
+    var fill = moving ? '#f8f9fa' : '#ced4da';
     var out = [];
     out.push('<g transform="translate(' + cx + ',' + cy + ') rotate(' + ch + ')">' +
+             '<polygon points="0,-80 16,-56 -16,-56" fill="' + fill + '" stroke="#212529" stroke-width="3" stroke-linejoin="round"/>' +
              '<rect x="-38" y="-58" width="76" height="116" rx="14" fill="' + fill +
-             '" stroke="#012a4a" stroke-width="3"/>' +
-             '<polygon points="0,-80 16,-56 -16,-56" fill="' + fill + '"/>' +
-             (car.spray ? '<circle cx="0" cy="0" r="58" fill="none" stroke="#a9d6e5" stroke-width="5"/>' : '') +
+             '" stroke="#212529" stroke-width="3"/>' +
+             (car.spray ? '<circle cx="0" cy="0" r="58" fill="none" stroke="#212529" stroke-width="9"/>' +
+                          '<circle cx="0" cy="0" r="58" fill="none" stroke="#f8f9fa" stroke-width="4"/>' : '') +
              '</g>');
     if (Math.abs(cx - B.bx) > 5 || Math.abs(cy - B.by) > 5) {      // 차고 안에서는 기지 글씨와 겹치지 않게 뺀다
       out.push('<text x="' + cx + '" y="' + (cy + 82) + '" font-size="19" font-weight="800" ' +
-               'fill="#eaf6fb" text-anchor="middle">' +
+               'fill="#212529" stroke="#f8f9fa" stroke-width="5" paint-order="stroke" stroke-linejoin="round" ' +
+               'text-anchor="middle">' +
                esc(PHASE_KR[car.phase] || car.phase || '대기') + '</text>');
     }
     document.getElementById('carLayer').innerHTML = out.join('');
@@ -426,7 +435,7 @@
     var svg = document.getElementById('chartSvg');
     var series = st.series || {};
     if (!series.ready || !series.time || !series.time.length) {
-      svg.innerHTML = '<text x="450" y="120" text-anchor="middle" font-size="14" fill="#89c2d9">' +
+      svg.innerHTML = '<text x="450" y="120" text-anchor="middle" font-size="14" fill="#495057">' +
         esc(series.note || '계산 중') + '</text>';
       return;
     }
@@ -446,15 +455,15 @@
       var v = lo + (hi - lo) * g / 4;
       var y = yOf(v);
       out.push('<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y +
-               '" stroke="#01497c" stroke-width="1"/>');
-      out.push('<text x="' + (padL - 6) + '" y="' + (y + 4) + '" font-size="11" fill="#89c2d9" ' +
+               '" stroke="#dee2e6" stroke-width="1"/>');
+      out.push('<text x="' + (padL - 6) + '" y="' + (y + 4) + '" font-size="11" fill="#495057" ' +
                'text-anchor="end">' + v.toFixed(1) + '</text>');
     }
     if (lo <= 0 && hi >= 0) {
       out.push('<line x1="' + padL + '" y1="' + yOf(0) + '" x2="' + (W - padR) + '" y2="' + yOf(0) +
-               '" stroke="#468faf" stroke-width="2" stroke-dasharray="6 5"/>');
+               '" stroke="#6c757d" stroke-width="2" stroke-dasharray="6 5"/>');
       out.push('<text x="' + (W - padR - 2) + '" y="' + (yOf(0) - 6) +
-               '" font-size="12" font-weight="800" fill="#a9d6e5" text-anchor="end">0℃</text>');
+               '" font-size="12" font-weight="800" fill="#212529" text-anchor="end">0℃</text>');
     }
     function path(arr, color, dash, width) {
       var d = '', started = false;
@@ -469,33 +478,33 @@
              (width || 2.5) + '" stroke-linejoin="round"' +
              (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>';
     }
-    // 관측=굵은 흰 실선, 예측=하늘색 점선
-    out.push(path(pred, '#89c2d9', '10 7', 2.5));
-    out.push(path(obs, '#ffffff', '', 3.5));
+    // 관측=굵은 검정 실선, 예측=회색 점선
+    out.push(path(pred, '#6c757d', '10 7', 2.5));
+    out.push(path(obs, '#212529', '', 3.5));
     var idx = (st.replay || {}).index;
     if (typeof idx === 'number' && idx >= 0 && idx < times.length) {
       out.push('<line x1="' + xOf(idx) + '" y1="' + padT + '" x2="' + xOf(idx) + '" y2="' + (H - padB) +
-               '" stroke="#a9d6e5" stroke-width="2" stroke-dasharray="4 4"/>');
+               '" stroke="#495057" stroke-width="2" stroke-dasharray="4 4"/>');
     }
     [0, Math.floor(times.length / 2), times.length - 1].forEach(function (i) {
       if (times[i] === undefined) return;
-      out.push('<text x="' + xOf(i) + '" y="' + (H - 8) + '" font-size="11" fill="#89c2d9" ' +
+      out.push('<text x="' + xOf(i) + '" y="' + (H - 8) + '" font-size="11" fill="#495057" ' +
                'text-anchor="middle">' + esc(String(times[i]).slice(11, 16)) + '</text>');
     });
     // 그래프 안 범례
     var legendY = 22;
     out.push('<line x1="' + padL + '" y1="' + legendY + '" x2="' + (padL + 30) + '" y2="' + legendY +
-             '" stroke="#ffffff" stroke-width="3.5"/>');
+             '" stroke="#212529" stroke-width="3.5"/>');
     out.push('<text x="' + (padL + 38) + '" y="' + (legendY + 4) + '" font-size="12" ' +
-             'font-weight="700" fill="#ffffff">관측 지면</text>');
+             'font-weight="700" fill="#212529">관측 지면</text>');
     out.push('<line x1="' + (padL + 126) + '" y1="' + legendY + '" x2="' + (padL + 156) + '" y2="' +
-             legendY + '" stroke="#89c2d9" stroke-width="2.5" stroke-dasharray="10 7"/>');
+             legendY + '" stroke="#6c757d" stroke-width="2.5" stroke-dasharray="10 7"/>');
     out.push('<text x="' + (padL + 164) + '" y="' + (legendY + 4) + '" font-size="12" ' +
-             'font-weight="700" fill="#89c2d9">+3h 예측</text>');
+             'font-weight="700" fill="#495057">+3h 예측</text>');
     out.push('<line x1="' + (padL + 252) + '" y1="' + (legendY - 6) + '" x2="' + (padL + 252) +
-             '" y2="' + (legendY + 6) + '" stroke="#a9d6e5" stroke-width="2" stroke-dasharray="4 4"/>');
+             '" y2="' + (legendY + 6) + '" stroke="#495057" stroke-width="2" stroke-dasharray="4 4"/>');
     out.push('<text x="' + (padL + 260) + '" y="' + (legendY + 4) + '" font-size="12" ' +
-             'font-weight="700" fill="#a9d6e5">현재 시각</text>');
+             'font-weight="700" fill="#495057">현재 시각</text>');
     svg.innerHTML = out.join('');
     document.getElementById('chartNote').textContent = series.note || '';
   }

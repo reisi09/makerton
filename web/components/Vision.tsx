@@ -9,15 +9,19 @@ const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 보내지 않는다)
 const PHASE: Record<string, string> = { depart: "기지에서 나가는 중", turn: "방향 바꾸는 중", out: "눈 미는 중", back: "교차로로 후진 중", home: "기지로 돌아가는 중" };
 
+interface Eye { usable?: boolean; arms?: Record<string, boolean>; note?: string; thinking?: string; secs?: number; error?: string }
 interface Result {
   view?: string; time: string; arms: Record<string, Arm> | null;
   decision: { go: boolean; text: string };
   route: { order: string[]; seconds: number; path: Pose[] } | null;
   dispatch: { plan_id?: string; mode?: string; error?: string } | null;
+  eye?: Eye | null;
 }
 interface ServerState {
   monitor_url?: string;
   vision?: Result | null;
+  vision_live?: { thinking: string } | null;
+  claude?: boolean;
   car?: { ok: boolean; tel?: { x: number | null; y: number | null; h: number | null; state?: string; phase?: string; arm?: string | null } };
   execution?: { state?: string; plan_id?: string };
 }
@@ -88,7 +92,8 @@ export default function Vision() {
     }
   }
   const onFile = (file: File | undefined) =>
-    file && run("맥이 사진에서 도로와 눈을 찾는 중…", async () => post("/api/vision/detect", { image: await shrink(file), go }));
+    file && run(state.claude ? "맥이 도로와 눈을 찾고, Claude가 사진을 보는 중…" : "맥이 사진에서 도로와 눈을 찾는 중…",
+      async () => post("/api/vision/detect", { image: await shrink(file), go }));
   const sweep = () => run("전체 청소 경로를 계산하는 중…", () => post("/api/sweep", {}));
   const stop = () => fetch("/api/car/stop", { method: "POST" }).catch(() => setError("정지 명령을 보내지 못했습니다."));
 
@@ -148,8 +153,11 @@ export default function Vision() {
 
           <section>
             <div className="sec-h"><h2>결과</h2><small>파랑 = 도로, 빨강 = 눈</small></div>
-            {busy ? (
-              <p className="empty" role="status">{busy}</p>
+            {busy || state.vision_live ? (
+              <>
+                <p className="empty" role="status">{busy || "다른 기기에서 올린 사진을 Claude가 보는 중…"}</p>
+                {state.vision_live?.thinking && <p className="vthink" aria-live="polite">{state.vision_live.thinking}</p>}
+              </>
             ) : error ? (
               <p className="verr" role="alert">{error}</p>
             ) : shown ? (
@@ -162,6 +170,15 @@ export default function Vision() {
             ) : running ? null : (
               <p className="empty">제설차는 북동쪽 제설 기지에서 기다리고 있습니다.</p>
             )}
+            {!busy && !state.vision_live && shown?.eye && (
+              <div className="vcard">
+                <h2>Claude의 판단{shown.eye.secs ? ` · ${shown.eye.secs}초` : ""}</h2>
+                {shown.eye.error ? <p>판정 실패: {shown.eye.error}</p> : <>
+                  <p>{shown.eye.usable === false && "사진으로는 판단하기 어렵다고 봤습니다. "}{shown.eye.note}</p>
+                  {shown.eye.thinking && <details><summary>생각한 과정</summary><p className="vthink">{shown.eye.thinking}</p></details>}
+                </>}
+              </div>
+            )}
             {shown?.view && <img className="vimg" src={shown.view} alt="도로와 눈 인식 결과" />}
             {moving && <p className="sub" role="status">제설차 {tel?.arm ? `${ARM_NAMES[tel.arm] ?? tel.arm} ` : ""}{moving}{tel?.state === "pause" ? " (일시 정지)" : ""}</p>}
             <BoardMap arms={shown?.arms ?? undefined} path={shown?.route?.path} order={shown?.route?.order} car={live} />
@@ -173,6 +190,7 @@ export default function Vision() {
                       <td className="t1 nowrap">{ARM_NAMES[name] ?? name}</td>
                       <td className="nowrap">{a.area_mm2} mm²</td>
                       <td className="far">{a.far_mm ? `중심에서 ${a.far_mm} mm까지` : "–"}</td>
+                      {shown.eye?.arms && <td className="nowrap">Claude {shown.eye.arms[name] ? "눈" : "없음"}</td>}
                       <td><span className="tag">{shown.route?.order.includes(name) ? `${shown.route.order.indexOf(name) + 1}번째 제설` : name === "C" ? "갈래 순회 중 눈이 밀려남" : "제설 기준 미달"}</span></td>
                     </tr>
                   ))}
@@ -183,7 +201,8 @@ export default function Vision() {
         </div>
       </main>
       <footer>
-        맥이 사진에서 검은 도로만 찾고 도로 위 흰 알갱이를 갈래별로 셉니다(기준 사진·학습 없음). 북동쪽 제설 기지에서 출발해
+        맥이 사진에서 검은 도로만 찾고 도로 위 흰 알갱이를 갈래별로 셉니다(기준 사진·학습 없음). 서버에 Claude 키가 있으면 Claude도
+        같은 사진을 보고, 둘의 판단이 다르면 네 갈래를 모두 치웁니다. 북동쪽 제설 기지에서 출발해
         눈의 면적이 100 mm²를 넘는 갈래를 도는 모든 순서를 비교하고 가장 빠른 순서로 제설차를 출동시킵니다.
         {" · "}<a href="https://reisi09.github.io/makerton/designs.html">설계도</a>{" · "}<a href="https://github.com/reisi09/makerton">GitHub</a>
       </footer>

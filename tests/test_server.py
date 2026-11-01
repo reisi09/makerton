@@ -15,8 +15,9 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE =os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -461,6 +462,34 @@ class HttpTest(ServerBase):
         self.assertTrue(body["view"].startswith("data:image/jpeg;base64,"))
         self.assertEqual(body["dispatch"]["source"], "vision")
         self.assertEqual(model.execution["order"], ["N"])
+        self.assertIsNone(body["eye"], "키가 없으면 Claude에게 묻지 않는다")
+
+    def test_claude_thinking_shows_live_and_disagreement_sweeps_every_arm(self):
+        from tests.test_vision import N_SNOW, board, photo
+        model = self.make_model(night=NIGHT, claude=True)
+        port = self.start_http(model)
+        live = []
+        def judge(img, turns, on_thinking):
+            on_thinking("N 도로와 E 도로에 흰 알갱이가 보인다.")
+            live.append(model.snapshot()["vision_live"])
+            return {"usable": True, "arms": {"C": False, "N": True, "E": True, "S": False, "W": False},
+                    "note": "N·E 도로에 눈", "thinking": "N 도로와 E 도로에 흰 알갱이가 보인다.", "secs": 6.0}
+        snowy = srv.vision.to_data_url(photo(board(snow=N_SNOW)))
+        with mock.patch.object(srv.claude_vision, "judge", judge):
+            status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(live, [{"thinking": "N 도로와 E 도로에 흰 알갱이가 보인다."}])
+        self.assertIsNone(model.snapshot()["vision_live"], "판정이 끝나면 실시간 사고 요약을 지운다")
+        self.assertIn("엇갈림", body["decision"]["text"])
+        self.assertEqual(sorted(body["route"]["order"]), ["E", "N", "S", "W"])
+        self.assertEqual(body["eye"]["note"], "N·E 도로에 눈")
+
+        def fail(img, turns, on_thinking):
+            raise RuntimeError("HTTP 529 overloaded")
+        with mock.patch.object(srv.claude_vision, "judge", fail):
+            status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False})
+        self.assertEqual(body["route"]["order"], ["N"], "Claude가 실패하면 규칙만으로 판단한다")
+        self.assertIn("Claude 판정 실패", body["decision"]["text"])
         self.assertEqual(model.snapshot()["vision"]["route"]["order"], ["N"])
 
     def test_sweep_all_dispatches_every_arm_in_the_best_order(self):
@@ -489,17 +518,15 @@ class HttpTest(ServerBase):
         status, raw = self.request(port, "/")
         self.assertEqual(status, 200)
         html = raw.decode("utf-8")
-        self.assertIn("--deep-space-blue", html)
-        self.assertIn("--light-blue", html)
         self.assertIn("자동 출동", html)
 
         status, raw = self.request(port, "/monitor")
         self.assertEqual(status, 200)
         monitor = raw.decode("utf-8")
-        self.assertIn("--deep-space-blue", monitor)
-        self.assertIn("--yale-blue-3", monitor)
-        self.assertIn("--light-blue", monitor)
-        self.assertIn("--sky-blue-light", monitor)
+        for page in (html, monitor):      # 모든 화면이 web/app/globals.css 와 같은 흑백 색상표를 쓴다
+            self.assertIn("--carbon-black:#212529", page)
+            self.assertIn("--bright-snow:#f8f9fa", page)
+            self.assertNotIn("blue", page)
         self.assertIn("1920", monitor)
         self.assertIn("setInterval(refresh, 1000)", monitor)
         self.assertNotIn("cdn.", monitor.lower())

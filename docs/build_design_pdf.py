@@ -254,7 +254,7 @@ def main(argv=None):
 </section>""" % (html.escape(spec["title"]), html.escape(spec["sub"]), now, cover_svg, toc, spec["src"])
     appendix = ""
     if spec["appendix"]:
-        appendix = (figure("부록 A. 모니터 화면(/monitor, 1920×1080)", "img/monitor.png", "실제 엔진 + 가짜 차·기지로 캡처") +
+        appendix = (figure("부록 A. 모니터 화면(/monitor, 1920×1080)", "img/monitor.png", "패드 사진을 규칙과 Claude가 판정한 직후 캡처") +
                     figure("부록 B. 참고: 고색고 주변 실제 도로 위험도(모형 도로와 별개)", "img/gosaek_map.svg",
                            "OSM 기반 상대 우선순위 · 모형 갈래는 임의 도로(cross_arms.json)"))
     font_url = "file://" + FONT

@@ -12,7 +12,7 @@
 - Pico는 두 대다.
   - **센서 Pico**(#1, USB): 온습도·젖음·조도 관리
   - **제설차 Pico**(#2, Wi-Fi): 스텝모터 이동과 서보 살포
-- **LLM은 쓰지 않는다.** 판단은 모델과 코드 규칙이 한다.
+- **LLM은 패드 사진의 두 번째 의견으로만 쓴다.** `ANTHROPIC_API_KEY`가 있으면 Claude가 사진을 함께 보고, 규칙과 다르면 전체 청소한다. 그 밖의 판단은 모델과 코드 규칙이 한다.
 - 원칙
   - 결빙을 '확정'하지 않는다. 화면 문구는 '예측 동결확률', '상대 우선순위'다.
   - 자동 출동에도 비상 정지(대시보드·차 버튼)와 장애물 정지는 항상 동작한다.
@@ -145,7 +145,7 @@ makerton/
 - 자동 출동
   - 조건: auto가 켜져 있고, 차가 idle이고, 실행 중인 계획이 없다. 기지 링크가 살아 있으면 `dock`도 참이어야 한다(도킹 스위치가 없으면 기지 Pico GP14를 GND에 점퍼로 잇는다).
   - 출동은 눈을 봤을 때만 한다(2026-10-31 변경). 날씨 예보 모델(step의 recommend)은 화면 참고용이고 출동을 정하지 않는다.
-    - 패드 사진: `POST /api/vision/detect` → `server/vision.py`가 검은 도로 위 흰 알갱이를 갈래별로 센다 → `server/route.py`가 눈이 `ARM_MIN_MM2`(100) 넘는 갈래를 기지에서 도는 모든 순서를 펌웨어 `plan_for_order`로 만들어 스텝이 가장 적은 순서를 고른다(같으면 눈 많은 갈래 먼저) → 그 순서로 plan. 판단이 애매하면(어느 갈래든 `ARM_VAGUE_MM2`(30) 이상 100 미만, 또는 vision `sure`=False: 노란 코트가 안 보이거나 비스듬한 사진) 네 갈래 모두의 최적 순서로 plan.
+    - 패드 사진: `POST /api/vision/detect` → `server/vision.py`가 검은 도로 위 흰 알갱이를 갈래별로 센다 → `server/route.py`가 눈이 `ARM_MIN_MM2`(100) 넘는 갈래를 기지에서 도는 모든 순서를 펌웨어 `plan_for_order`로 만들어 스텝이 가장 적은 순서를 고른다(같으면 눈 많은 갈래 먼저) → 그 순서로 plan. 판단이 애매하면(어느 갈래든 `ARM_VAGUE_MM2`(30) 이상 100 미만, 또는 vision `sure`=False: 노란 코트가 안 보이거나 비스듬한 사진) 네 갈래 모두의 최적 순서로 plan. `ANTHROPIC_API_KEY`가 있으면 `server/claude_vision.py`가 규칙이 돌린 사진을 Claude(`claude-opus-5-5`)에게 보여 갈래별 눈 여부를 받는다. 규칙(100mm² 이상)과 한 갈래라도 다르거나 `usable`=False면 네 갈래 모두. 호출이 실패하면 규칙만. 판정 중 사고 요약은 `/api/state`의 `vision_live.thinking`, 끝난 판정은 `vision.eye`(`usable`·`arms`·`note`·`thinking`·`secs` 또는 `error`).
     - 전체 청소: `POST /api/sweep` → 사진 없이 네 갈래를 `route.plan`의 최적 순서로 돈다.
     - 기지 조도센서 `wet`: 어느 갈래인지 모르니 네 갈래를 최적 순서로 돈다. 쿨다운 10초.
     - `order`는 받은 순서 그대로 쓴다(서버가 다시 정렬하지 않는다).

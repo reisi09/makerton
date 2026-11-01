@@ -95,6 +95,8 @@ tr:last-child td { border-bottom: 0; }
 .vdecide { font-size: 17px; font-weight: 800; padding: 12px 16px; border-radius: 10px; background: var(--soft); margin: 0; }
 .vimg { display: block; max-width: 100%; max-height: 56vh; width: auto; margin: 10px auto; border-radius: 10px; }
 .vdecide.go { background: var(--ink); color: var(--bright-snow); }
+.vthink { white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--muted); max-height: 40vh; overflow-y: auto; margin: 6px 0 0; }
+.vcard details summary { cursor: pointer; font-size: 14px; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
 
 footer { width: min(1180px, calc(100% - 48px)); margin: 0 auto 30px; padding: 0 28px; font-size: 12px; color: var(--muted); line-height: 1.6; }
 

@@ -16,6 +16,10 @@ def arms(**snow):
     return {a: {"area_mm2": snow.get(a, 0), "far_mm": 0} for a in "CNESW"}
 
 
+def eye(usable=True, **snow):
+    return {"usable": usable, "arms": {a: snow.get(a, False) for a in "CNESW"}, "note": ""}
+
+
 class RouteTest(unittest.TestCase):
     def test_visits_exactly_the_snowy_arms(self):
         p = route.plan(arms(N=720, W=387, S=101, E=60))
@@ -57,6 +61,21 @@ class RouteTest(unittest.TestCase):
             self.assertEqual(sorted(d["plan"]["order"]), everything)
             self.assertIn("전체 청소", d["text"])
         self.assertFalse(route.decide(arms(N=14, S=7))["go"])        # 위에서 찍은 눈 없는 사진 수준
+
+    def test_claude_disagreeing_or_unsure_sweeps_every_arm(self):
+        everything = sorted(route.plan(route.ALL)["order"])
+        for d in (route.decide(arms(N=720), eye=eye(N=True, S=True)),     # 규칙이 못 본 S를 Claude가 봤다
+                  route.decide(arms(N=720), eye=eye()),                   # 규칙만 눈을 봤다
+                  route.decide(arms(), eye=eye(usable=False))):           # Claude가 사진을 믿지 못한다
+            self.assertTrue(d["go"])
+            self.assertEqual(sorted(d["plan"]["order"]), everything)
+            self.assertIn("전체 청소", d["text"])
+
+    def test_claude_agreeing_keeps_the_rule_route(self):
+        d = route.decide(arms(N=720, W=387), eye=eye(N=True, W=True))
+        self.assertEqual(sorted(d["plan"]["order"]), ["N", "W"])
+        self.assertIn("Claude도 같은 판단", d["text"])
+        self.assertFalse(route.decide(arms(), eye=eye())["go"])
 
     def test_decide_text_names_the_order(self):
         d = route.decide(arms(N=720, W=387))
