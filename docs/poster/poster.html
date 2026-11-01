@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>ICE-ZERO 포스터</title>
+<!-- Canva 양식(2560×1440px)과 같은 배치. 그림은 build.py가 만든다. PNG·PDF도 build.py로 굽는다. -->
+<style>
+@font-face { font-family: "PosterSans"; font-weight: 100 900;
+  src: local("Pretendard Variable"), url("../../server/static/fonts/PretendardVariable.woff2") format("woff2"); }
+@page { size: 2560px 1440px; margin: 0; }
+:root { --navy: #023047; --ink: #13293d; --deep: #004e7a; --mid: #006494; --line: #247ba0;
+  --pale: #e8f1f2; --orange: #fb8500; --page: #219ebc; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 2560px; height: 1440px; overflow: hidden; }
+body { position: relative; background: var(--page); color: var(--ink);
+  font-family: "PosterSans", "Apple SD Gothic Neo", sans-serif; font-size: 16px; line-height: 24px;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; word-break: keep-all; }
+.top { position: absolute; left: 0; top: 0; width: 2560px; height: 228px; background: var(--navy); }
+h1 { position: absolute; left: 72px; top: 18px; font-size: 62px; line-height: 74px; font-weight: 700; color: var(--pale); }
+h1 em { font-style: normal; color: var(--orange); }
+.sub { position: absolute; left: 72px; top: 108px; font-size: 25px; line-height: 35px; color: var(--pale); }
+.sheet { position: absolute; left: 48px; top: 175px; width: 2464px; height: 1212px; background: #fff; }
+.col { position: absolute; top: 203px; height: 506px; }
+.h { position: relative; height: 40px; padding-left: 16px; background: var(--navy); color: var(--pale);
+  font-size: 19px; font-weight: 700; line-height: 40px; }
+.h::after { content: ""; position: absolute; right: 0; top: 0; width: 40px; height: 40px; background: var(--orange); }
+.h::before { content: ""; position: absolute; right: 26px; top: 26px; width: 14px; height: 14px; background: var(--navy); z-index: 1; }
+.h.wide { background: var(--ink); }
+.h.wide::before { background: var(--ink); }
+.col > .h + * { margin-top: 10px; }
+.txt { padding: 0 4px; }
+.gap { height: 16px; }
+.quote { position: relative; background: var(--deep); color: #fff; padding: 12px 18px 12px 31px; }
+.quote::before { content: ""; position: absolute; left: 14px; top: 12px; bottom: 12px; width: 5px; background: #fff; }
+.quote p { font-size: 17px; line-height: 25px; }
+.quote small { display: block; margin-top: 6px; font-size: 14px; line-height: 20px; }
+ol.steps { list-style: none; }
+ol.steps li { position: relative; padding-left: 46px; margin-bottom: 10px; min-height: 30px; }
+ol.steps li::before { content: attr(data-n); position: absolute; left: 4px; top: -3px; width: 30px; height: 30px;
+  border-radius: 50%; background: var(--mid); color: #fff; font-size: 16px; font-weight: 700; line-height: 30px; text-align: center; }
+ol.steps b { font-weight: 700; }
+.note { background: var(--deep); color: #fff; padding: 9px 12px; font-size: 15px; line-height: 22px; }
+.photo { position: relative; width: 440px; height: 456px; }
+.photo img { display: block; width: 440px; height: 456px; object-fit: cover; }
+.photo .tag { position: absolute; left: 0; bottom: 0; height: 31px; padding: 0 12px; background: var(--navy);
+  color: var(--pale); font-size: 15px; line-height: 31px; }
+.photo .pin { position: absolute; transform: translate(-50%, -50%); background: var(--navy); color: #fff;
+  font-size: 14px; font-weight: 700; line-height: 22px; padding: 0 8px; border-radius: 11px; white-space: nowrap; }
+.photo .pin.base { background: var(--orange); color: var(--navy); }
+.card { position: relative; border: 4px solid var(--navy); height: 143px; padding: 13px 12px 0 12px; }
+.card + .card { margin-top: 10px; }
+.card .row { display: flex; align-items: center; height: 25px; margin-bottom: 6px; }
+.card .chip { width: 77px; height: 25px; background: var(--mid); color: #fff; font-size: 15px; line-height: 25px; text-align: center; }
+.card .name { margin-left: 12px; font-size: 18px; font-weight: 700; }
+.card .link { margin-left: auto; font-size: 14px; }
+.card ul { list-style: none; font-size: 16px; line-height: 28px; }
+.after { margin-top: 12px; padding: 0 4px; font-size: 15px; line-height: 22px; }
+.fig { position: absolute; top: 787px; height: 532px; border: 2px solid var(--line); background: #fff; overflow: hidden; }
+.fig img { display: block; width: 100%; height: 100%; }
+.cap { position: absolute; top: 1325px; font-size: 16px; line-height: 24px; white-space: nowrap; }
+.foot { position: absolute; left: 48px; top: 1396px; width: 2464px; height: 34px; background: var(--navy);
+  color: var(--pale); font-size: 20px; line-height: 34px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>적설 2cm에도 멈춘 출근길, <em>가장 빠른 순서로 도는 자동 제설차</em></h1>
+  <p class="sub">ICE-ZERO · 라즈베리파이 Pico 2 W 제설차와 맥 서버의 최적 경로, Claude 눈 표시로 만든 사거리 제설 모형</p>
+</div>
+<div class="sheet"></div>
+
+<!-- 1열: 개요 · 동기 -->
+<section class="col" style="left:76px;width:464px">
+  <div class="h">프로젝트 개요</div>
+  <p class="txt">가상의 사거리를 92.5×91cm 모형으로 만들고, 라즈베리파이 Pico 2 W 제설차가 북동쪽 제설 기지에서 나와
+    네 갈래를 가장 빠른 순서로 치우게 했다. 맥 서버가 경로를 계산하고, Claude는 사진 속 눈 위치를 표시하며,
+    웹 화면에서 차를 직접 몰 수도 있다.</p>
+  <div class="gap"></div>
+  <div class="h">주제 선정 동기</div>
+  <div class="quote">
+    <p>“적설량이 2cm 안팎이었지만 출근길 정체와 제설 작업 미흡이 보도되었다.”</p>
+    <small>— 뉴시스, 2018. 1. 9.</small>
+  </div>
+  <p class="txt" style="margin-top:10px">적은 눈이라도 제설 시기를 놓치면 출근길 전체가 멈춘다. 사람이 도로마다 눈을 확인하고
+    출동 순서를 정하는 동안 시간이 흐른다. 그래서 ‘어느 순서로 돌아야 가장 빨리 끝나는지’ 계산해
+    바로 출동하는 과정을 자동화하기로 했다.</p>
+</section>
+
+<!-- 2열: 동작 과정 -->
+<section class="col" style="left:568px;width:464px">
+  <div class="h">전체 동작 과정</div>
+  <ol class="steps">
+    <li data-n="1"><b>연결</b> — 맥 서버와 제설차가 아이폰 핫스팟(2.4GHz)에서 Wi-Fi UDP로 이어진다.</li>
+    <li data-n="2"><b>눈 표시</b> — 웹에서 사진을 찍고 보안키를 넣으면 Claude가 도로 위 눈을 상자로 그린다. 차는 움직이지 않는다.</li>
+    <li data-n="3"><b>경로 계산</b> — ‘전체 청소’를 누르면 순서 24가지를 펌웨어 경로 계획으로 비교해 가장 빠른 것을 고른다.</li>
+    <li data-n="4"><b>출동</b> — 기지에서 나와 갈래 끝까지 눈을 밀고 후진하며 네 갈래를 돈 뒤 차고로 돌아온다(약 142초, 계산값).</li>
+    <li data-n="5"><b>감시·정지</b> — 0.5초마다 오는 차 위치가 /monitor 지도에 뜨고, 정지 버튼이 언제나 우선한다.</li>
+  </ol>
+  <p class="note"><b>수동 조작</b> — 맥의 Chrome·Edge가 USB(Web Serial)로 Pico를 직접 움직인다.
+    화살표를 누르는 동안만 가고, 떼면 선다.</p>
+</section>
+
+<!-- 3열: 모형 사진. 사진 좌표 = 보드 mm × 0.501 − 12(가로), × 0.501(세로) -->
+<section class="col" style="left:1060px;width:440px">
+  <div class="h">모형 이미지</div>
+  <div class="photo">
+    <img src="model_photo.jpg" alt="사거리 모형을 위에서 본 사진">
+    <span class="pin base" style="left:389px;top:52px">제설 기지</span>
+    <span class="pin" style="left:280px;top:24px">N</span>
+    <span class="pin" style="left:424px;top:240px">E</span>
+    <span class="pin" style="left:280px;top:390px">S</span>
+    <span class="pin" style="left:24px;top:240px">W</span>
+    <span class="tag">사거리 모형 92.5×91cm · 위에서 본 모습</span>
+  </div>
+</section>
+
+<!-- 4열: Pico 2 W -->
+<section class="col" style="left:1528px;width:464px">
+  <div class="h">Raspberry Pi Pico 2 W의 기능</div>
+  <div class="card">
+    <div class="row"><span class="chip">PICO 2 W</span><span class="name">자동 주행</span><span class="link">맥과 Wi-Fi UDP</span></div>
+    <ul>
+      <li>· 28BYJ-48 ×2 + ULN2003 ×2로 바퀴 구동</li>
+      <li>· 받은 계획대로 갈래 밀기 → 후진 → 차고 복귀</li>
+      <li>· 0.5초마다 위치 전송, 5초 끊기면 일시 정지</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="row"><span class="chip">PICO 2 W</span><span class="name">수동 조작</span><span class="link">맥과 USB Web Serial</span></div>
+    <ul>
+      <li>· 웹 화면이 USB로 조작 프로그램을 올려 실행</li>
+      <li>· 화살표를 누르는 동안만 움직이고 떼면 정지</li>
+      <li>· 지금은 전원도 맥 USB에서 받는다</li>
+    </ul>
+  </div>
+  <p class="after">Pico 한 대가 Wi-Fi(자동)와 USB(수동) 두 길로 명령을 받는다.
+    서보·초음파·버튼·LED·부저는 펌웨어에 핀만 정해 둔 선택 부품이다.</p>
+</section>
+
+<!-- 5열: 독창성 -->
+<section class="col" style="left:2020px;width:464px">
+  <div class="h">프로젝트의 독창성</div>
+  <ol class="steps">
+    <li data-n="1"><b>화면과 차가 같은 길</b> — 서버가 펌웨어의 경로 계획 함수를 그대로 불러 순서 24가지를 비교한다.
+      지도에 그린 길이 곧 차가 달리는 길이다.</li>
+    <li data-n="2"><b>천천히 출발, 빠르게 주행</b> — 1.2ms/스텝으로 출발해 2500스텝 동안 0.6ms까지 가속한다(초당 약 19→38mm).
+      처음부터 0.6ms로 출발하면 보드 위에서 멈춰 떨기만 했다(11월 1일 시험).</li>
+    <li data-n="3"><b>AI는 보조, 출동은 코드</b> — Claude는 눈 위치를 상자로 보여 줄 뿐 차를 움직이지 않는다.
+      보안키가 있어야 부를 수 있고, 키는 저장소에 두지 않는다.</li>
+    <li data-n="4"><b>사진 시험</b> — 모형 사진 42장 중 눈이 있는 19장에서 Claude가 모두 눈을 찾았다.
+      어둡게·노란 조명·흐리게 바꾼 사본에서도 찾았고, 규칙 검출기는 최대 3장을 놓쳤다(표본이 작은 시험).</li>
+  </ol>
+</section>
+
+<!-- 아래: 설계도 -->
+<div class="h wide" style="position:absolute;left:76px;top:737px;width:2408px">설계도 — 시스템 구성 · 보드와 출동 경로 · Raspberry Pi Pico 2 W 배선도</div>
+<div class="fig" style="left:76px;width:885px"><img src="system.svg" alt="시스템 구성도"></div>
+<div class="fig" style="left:977px;width:665px"><img src="board.svg" alt="보드 실측과 출동 경로"></div>
+<div class="fig" style="left:1658px;width:826px"><img src="wiring.svg" alt="제설차 배선도"></div>
+<p class="cap" style="left:76px">① 시스템 구성도 — 맥 서버 · 웹(/app · /monitor) · Claude · 제설차 Pico 2 W(Wi-Fi UDP · USB)</p>
+<p class="cap" style="left:977px">② 보드 실측과 출동 경로 — 925×910mm · 북동쪽 제설 기지 · 차체 치수</p>
+<p class="cap" style="left:1658px">③ Raspberry Pi Pico 2 W 제설차 배선 — 스텝모터 ×2 장착 · 서보·초음파·버튼·LED·부저는 선택</p>
+
+<div class="foot">고색고등학교 사천쟁반짜장팀 [최용빈,최우석,허승범,정희망]</div>
+</body>
+</html>

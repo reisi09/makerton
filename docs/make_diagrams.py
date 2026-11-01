@@ -72,13 +72,13 @@ def panel(x, y, w, h, title, sub, fill, accent=NAVY, title_size=28, sub_size=19)
 def svg_system():
     o = [head("0 0 1560 900", 1560, 900, "시스템 구성")]
     o.append(T(24, 46, "고색고 ICE-ZERO 자동 제설 모형 — 시스템 구성", 34, "start", 800))
-    o.append(T(24, 80, "LLM 없음. 판단은 학습 모델과 코드 규칙이 한다.", 20, "start", 600, CER))
+    o.append(T(24, 80, "출동은 코드 규칙이 정한다. Claude는 사진의 눈 자리 표시에만 쓴다(키 두 개가 있을 때).", 20, "start", 600, CER))
 
     o.append(panel(20, 110, 430, 250, "맥북 — 모델·서버", [
-        "ICE-ZERO 지면온도 예보(고색고 재학습)",
+        "ICE-ZERO 지면온도 예보(참고용)",
         "갈래 예측 동결확률 · 상대 우선순위",
-        "서버 0.0.0.0:8000 (조작 대시보드 /)",
-        "자동 출동 판단(예산·순서)",
+        "서버 0.0.0.0:8000 (/ · /app · /monitor)",
+        "전체 청소 · 최적 경로(24가지 비교)",
     ], "#dceaf4"))
     o.append(panel(20, 490, 430, 200, "모니터 — 웹 /monitor", [
         "1920×1080 키오스크, 스크롤 없음",
@@ -96,8 +96,8 @@ def svg_system():
     o.append(panel(610, 490, 340, 236, "제설차 Pico #2", [
         "Wi-Fi UDP 9200 ⇄ 9201",
         "28BYJ-48 ×2 + ULN2003 ×2",
-        "기지 출발 → 살포 → 후진 도킹",
-        "비상 버튼 · SR-04 정지",
+        "기지 출발 → 밀기 → 후진 귀환",
+        "전원 맥 USB · 모터만 장착",
     ], "#cfe3f0", title_size=26))
 
     o.append(panel(1110, 110, 430, 250, "사거리 보드 — 도로", [
@@ -105,10 +105,10 @@ def svg_system():
         "A3 광장 297×420 · 임의 도로 4갈래",
         "DHT11 기둥 4 · 젖음·조도(W)",
     ], "#e3eef6", title_size=26))
-    o.append(panel(1110, 490, 430, 236, "제설기지 (S 끝 남쪽)", [
-        "외곽 320×230 · 차고 140×190×120",
-        "사일로·SG90 보충 게이트",
-        "도킹 스위치 · 지붕 경광등",
+    o.append(panel(1110, 490, 430, 236, "제설기지 (북동 건물)", [
+        "출입구 서쪽 면 → N 도로",
+        "차고 안 바퀴 축 (764, 250)",
+        "서쪽 182 → 남쪽 230 → 중심",
     ], "#e3eef6", title_size=26))
 
     # 연결 1: 맥북 ↔ 센서 Pico (USB 시리얼)
@@ -135,12 +135,12 @@ def svg_system():
 
     # 연결 5: 제설차 → 도로부
     o.append(L(950, 600, 1110, 600, CER, 4, extra='marker-end="url(#flowB)"'))
-    o.append(T(1030, 586, "모터·서보", 18, weight=800, fill=CER))
+    o.append(T(1030, 586, "모터", 18, weight=800, fill=CER))
     o.append(T(1030, 634, "차 위치", 15, weight=700, fill=CER))
 
     o.append(Rc(20, 756, 1520, 76, fill="#f2f8fc", stroke=STEEL, sw=1.5, rx=10))
-    o.append(T(40, 790, "auto 켜짐 + recommend + 차 idle + 실행 중 계획 없음 → 서버가 plan을 보낸다.", 18, "start", 700, NAVY))
-    o.append(T(40, 816, "기지 출발 → 갈래 살포 → 후진 도킹 → 자동 보충. 비상 정지 셋(대시보드·버튼·초음파)은 항상 동작한다.", 17, "start", 700, NAVY))
+    o.append(T(40, 790, "전체 청소(또는 사진 판정 API·기지 조도) + 차 idle + 실행 중 계획 없음 → 서버가 plan을 보낸다. 예보는 참고용.", 18, "start", 700, NAVY))
+    o.append(T(40, 816, "기지 출발 → 갈래 끝까지 밀기 → 같은 길 후진 → 차고로 후진. 대시보드·패드 정지가 항상 우선하고, 신호가 5초 끊기면 선다.", 17, "start", 700, NAVY))
     o.append(T(1520, 872, "CONTRACT.md 1·5~8절", 16, "end", 600, AFB))
     o.append('</svg>')
     return "".join(o)
@@ -228,21 +228,22 @@ def svg_sensor_wiring():
 def svg_car_wiring():
     # 키는 물리 핀 번호다(계약 7절 GPIO → 핀: GP14=19, GP15=20, GP16=21, GP17=22,
     # GP18=24, GP19=25, GP20=26, GP21=27).
+    # 2026-11-01 수리 뒤: 오른쪽 ULN #1 = GP2~5(핀 4~7), 왼쪽 ULN #2 = GP6~9(핀 9~12). config PIN_RIGHT·PIN_LEFT와 같다.
     used = {4: "#2a6f97", 5: "#2a6f97", 6: "#2a6f97", 7: "#2a6f97",
             9: "#01497c", 10: "#01497c", 11: "#01497c", 12: "#01497c",
             19: "#0e7490", 20: "#6d28d9", 21: "#a16207", 22: "#2c7da0",
             24: "#b91c1c", 25: "#15803d", 26: "#1d4ed8", 27: "#7c3aed",
             36: RED, 38: BLACK, 40: RED}
     o = [head("0 -50 1580 1120", 1580, 1120, "제설차 Pico #2 배선도")]
-    o.append(T(20, -14, "제설차 Pico #2 배선 — 스텝모터 ×2 · 서보 · 초음파 · 버튼 · LED · 부저", 30, "start", 800))
+    o.append(T(20, -14, "제설차 Pico #2 배선 — 스텝모터 ×2(장착) · 서보 · 초음파 · 버튼 · LED · 부저(선택, 안 닮)", 30, "start", 800))
     ps, pp = pico(660, 140, used, "Pico 2 W (#2, Wi-Fi)")
     o.append(ps)
 
     # ── 왼쪽: 모터 두 개(마주 보게) + ULN2003 ──
-    for idx, (my, top, fill) in enumerate(((200, "ULN2003 #1 (왼쪽)", CER), (340, "ULN2003 #2 (오른쪽)", YALE2))):
+    for idx, (my, top, fill) in enumerate(((200, "ULN2003 #1 (오른쪽)", CER), (340, "ULN2003 #2 (왼쪽)", YALE2))):
         o.append(Rc(30, my, 110, 129, fill="#e3eef6", stroke=YALE, sw=2, rx=8))
         o.append(C(85, my + 50, 26, fill=STEEL, stroke=YALE, sw=2))
-        o.append(T(85, my + 57, ("L", "R")[idx], 20, weight=800, fill=NAVY))
+        o.append(T(85, my + 57, ("R", "L")[idx], 20, weight=800, fill=NAVY))
         o.append(T(85, my + 106, "28BYJ-48", 12, weight=700))
         s, u = box(190, my, 300, 129, top, ["IN1", "IN2", "IN3", "IN4"])
         o.append(s)
@@ -266,8 +267,8 @@ def svg_car_wiring():
 
     # ── 오른쪽: 전원 · LED · 부저 · 초음파 ──
     o.append(Rc(1080, 140, 340, 130, fill="#f4f8fb", stroke=YALE, sw=2, rx=8))
-    o.append(T(1096, 172, "보조배터리 5V 2A", 17, "start", 800, NAVY))
-    o.append(T(1096, 200, "USB → Pico VBUS", 14, "start", 700, YALE2))
+    o.append(T(1096, 172, "맥 USB 5V (보조배터리 없음)", 17, "start", 800, NAVY))
+    o.append(T(1096, 200, "마이크로 USB → Pico VBUS", 14, "start", 700, YALE2))
     o.append(ptag(1096, 236, "VBUS 5V · GND", RED))
 
     s, lp = box(1080, 320, 340, 200, "3색 LED (상태)", ["R", "G", "B"], side="left")
@@ -486,8 +487,8 @@ def svg_car_states():
             s.append(T(x + w / 2, y + 68 + i * 22, line, 15, weight=600, fill="#1f3b52"))
         return "".join(s)
 
-    o.append(st(70, 150, 300, 100, "idle", ["북향 대기", "코일 OFF"], "#dceaf4"))
-    o.append(st(620, 150, 320, 100, "run", ["계획 실행", "phase 4단계"], "#cfe3f0"))
+    o.append(st(70, 150, 300, 100, "idle", ["차고 안 서향 대기", "코일 OFF"], "#dceaf4"))
+    o.append(st(620, 150, 320, 100, "run", ["계획 실행", "phase depart~home"], "#cfe3f0"))
     o.append(st(1150, 150, 300, 100, "pause", ["모터 정지", "계획 유지"], "#e8f1f8"))
     o.append(st(620, 470, 320, 110, "stopped", ["코일 OFF · 서보 닫힘", "위치 기억"], "#b9d6e7"))
     o.append(st(1150, 470, 300, 110, "error", ["초기화·통신 실패", "재부팅으로 복귀"], "#dceaf4"))
@@ -509,38 +510,38 @@ def svg_car_states():
 
     # run → stopped
     o.append(L(760, 250, 760, 470, NAVY, 3, extra='marker-end="url(#flow)"'))
-    o.append(T(772, 370, "stop / 버튼", 17, "start", 800, NAVY))
+    o.append(T(772, 370, "stop / 버튼(선택)", 17, "start", 800, NAVY))
     # stopped → run
     o.append(L(690, 470, 690, 250, CER, 3, extra='marker-end="url(#flowB)"'))
-    o.append(T(678, 370, "버튼(재개)", 17, "end", 800, CER))
+    o.append(T(678, 370, "버튼(선택, 재개)", 17, "end", 800, CER))
 
     # pause → stopped
     o.append(P("M 1300 250 L 1300 410 L 940 410 L 940 470", stroke=NAVY, sw=3, extra='marker-end="url(#flow)"'))
-    o.append(T(1120, 398, "stop / 버튼", 17, weight=800, fill=NAVY))
+    o.append(T(1120, 398, "stop / 버튼(선택)", 17, weight=800, fill=NAVY))
 
     # stopped → idle
     o.append(P("M 620 520 L 220 520 L 220 250", stroke=CER, sw=3, extra='marker-end="url(#flowB)"'))
-    o.append(T(430, 560, "home(중심 복귀) → idle", 15, "middle", 700, CER))
+    o.append(T(430, 560, "home(차고 복귀) → idle", 15, "middle", 700, CER))
 
     # run 자기루프(장애물)
     o.append(P("M 700 150 C 700 76, 860 76, 860 150", stroke=YALE3, sw=3, extra='marker-end="url(#flowB)"'))
-    o.append(T(780, 68, "초음파 < 8cm → 모터 정지", 16, weight=800, fill=YALE3))
+    o.append(T(780, 68, "초음파(선택) < 8cm → 모터 정지", 16, weight=800, fill=YALE3))
 
     # 하단: 규칙 + 단계
     o.append(Rc(70, 640, 470, 330, fill="#f4f8fb", stroke=STEEL, sw=2, rx=12))
     o.append(T(96, 678, "규칙", 22, "start", 800, NAVY))
     rules = ["같은 seq는 한 번만 실행한다.",
              "링크 5초 끊기면 pause, 다시 받으면 재개.",
-             "초음파 8cm 안쪽이면 모터를 세운다.",
+             "초음파(선택) 8cm 안쪽이면 모터를 세운다.",
              "1초 비면 재개, 10초 막히면 aborted.",
-             "stop·버튼: 코일 OFF, 서보 닫힘.",
-             "부팅 직후는 idle, 북향·중심."]
+             "stop(·버튼): 코일 OFF, 서보 닫힘.",
+             "부팅 직후는 idle, 차고 안 서향."]
     for i, line in enumerate(rules):
         o.append(T(96, 716 + i * 40, "· " + line, 17, "start", 600, "#1f3b52"))
 
     o.append(Rc(580, 640, 940, 330, fill="#f4f8fb", stroke=STEEL, sw=2, rx=12))
-    o.append(T(606, 678, "run 내부 phase — 갈래 하나마다", 22, "start", 800, NAVY))
-    chips = [("turn", "갈래 방위 회전"), ("out", "360mm 전진"), ("back", "180° 회전"), ("home", "360mm 복귀")]
+    o.append(T(606, 678, "run 내부 phase — depart 뒤 갈래마다 turn·out·back", 22, "start", 800, NAVY))
+    chips = [("depart", "서 182 → 남 230"), ("turn", "갈래 방위 회전"), ("out", "ARM_OUT 전진"), ("back", "같은 거리 후진")]
     colors = ("#dceaf4", "#cfe3f0", "#dceaf4", "#cfe3f0")
     for i, (name, sub) in enumerate(chips):
         x = 606 + i * 228
@@ -549,8 +550,8 @@ def svg_car_states():
         o.append(T(x + 95, 772, sub, 15, weight=700, fill=YALE2))
         if i < 3:
             o.append(L(x + 194, 754, x + 222, 754, NAVY, 3, extra='marker-end="url(#flow)"'))
-    o.append(T(606, 846, "out 단계에서 중심 110~340mm 구간에만 서보를 연다(열림 70°, 닫힘 0°).", 17, "start", 700, YALE))
-    o.append(T(606, 882, "계획이 끝나면 마지막에 북향으로 돌아 idle로 간다. 순서는 plan.order를 따른다.", 17, "start", 700, YALE))
+    o.append(T(606, 846, "서보(선택)를 달면 out 단계의 SPRAY_WIN(중심 100~ARM_OUT) 구간에서만 연다(열림 70°).", 17, "start", 700, YALE))
+    o.append(T(606, 882, "갈래를 다 돌면 home(북쪽 230 → 서쪽을 보고 182 후진)으로 차고에 들어가 idle. 순서는 plan.order.", 17, "start", 700, YALE))
     o.append(T(606, 918, "실행 중에 새 plan이 오면 ack ok=false로 거절한다(계획 겹침 금지).", 17, "start", 600, CER))
     o.append('</svg>')
     return "".join(o)
@@ -701,9 +702,9 @@ def svg_board_v2():
     for i, line in enumerate(["중심 x·y", "N·E·W 판 끝", "S 도로 끝", "도로 폭", "광장 가로·세로"]):
         o.append(T(1054, 352 + i * 28, "· " + line, 14, "start", 600, "#1f3b52"))
 
-    o.append(T(-110, 1052, "사진 추정: 실측값을 pico/car/config.py(CENTER_X·CENTER_Y·BASE_DIST_MM·ARM_OUT_MM·SPRAY_WIN)와 server/board.json에 넣는다.",
+    o.append(T(-110, 1052, "사진 추정: 실측값을 pico/car/config.py(CENTER_X·CENTER_Y·BASE_X·BASE_Y·ARM_OUT_MM·SPRAY_WIN)와 server/board.json에 넣는다.",
                17, "start", 700, NAVY))
-    o.append(T(-110, 1082, "S 도로는 남쪽 395에서 끝나고 그 아래 흰 공간이 기지다. 차는 기지에서 북상해 중심에 닿고, 갈래를 돌고, 북향 후진으로 돌아온다.",
+    o.append(T(-110, 1082, "첫 설계(기지 = S 도로 끝 남쪽)다. 지금 기지는 북동쪽 건물(출입구 서쪽, N 도로)이고 실측 배치는 board_measured.png다.",
                17, "start", 600, CER))
     o.append('</svg>')
     return "".join(o)

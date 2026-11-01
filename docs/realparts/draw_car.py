@@ -80,13 +80,13 @@ def build_wiring():
     W, H = 1800, 1100
 
     o.append(text_px(36, 44, "제설차 배선도 — 실물 부품", 28, NAVY, "start", 800))
-    o.append(text_px(36, 70, "Pico 2 W · 28BYJ-48 ×2 · ULN2003 ×2 · SG90 · HC-SR04 · RGB · 부저 · 택트    (부품은 7px = 1mm 실물 크기)",
+    o.append(text_px(36, 70, "Pico 2 W · 28BYJ-48 ×2 · ULN2003 ×2 (장착)  ·  SG90 · HC-SR04 · RGB · 부저 · 택트 (선택, 지금은 안 닮)    (부품은 7px = 1mm 실물 크기)",
                      12.5, CER, "start", 700))
 
     pins = {}
     svg, pins["chg"] = place(common.phone_charger(), 30, 88, 6.3, rot=270)
     o.append(svg)
-    o.append(text_px(124, 266, "휴대폰 충전기 5V", 12, NAVY, "middle", 800))
+    o.append(text_px(124, 266, "맥 USB 5V", 12, NAVY, "middle", 800))
 
     svg, pins["pico"] = place(common.pico2wh(), 1000, 300, S, rot=90)
     o.append(svg)
@@ -94,10 +94,10 @@ def build_wiring():
 
     svg, pins["uln1"] = place(car.uln2003_board(), 380, 331, S)
     o.append(svg)
-    o.append(text_px(380, 322, "ULN2003 #1 — 왼쪽 모터", 12.5, NAVY, "start", 800))
+    o.append(text_px(380, 322, "ULN2003 #1 — 오른쪽 모터", 12.5, NAVY, "start", 800))
     svg, pins["uln2"] = place(car.uln2003_board(), 380, 595, S)
     o.append(svg)
-    o.append(text_px(380, 586, "ULN2003 #2 — 오른쪽 모터", 12.5, NAVY, "start", 800))
+    o.append(text_px(380, 586, "ULN2003 #2 — 왼쪽 모터", 12.5, NAVY, "start", 800))
 
     svg, pins["m1"] = place(car.motor_28byj48(), 36, 289, S)
     o.append(svg)
@@ -172,7 +172,7 @@ def build_wiring():
     jw(o, [(1740, 905), (1740, 1030), (868, 1030), (868, SG["5V"][1]), (SG["5V"][0], SG["5V"][1])], "red", None)
     jw(o, [(1758, 870), (1758, 1052), (880, 1052), (880, SG["GND"][1]), (SG["GND"][0], SG["GND"][1])], "black", None)
 
-    # 신호: Pico → ULN
+    # 신호: Pico → ULN. #1(GP2~5) = 오른쪽 바퀴, #2(GP6~9) = 왼쪽 바퀴(config PIN_RIGHT·PIN_LEFT)
     for grp, uln, pairs in (
             (1, U1, (("4", "IN1", "blue", "GP2"), ("5", "IN2", "green", "GP3"),
                      ("6", "IN3", "yellow", "GP4"), ("7", "IN4", "orange", "GP5"))),
@@ -246,9 +246,9 @@ def build_wiring():
     # 구석 inset
     panel(o, 1150, 14, 600, 100, fill="#fdfaf4")
     o.append(place(car.battery_holder_3aa(), 1160, 22, 1.35)[0])
-    o.append(text_px(1250, 40, "대안 전원: AA 3개 홀더 (보조배터리가 없을 때)", 13.5, NAVY, "start", 800))
+    o.append(text_px(1250, 40, "대안 전원: AA 3개 홀더 (맥 USB를 못 쓸 때)", 13.5, NAVY, "start", 800))
     o.append(text_px(1250, 62, "＋ → VSYS(39) 와 레일 + ,  − → GND.  USB 업로드할 때는 홀더를 뺀다.", 12, CER, "start", 700))
-    o.append(text_px(1250, 84, "AA 3개 = 4.5V. 서보·모터가 같이 돌면 전압이 떨어져 시연은 충전기 전원을 쓴다.", 11.5, YALE, "start", 600))
+    o.append(text_px(1250, 84, "AA 3개 = 4.5V. 서보·모터가 같이 돌면 전압이 떨어져 시연은 맥 USB 전원을 쓴다.", 11.5, YALE, "start", 600))
     o.append(text_px(1250, 104, "홀더 ＋ 는 VSYS(39)에만 붙인다(레일에 바로 붙이면 역류한다).", 11.5, "#8a4a22", "start", 600))
 
     # 범례
@@ -260,7 +260,7 @@ def build_wiring():
         o.append(line(cx, cy, cx + 34, cy, stroke=WIRE[col], sw=3.4))
         o.append(text_px(cx + 40, cy + 5, lab, 12, NAVY, "start", 700))
     for i, t in enumerate([
-            "· 흰 사각형 = 듀폰 커넥터가 꽂힌 자리.  왼쪽 ULN = 왼쪽 바퀴, 오른쪽 ULN = 오른쪽 바퀴.",
+            "· 흰 사각형 = 듀폰 커넥터 자리.  #1(GP2~5) = 오른쪽, #2(GP6~9) = 왼쪽 바퀴.",
             "· 두 ULN 은 IN1~IN4 만 다르고 나머지 배선 모양이 같다.",
             "· 모듈마다 핀 순서가 다르다(RGB·부저). 꽂기 전에 모듈 실크를 먼저 확인한다.",
             "· 택트는 한 다리 GP14, 대각 다리 GND. 두 ULN 은 IN1~IN4 만 다르다.",
@@ -439,7 +439,7 @@ def build_assembly():
             "모터 귀 구멍 35 간격 — 브래킷 없이 하판에 직접 나사",
             "호퍼 입구 = 뒤 범퍼에서 75 (사기 사일로 출구와 같은 자리)",
             "무게: 뒤쪽 Pico·레일, 가운데 호퍼, 앞쪽 ULN·SR-04",
-            "보조배터리 대신 휴대폰 충전기 → 마이크로 USB(위에서 매단다)"]):
+            "전원은 맥 USB → 마이크로 USB(위에서 매단다), 보조배터리 없음"]):
         o.append(text_px(cx0 - 10, 680 + i * 22, t, 11.5, YALE, "start", 600))
 
     o.append(text_px(36, 1000, "바퀴는 우드락 3겹 원판 Ø65 에 고무줄을 걸어 타이어로 쓴다. D축 구멍 3×5 를 뚫어 모터 축에 바로 끼운다.",

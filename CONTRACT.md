@@ -11,11 +11,14 @@
   - 위험하면 **자동으로** 제설차를 출동시킨다.
 - Pico는 두 대다.
   - **센서 Pico**(#1, USB): 온습도·젖음·조도 관리
-  - **제설차 Pico**(#2, Wi-Fi): 스텝모터 이동과 서보 살포
-- **LLM은 패드 사진의 두 번째 의견으로만 쓴다.** `ANTHROPIC_API_KEY`가 있으면 Claude가 사진을 함께 보고, 규칙과 다르면 전체 청소한다. 그 밖의 판단은 모델과 코드 규칙이 한다.
+  - **제설차 Pico**(#2, Wi-Fi UDP 명령, 전원은 맥 USB): 스텝모터 이동만 한다. 서보·초음파·버튼·LED·부저는 config에 핀만 있고 달지 않았다(선택).
+- **LLM(Claude)은 사진을 보는 데만 쓴다.** 서버에 `ANTHROPIC_API_KEY`와 `MAKERTON_KEY`가 둘 다 있을 때만 켜지고, Claude를 부르는 요청은 `X-Makerton-Key` 헤더가 `MAKERTON_KEY`와 같아야 한다.
+  - 패드 화면의 '눈 위치 표시'(`/api/vision/boxes`)는 Claude가 찾은 눈 자리를 상자로 보여 주기만 한다. 차는 움직이지 않는다.
+  - 패드 화면에서 빠진 `/api/vision/detect`는 Claude를 규칙의 두 번째 의견으로 쓰고, 규칙과 다르면 전체 청소한다.
+  - 출동 여부는 코드 규칙이 정한다. 패드 화면에서 출동시키는 버튼은 '전체 청소' 하나다.
 - 원칙
   - 결빙을 '확정'하지 않는다. 화면 문구는 '예측 동결확률', '상대 우선순위'다.
-  - 자동 출동에도 비상 정지(대시보드·차 버튼)와 장애물 정지는 항상 동작한다.
+  - 자동 출동에도 비상 정지(대시보드·패드의 정지 버튼)는 항상 동작하고, 서버 신호가 5초 끊기면 차가 선다. 차 버튼·초음파 정지는 달았을 때만 동작한다(지금은 달지 않음).
 
 ## 1. 폴더
 ```
@@ -28,8 +31,10 @@ makerton/
     data/raw/119/  수원 ASOS 원본 CSV(기상자료개방포털 OBS_ASOS_TIM_*.csv)
     data/roads/    cross_arms.json(임의 도로, 손으로 정함) · cross_arms_osm.json·gosaek_roads.geojson·overpass 캐시(참고)
     models/<stn>/  학습 산출물(지점별)
-  server/          gosaek_server.py · board.json(보드 치수) · static/index.html · static/monitor.html · static/fonts/(Pretendard, OFL)
-  pico/car/        config.py · car_core.py · main.py · hwtest.py
+  server/          gosaek_server.py · vision.py(사진 눈 인식) · route.py(최적 경로) · claude_vision.py(Claude) · board.json(보드 치수) · static/index.html · static/monitor.html · static/fonts/(Pretendard, OFL)
+  web/             Next.js 조작 화면. npm run build:app → web/out-app, 서버가 /app 에서 낸다
+  tools/           pico.py(Pico 업로드) · sim_car.py(Pico 없이 펌웨어 돌리기)
+  pico/car/        config.py · car_core.py · main.py · hwtest.py · sweep_test.py
   pico/sensors/    기지 Pico: config.py · sensor_core.py · main.py · hwtest.py · ssd1306.py · lcd1602.py
   docs/            SYSTEM_DESIGN.md · BASE_AND_CAR.md · MODEL.md · BUILD.md · img/ · make_diagrams.py · build_design_pdf.py · *.pdf
   tests/           python3 -m unittest discover -s tests (저장소 루트에서) 전부 통과
@@ -39,12 +44,13 @@ makerton/
 - 맥북 Python 3.9
   - pandas 2.3, numpy 2.0, xgboost 2.1.4, scikit-learn 1.6.1, pyserial 3.5가 설치되어 있다. matplotlib은 없다.
   - `match` 문과 `X | Y` 타입 표기는 쓰지 않는다.
-- MicroPython
+- MicroPython(제설차 Pico 2 W는 1.29)
   - f-string, dataclass, typing, walrus를 쓰지 않는다.
   - 입력은 풀업만 쓴다(RP2350-E9).
   - `~/Library/Python/3.9/bin/mpy-cross`로 컴파일 오류가 없어야 한다.
   - 하드웨어 import가 없는 `*_core.py`에 로직을 모으고, CPython 시험에서 직접 import한다.
 - 비밀값(Wi-Fi 비밀번호 등)은 저장소에 넣지 않는다. config에는 빈 문자열만 두고, 업로드할 때 채운다.
+  - Claude API 키(`ANTHROPIC_API_KEY`)와 보안키(`MAKERTON_KEY`)는 서버를 켜는 셸의 환경변수로만 준다. 파일·로그·스냅숏에 남기지 않는다.
 - 글꼴은 Pretendard다(사용자 지정). 웹은 `server/static/fonts/PretendardVariable.woff2`를 @font-face로 쓰고 CDN은 쓰지 않는다. SVG·PDF도 "Pretendard Variable"을 쓴다.
 
 ## 3. 모델(model/icezero)
@@ -106,9 +112,9 @@ makerton/
   - 기본값
     - N "북쪽 도로" 그늘 0.3
     - E "동쪽 도로" 0.0
-    - S "남쪽 도로(기지 진입로)" 0.8
+    - S "남쪽 도로" 0.8
     - W "서쪽 도로(그늘)" 1.0
-  - 그늘은 모형 건물 배치에서 정한다. SW 아파트와 남쪽 기지 건물이 W·S에 그늘을 만든다.
+  - 그늘은 모형 건물 배치에서 정한다. SW 아파트가 W·S에 그늘을 만든다. 제설 기지는 북동쪽 건물이다(9절).
   - `risk = 0.25 + 0.6×shadow_index`, `risk_pct` = 네 갈래 순위
 - 예보 모델은 그대로 고색고 주변 관측(수원 ASOS 119)으로 학습한다.
 - [참고 분석] `python3 -m model.icezero.roads`
@@ -124,20 +130,34 @@ makerton/
   - `--sensors-serial auto|PORT|none|fake`
   - `--car udp|fake|none`, `--udp-port 9200`, `--car-port 9201`
   - `--auto/--no-auto`(기본 auto), `--events`
+- 환경변수
+  - `ANTHROPIC_API_KEY`와 `MAKERTON_KEY`가 둘 다 있을 때만 Claude를 쓴다. 하나라도 없으면 규칙만 쓰고, 시작할 때 '사진 판정:' 줄에 빠진 이름을 출력한다.
+  - Claude를 부르는 요청은 `X-Makerton-Key` 헤더가 `MAKERTON_KEY`와 같아야 한다(`hmac.compare_digest`로 비교, 값은 기록하지 않는다).
 - API
-  - `GET / · /api/state`
+  - `GET / · /monitor · /app/ · /api/state`(`/app/`은 `web/out-app`의 패드용 화면)
   - `POST /api/replay {"night"}`
   - `/api/replay/step {"hours"}`
   - `/api/replay/auto {"on","sec_per_hour"}`
   - `/api/auto {"on"}`
   - `/api/dispatch`(수동 1회)
-  - `/api/vision/detect {"image","go"}`(패드 사진 → 판정·출동)
+  - `/api/vision/boxes {"image"}`(사진 → Claude가 찾은 눈 상자, 표시 전용. 아래)
+  - `/api/vision/detect {"image","go"}`(사진 → 규칙(+Claude) 판정·출동. 패드 화면에서는 빠졌고 API로만 남았다. Claude가 켜져 있으면 `X-Makerton-Key`가 필요하다)
   - `/api/sweep`(전체 청소: 네 갈래를 최적 순서로 1회, 출동 중이면 409)
   - `/api/car/stop`(비상 정지 → 자동 끔)
   - `/api/car/home`
   - `/api/budget {"budget":0~4}`
   - `/api/sensors/baseline`(센서 기준값 다시 잡기)
   - `/api/reset`
+- `POST /api/vision/boxes`(패드 '눈 위치 표시')
+  - 요청: 헤더 `X-Makerton-Key: <MAKERTON_KEY>`, 본문 `{"image":"data:image/jpeg;base64,…"}`. 화면은 긴 변 1600px로 줄여 보낸다.
+  - 200: `{"boxes":[{"x0":0.12,"y0":0.40,"x1":0.31,"y1":0.52}],"note":"…","secs":6.5,"width":1600,"height":1200,"time":"HH:MM:SS"}`
+    - 좌표는 사진 너비·높이에 대한 0~1 비율이고 x0≤x1, y0≤y1이다. 눈이 없으면 빈 목록, 최대 30개.
+    - 규칙 판정·출동·`vision_last`와 무관하다. 차는 움직이지 않는다.
+  - 503: 서버에 `MAKERTON_KEY`가 없음(헤더 확인 전), 또는 키는 맞는데 `ANTHROPIC_API_KEY`가 없음
+  - 401: 헤더가 없거나 `MAKERTON_KEY`와 다름
+  - 400: 사진을 읽지 못함(JPEG base64가 아님)
+  - 502: Claude 호출 실패
+  - 오류 본문은 `{"error":"…"}`다.
 - 센서 융합
   - 갈래 k의 `dt = T_k − baseline_k`. baseline은 시작 후 30초 평균이거나 `/baseline` 시점의 값이다.
   - 젖음 센서는 `WET_ARM` 갈래(기본 W, 그늘이 가장 깊은 갈래)의 `wet`으로 넣는다.
@@ -145,7 +165,7 @@ makerton/
 - 자동 출동
   - 조건: auto가 켜져 있고, 차가 idle이고, 실행 중인 계획이 없다. 기지 링크가 살아 있으면 `dock`도 참이어야 한다(도킹 스위치가 없으면 기지 Pico GP14를 GND에 점퍼로 잇는다).
   - 출동은 눈을 봤을 때만 한다(2026-10-31 변경). 날씨 예보 모델(step의 recommend)은 화면 참고용이고 출동을 정하지 않는다.
-    - 패드 사진: `POST /api/vision/detect` → `server/vision.py`가 검은 도로 위 흰 알갱이를 갈래별로 센다 → `server/route.py`가 눈이 `ARM_MIN_MM2`(100) 넘는 갈래를 기지에서 도는 모든 순서를 펌웨어 `plan_for_order`로 만들어 스텝이 가장 적은 순서를 고른다(같으면 눈 많은 갈래 먼저) → 그 순서로 plan. 판단이 애매하면(어느 갈래든 `ARM_VAGUE_MM2`(30) 이상 100 미만, 또는 vision `sure`=False: 노란 코트가 안 보이거나 비스듬한 사진) 네 갈래 모두의 최적 순서로 plan. `ANTHROPIC_API_KEY`가 있으면 `server/claude_vision.py`가 규칙이 돌린 사진을 Claude(`claude-opus-5-5`)에게 보여 갈래별 눈 여부를 받는다. 규칙(100mm² 이상)과 한 갈래라도 다르거나 `usable`=False면 네 갈래 모두. 호출이 실패하면 규칙만. 판정 중 사고 요약은 `/api/state`의 `vision_live.thinking`, 끝난 판정은 `vision.eye`(`usable`·`arms`·`note`·`thinking`·`secs` 또는 `error`).
+    - 사진(API만, 패드 화면에서는 빠짐): `POST /api/vision/detect` → `server/vision.py`가 검은 도로 위 흰 알갱이를 갈래별로 센다 → `server/route.py`가 눈이 `ARM_MIN_MM2`(100) 넘는 갈래를 기지에서 도는 모든 순서를 펌웨어 `plan_for_order`로 만들어 가감속을 넣은 시간 모형(`car_core.estimate_seconds`)으로 가장 빠른 순서를 고른다(1ms 안으로 같으면 눈 많은 갈래 먼저. 구간마다 가감속하므로 스텝이 가장 적은 순서와 다를 수 있다. 전체 청소는 S→E→W→N 약 140초, 계산값) → 그 순서로 plan. 판단이 애매하면(어느 갈래든 `ARM_VAGUE_MM2`(30) 이상 100 미만, 또는 vision `sure`=False: 노란 코트가 안 보이거나 비스듬한 사진) 네 갈래 모두의 최적 순서로 plan. Claude가 켜져 있으면(`ANTHROPIC_API_KEY`·`MAKERTON_KEY` 둘 다, 요청에 `X-Makerton-Key`) `server/claude_vision.py`가 규칙이 돌린 사진을 Claude(`claude-opus-5-5`)에게 보여 갈래별 눈 여부를 받는다. 규칙(100mm² 이상)과 한 갈래라도 다르거나 `usable`=False면 네 갈래 모두. 호출이 실패하면 규칙만. 판정 중 사고 요약은 `/api/state`의 `vision_live.thinking`, 끝난 판정은 `vision.eye`(`usable`·`arms`·`note`·`thinking`·`secs` 또는 `error`).
     - 전체 청소: `POST /api/sweep` → 사진 없이 네 갈래를 `route.plan`의 최적 순서로 돈다.
     - 기지 조도센서 `wet`: 어느 갈래인지 모르니 네 갈래를 최적 순서로 돈다. 쿨다운 10초.
     - `order`는 받은 순서 그대로 쓴다(서버가 다시 정렬하지 않는다).
@@ -206,15 +226,20 @@ makerton/
 ## 7. 제설차 Pico #2(pico/car, Pico 2 W, Wi-Fi UDP)
 | 장치 | 핀 |
 |---|---|
-| 왼쪽 28BYJ-48 + ULN2003 IN1~IN4 | GP2, GP3, GP4, GP5 |
-| 오른쪽 28BYJ-48 + ULN2003 IN1~IN4 | GP6, GP7, GP8, GP9 |
-| SG90 살포 서보 | GP15 (닫힘 0°, 열림 70°) |
-| SR-04 초음파 TRIG / ECHO | GP16 / GP17. ECHO는 1kΩ·2kΩ 분압 권장, 선택 |
-| 택트 스위치(비상 정지·재개, 풀업) | GP14 |
-| 3색 LED 모듈(상태) | R GP18, G GP19, B GP20 |
-| 능동 부저 | GP21 |
-- 전원: 보조배터리 USB → Pico. ULN2003 VCC는 VBUS(5V), GND는 공통이다.
-- 기구 상수(config): `WHEEL_D_MM=30`(병뚜껑), `TRACK_MM=108`, `STEPS_PER_REV=4096`(하프스텝), `STEP_US=1200`
+| 왼쪽 28BYJ-48 + ULN2003 IN1~IN4 | GP6, GP7, GP8, GP9 |
+| 오른쪽 28BYJ-48 + ULN2003 IN1~IN4 | GP2, GP3, GP4, GP5 |
+| SG90 살포 서보(선택, 달지 않음) | GP15 (닫힘 0°, 열림 70°) |
+| SR-04 초음파 TRIG / ECHO(선택, 달지 않음) | GP16 / GP17. ECHO는 1kΩ·2kΩ 분압 권장 |
+| 택트 스위치(비상 정지·재개, 풀업, 선택, 달지 않음) | GP14 |
+| 3색 LED 모듈(상태, 선택, 달지 않음) | R GP18, G GP19, B GP20 |
+| 능동 부저(선택, 달지 않음) | GP21 |
+- 2026-11-01 수리로 범퍼가 반대쪽 끝으로 가서 좌우 핀을 바꿨다(GP2~5가 오른쪽 바퀴). 모터마다 도는 방향은 그대로라 `LEFT_INVERT=False`, `RIGHT_INVERT=True`는 안 바꾼다.
+- 지금 차에는 모터 두 개만 단다. `hwtest.py`는 `MOTORS_ONLY=True`로 모터만 시험한다.
+- 전원: 맥 USB → Pico 마이크로 USB(보조배터리 없음). ULN2003 VCC는 VBUS(5V), GND는 공통이다. 명령은 Wi-Fi UDP로 오간다.
+- 기구 상수(config): `WHEEL_D_MM=30`(병뚜껑), `TRACK_MM=108`, `STEPS_PER_REV=4096`(하프스텝)
+  - 스텝 간격: 구간마다 `START_US=1200`에서 출발해 `RAMP_STEPS=2500`스텝(약 58mm) 동안 `STEP_US=600`(초당 약 38mm)까지 가속하고, 구간 끝 같은 거리에서 감속한다. 2026-11-01 보드 위에서 600으로 바로 출발하면 모터가 떨기만 했다.
+  - 스텝이 `LATE_RAMP_US=6000` 넘게 밀리면(소켓 처리 등) 모터가 선 것으로 보고 `START_US`부터 다시 가속한다. 초음파 한 번 재기(최대 4ms)와 루프 여유보다 길어야 초음파를 켰을 때 가속이 처음부터 다시 시작되지 않는다.
+  - 예상 시간(`server/route.py`)은 펌웨어 `estimate_seconds`(가감속 포함)에 `REAL_FACTOR=1.05`를 곱한다(2026-11-01 N 드라이런 실측 104.2초 / 계산 101.8초).
   - 양쪽 모터는 마주 보게 달리므로 오른쪽 방향을 반전한다.
 - 좌표: x는 동쪽, y는 남쪽(mm). 원점은 보드 왼쪽 위 모서리다.
   - 교차로 중심은 `(CENTER_X, CENTER_Y)` = (582, 480)이다(2026-10-31 사진 실측, 보드 925×910, 도로 폭 135).
@@ -243,28 +268,32 @@ makerton/
 - 안전
   - 초음파(`SONAR_ENABLED`, 기본 False)를 달면 `< OBST_CM=8`이면 정지한다. 1초 동안 비면 재개하고, 10초 넘게 막히면 aborted를 보낸다.
     - **후진(귀환) 중에는 앞쪽 초음파를 무시한다.** 차고 벽을 장애물로 보지 않게 하려는 것이다.
-  - 버튼이나 stop 명령이 오면 코일 전원을 끄고 서보를 닫은 뒤 stopped로 바꾼다. 버튼을 다시 누르면 남은 구간을 재개한다.
+  - stop 명령이 오면 코일 전원을 끄고 서보를 닫은 뒤 stopped로 바꾼다. 버튼(선택, 지금은 달지 않음)을 달면 누를 때 같은 정지를 하고, 다시 누르면 남은 구간을 재개한다.
   - 실행 중 서버 패킷이 `LINK_TIMEOUT_MS=5000` 넘게 없으면 pause하고, 다시 받으면 재개한다.
 
 ## 8. 물리 배치(사용자 보드 사진 기준, mm)
-- 보드: 흰 우드락 위에 검은 종이 도로를 붙였다.
-  - 도로 폭 약 150(A4를 세로로 반 자른 폭으로 추정)
+- 보드: 흰 우드락 위에 검은 종이 도로를 붙였다. 925×910(노란 코트 방향이 가로), 2026-10-31 사진 실측.
+  - 도로 폭 135(처음에는 150으로 추정했다)
   - 중앙 광장은 검은 A3 한 장 297(동서)×420(남북)
-  - 아래 값은 모두 사진 추정이다. 줄자로 재서 차 config와 `server/board.json`에 같이 넣는다.
-- 중심 기준 길이(추정)
-  - 판 끝까지: N 340, E 470, W 500. S 도로는 남쪽 395에서 끝나고, 그 아래 흰 공간이 기지 자리다.
-  - 광장 가장자리: N 243, S 176, W 157, E 140
+  - 실측값은 차 config와 `server/board.json`에 같이 넣는다(7절).
+- 중심 기준 길이
+  - 판 끝까지(실측): N 480, E 343, S 430, W 582. 네 도로 모두 판 끝까지 간다.
+  - 광장 가장자리(추정): N 243, S 176, W 157, E 140
 - 건물: 네 모퉁이(NW·NE·SW·SE) 흰 공간에 세운다.
   - 도로 가장자리에서 30mm, 광장 모서리에서 40mm 이상 띄운다. 차·초음파 간섭을 막기 위해서다.
   - SW(높은 아파트)는 W·S 갈래에 그늘을 만든다. 실제 그림자 지수 W 1.00, S 0.84에 맞춘다.
-  - E 갈래(서둔로17번길) 옆에는 고색고 교사동을 둔다. NW는 낮은 주택이다(N 0.29).
+  - E 갈래 옆에는 고색고 교사동을 둔다. NW는 낮은 주택이다(N 0.29).
 - DHT11 기둥: 도로 가장자리에서 30mm 밖, 중심에서 약 200mm
   - 중심 기준 (동+, 남+): N (+105,−220), E (+220,+105), S (−105,+260), W (−220,−105)
 - 젖음·조도 센서: W 갈래(−300, −95) 길가
-- 기지: S 도로 끝 남쪽(9절). 맥북은 기지 옆 책상에 둔다.
+- 기지: 북동쪽 큰 건물(9절). 맥북은 보드 옆 책상에 둔다.
 
 ## 9. 제설기지(base)
-- 위치: S 도로 끝 남쪽. 차고 입구 중심선 = S 도로 중심선
+- 위치: 북동쪽 큰 건물(서쪽 면 x 690, 동쪽 벽 x 909, 출입구 폭 약 290). 출입구는 서쪽 면이라 N 도로로 나온다.
+  - 차고 안 바퀴 축 `(BASE_X, BASE_Y)` = (764, 250) = 동쪽 벽 909 − 바퀴 축→뒤 135 − 여유 10. 서향(270°).
+  - 건물 안 깊이(약 219)가 차 길이 230보다 짧아 범퍼는 출입구 밖 21mm에 선다.
+  - 출발은 서쪽 182 → 남쪽으로 돌아 230 → 교차로 중심(7절 경로).
+- 아래 외곽·차고·사일로·도킹 스위치는 S 도로 끝 남쪽 기지로 그렸던 첫 설계값이다. 북동쪽 건물에는 그대로 만들지 않았다.
 - 외곽은 약 320(동서)×230(남북)
   - 서쪽에 차고(bay)를 둔다. 동쪽은 관제실(Pico #1·브레드보드·LCD·부저)이다.
   - 지붕에 네오픽셀 링 경광등을 단다.
@@ -277,4 +306,4 @@ makerton/
   - 차고 위 깔때기(종이·PET 원뿔), 출구 지름 12mm
   - 출구 아래 SG90 패들이 게이트다(닫힘 0°, 열림 60°).
   - 출구 위치 = 도킹했을 때 차 호퍼 입구 위. 차 뒤 범퍼에서 `HOPPER_FROM_REAR_MM`(차 설계값 75)이다.
-- 차(참고): 전체 길이 150, 폭 113(바퀴 포함), 높이 약 95(호퍼 입구). 자세한 치수는 docs의 제설차 도면이다.
+- 차(2026-11-01 실측): 길이 230(범퍼 앞면 → 뒤 끝), 범퍼 폭 152, 범퍼 앞면 → 모터 바퀴 축 95, 바퀴 축 → 뒤 끝 135. 차 자세는 모터 바퀴 축 가운데이고 제자리 회전도 이 점을 중심으로 돈다.

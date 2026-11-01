@@ -2,7 +2,7 @@
   "source": {
     "type": "임의 도로(모형)",
     "note": "우드락 모형 보드의 가상 도로다. 실제 도로명·위치가 아니다. 이름과 속성은 이 파일만 고치면 엔진·서버·화면에 그대로 반영된다.",
-    "basis": "그늘 지수는 모형 건물 배치에서 정했다. SW 모퉁이 높은 아파트와 남쪽 제설기지 건물이 W·S 도로에 그늘을 만든다. NW는 낮은 주택이다.",
+    "basis": "그늘 지수는 모형 건물 배치에서 정했다. SW 모퉁이 높은 아파트가 W·S 도로에 그늘을 만든다. NW는 낮은 주택, NE 큰 건물은 제설기지다.",
     "risk_formula": "risk = 0.25 + 0.6 × shadow_index (0~1 상대 우선순위). risk_pct는 네 갈래 안에서의 순위(0.25 단위)다.",
     "weather": "날씨·지면온도 예보는 수원 ASOS 119(고색고에서 약 0.4km) 기준이다. 도로가 임의여도 예보는 학교 주변 관측으로 학습한다.",
     "osm_reference": "model/data/roads/cross_arms_osm.json(고색고 주변 실제 도로 분석, 참고용)"
@@ -11,9 +11,9 @@
     "N": {"name": "북쪽 도로", "label": "general", "structure": 0, "shadow_index": 0.3, "risk": 0.43, "risk_pct": 0.5,
           "bearing_deg": 0, "near_water": false, "buildings": "NW 낮은 주택"},
     "E": {"name": "동쪽 도로", "label": "general", "structure": 0, "shadow_index": 0.0, "risk": 0.25, "risk_pct": 0.25,
-          "bearing_deg": 90, "near_water": false, "buildings": "NE·SE 학교·상가(낮음)"},
-    "S": {"name": "남쪽 도로(기지 진입로)", "label": "general", "structure": 0, "shadow_index": 0.8, "risk": 0.73, "risk_pct": 0.75,
-          "bearing_deg": 180, "near_water": false, "buildings": "남쪽 제설기지·SW 아파트"},
+          "bearing_deg": 90, "near_water": false, "buildings": "NE 제설기지·SE 학교·상가(낮음)"},
+    "S": {"name": "남쪽 도로", "label": "general", "structure": 0, "shadow_index": 0.8, "risk": 0.73, "risk_pct": 0.75,
+          "bearing_deg": 180, "near_water": false, "buildings": "SW 아파트"},
     "W": {"name": "서쪽 도로(그늘)", "label": "general", "structure": 0, "shadow_index": 1.0, "risk": 0.85, "risk_pct": 1.0,
           "bearing_deg": 270, "near_water": false, "buildings": "SW 높은 아파트"}
   }
