@@ -1,0 +1,45 @@
+@page { size: A4 landscape; margin: 11mm 12mm 12mm 12mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; color: #0f172a;
+       font-size: 10.2pt; line-height: 1.45; }
+.page { page-break-after: always; break-after: page; position: relative; min-height: 180mm; }
+.page:last-child { page-break-after: auto; }
+h1 { font-size: 21pt; margin: 0 0 3mm; color: #0f1b33; }
+h2 { font-size: 15pt; margin: 0 0 2.5mm; color: #0f1b33; border-left: 6px solid #2e6fdb; padding-left: 3mm; }
+h3 { font-size: 11.5pt; margin: 3mm 0 1.5mm; color: #1e3a8a; }
+p { margin: 1.2mm 0; }
+.sub { color: #475569; font-size: 10pt; margin-bottom: 2mm; }
+.tag { display: inline-block; font-size: 8.5pt; font-weight: 800; padding: 0.4mm 2mm; border-radius: 3mm; margin-right: 1.5mm; }
+.tA { background: #dbeafe; color: #1e3a8a; } .tB { background: #ffedd5; color: #9a3412; } .tC { background: #dcfce7; color: #14532d; }
+.tAll { background: #f1f5f9; color: #334155; }
+.warn { color: #b45309; font-weight: 700; }
+.bad { color: #b91c1c; font-weight: 700; }
+.ok { color: #15803d; font-weight: 700; }
+.box { border: 1px solid #cbd5e1; border-radius: 3mm; padding: 2.5mm 3.5mm; background: #f8fafc; margin: 2mm 0; }
+.box.y { background: #fffbeb; border-color: #fcd34d; }
+.box.r { background: #fef2f2; border-color: #fecaca; }
+.box.g { background: #f0fdf4; border-color: #bbf7d0; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+table { width: 100%; border-collapse: collapse; margin: 1.5mm 0; font-size: 9pt; }
+th, td { border: 1px solid #cbd5e1; padding: 1.1mm 1.8mm; vertical-align: top; text-align: left; }
+th { background: #eef2f7; font-weight: 800; color: #0f1b33; }
+table.cfg td, table.cfg th { font-size: 7.3pt; padding: 0.35mm 1.1mm; line-height: 1.28; }
+table.cfg td:first-child { white-space: nowrap; }
+table.cfg code { font-size: 7pt; padding: 0; background: none; }
+table.tight td, table.tight th { padding: 0.6mm 1.5mm; font-size: 8.4pt; }
+code, .code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 8.6pt; background: #f1f5f9; border-radius: 1mm; padding: 0 1mm; }
+pre.code { display: block; padding: 1.6mm 2.5mm; white-space: pre-wrap; word-break: break-all; margin: 1.2mm 0; border: 1px solid #e2e8f0; font-size: 7.4pt; line-height: 1.32; }
+ol, ul { margin: 1mm 0 1mm 5mm; padding-left: 3mm; }
+li { margin: 0.6mm 0; }
+.steps li { margin: 1mm 0; }
+.chk { font-family: monospace; color: #64748b; }
+svg.dwg { width: 100%; height: auto; display: block; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+.figcap { font-size: 8.8pt; color: #475569; margin-top: 1mm; }
+.cover { display: grid; grid-template-columns: 1fr; gap: 3mm; }
+.cover img { width: 100%; border: 1px solid #cbd5e1; border-radius: 2mm; }
+.footer { position: absolute; bottom: -4mm; right: 0; font-size: 8pt; color: #94a3b8; }
+.phase { border-left: 4px solid #2e6fdb; padding-left: 3mm; margin: 2mm 0; }
+.small { font-size: 8.6pt; color: #475569; }
+.kbd { border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 1mm; padding: 0 1.2mm; font-size: 8.6pt; background: #fff; }

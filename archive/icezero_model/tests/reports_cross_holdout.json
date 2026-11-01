@@ -1,0 +1,17 @@
+{
+ "note": "보류 세트: 규칙(rule_parse)·프롬프트를 만든 뒤 새로 쓴 제보 12건. 이 세트를 보고 규칙이나 프롬프트를 고치지 않는다(고치면 새 보류 세트를 만든다). 정답은 실행 전에 정했다.",
+ "reports": [
+  {"text": "다리 쪽 노면이 반짝반짝해요 블랙아이스 같아요", "gold_arms": ["E"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "ice_suspected"},
+  {"text": "올팍로 다리 진입부에서 차가 살짝 미끄러졌대요", "gold_arms": ["E"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "slippery", "note": "'올림픽로' 오타"},
+  {"text": "건물 그림자 진 쪽 차로가 아직 젖어 있어요", "gold_arms": ["W"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "slippery", "note": "그림자 = 그늘 갈래(W)"},
+  {"text": "115길 위쪽 오르막이 미끄럽다는 신고가 왔어요", "gold_arms": ["N"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "slippery"},
+  {"text": "역삼로 쪽 횡단보도 앞에 눈이 쌓였어요", "gold_arms": ["S"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "snow", "note": "역삼로는 S(역삼로107길)뿐"},
+  {"text": "테헤란로 쪽이 얼어붙은 것 같아요", "gold_arms": [], "gold_ambiguous": true, "gold_budget": null, "gold_condition": "ice_suspected", "note": "W(테헤란로)와 N(테헤란로115길) 사이에서 모호"},
+  {"text": "다리랑 남쪽 길 둘 다 미끄러워요, 제설제는 한 번 분량만 남았어요", "gold_arms": ["E", "S"], "gold_ambiguous": false, "gold_budget": 1, "gold_condition": "slippery"},
+  {"text": "제설제 3회분 있어요. 서쪽 큰길이 얼었어요", "gold_arms": ["W"], "gold_ambiguous": false, "gold_budget": 3, "gold_condition": "ice_suspected"},
+  {"text": "교차로 네 방향 다 하얗게 변했어요", "gold_arms": ["N", "E", "S", "W"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "snow"},
+  {"text": "미끄러워요", "gold_arms": [], "gold_ambiguous": true, "gold_budget": null, "gold_condition": "slippery", "note": "장소 없음 → 되묻기"},
+  {"text": "북쪽 길은 괜찮은데 동쪽 다리는 미끄럽대요", "gold_arms": ["E"], "gold_ambiguous": false, "gold_budget": null, "gold_condition": "slippery", "note": "부정(괜찮은데) 처리"},
+  {"text": "남은 제설제 없음. 그늘진 테헤란로에 살얼음", "gold_arms": ["W"], "gold_ambiguous": false, "gold_budget": 0, "gold_condition": "ice_suspected"}
+ ]
+}

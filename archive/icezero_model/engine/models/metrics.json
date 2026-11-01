@@ -1,0 +1,105 @@
+{
+  "model": "ICE-ZERO 예보 경량 재현(XGBoost+시차, 일사·일조 제외)",
+  "trained_at": "2026-10-31T10:17:31",
+  "data": {
+    "path": "/Users/choiwuseck/Documents/omp/suwon-makeathon-2026/icezero_model/engine/data/weather_winter_clean.csv",
+    "rows": 52584,
+    "observed_rows": 17184,
+    "start": "2020-01-01T01:00:00",
+    "end": "2025-12-31T00:00:00"
+  },
+  "split": {
+    "train": "2020~2024",
+    "test": "2025",
+    "calibration": "2024"
+  },
+  "rows": {
+    "train": 14208,
+    "test": 2832
+  },
+  "features": [
+    "temp",
+    "temp_6h_mean",
+    "humidity",
+    "dewpoint_depression",
+    "wind",
+    "precip_6h",
+    "snow",
+    "new_snow_6h",
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "gt_lag1",
+    "gt_lag2",
+    "gt_lag3",
+    "gt_lag6",
+    "gt_roll6",
+    "gt_trend3",
+    "air_gt_gap_lag1"
+  ],
+  "excluded": [
+    "solar",
+    "solar_3h_sum",
+    "sunshine"
+  ],
+  "params": {
+    "n_estimators": 600,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "subsample": 0.9,
+    "colsample_bytree": 0.9,
+    "random_state": 42,
+    "n_jobs": 4
+  },
+  "horizons": {
+    "h0": {
+      "rmse": 0.7043,
+      "mae": 0.4419,
+      "persistence_rmse": 1.4512,
+      "persistence_mae": 0.8897,
+      "air_rmse": 3.0305,
+      "air_mae": 2.4378,
+      "brier": 0.0323,
+      "brier_hard": 0.0425,
+      "freeze_rate": 0.4923,
+      "calib_rows": 2868
+    },
+    "h1": {
+      "rmse": 1.1066,
+      "mae": 0.6996,
+      "persistence_rmse": 1.4516,
+      "persistence_mae": 0.89,
+      "air_rmse": 3.4309,
+      "air_mae": 2.7376,
+      "brier": 0.051,
+      "brier_hard": 0.0749,
+      "freeze_rate": 0.4923,
+      "calib_rows": 2866
+    },
+    "h3": {
+      "rmse": 1.5285,
+      "mae": 1.021,
+      "persistence_rmse": 3.6258,
+      "persistence_mae": 2.3592,
+      "air_rmse": 4.461,
+      "air_mae": 3.5023,
+      "brier": 0.0705,
+      "brier_hard": 0.099,
+      "freeze_rate": 0.4922,
+      "calib_rows": 2862
+    },
+    "h6": {
+      "rmse": 1.8651,
+      "mae": 1.3163,
+      "persistence_rmse": 5.5355,
+      "persistence_mae": 3.8937,
+      "air_rmse": 5.6374,
+      "air_mae": 4.455,
+      "brier": 0.0904,
+      "brier_hard": 0.1342,
+      "freeze_rate": 0.4926,
+      "calib_rows": 2856
+    }
+  }
+}

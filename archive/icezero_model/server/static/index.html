@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICE-ZERO 사거리 모형 — 사람 승인 대시보드</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --ink: #0f172a; --sub: #475569; --line: #d7dee9; --bg: #eef1f6; --card: #fff;
+    --blue: #2563eb; --green: #16a34a; --amber: #d97706; --red: #dc2626;
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif; font-size: 14px; }
+  header { background: #0f1b33; color: #fff; padding: 12px 20px; display: flex; gap: 16px;
+           align-items: center; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.2px; }
+  header h1 span { color: #7fb3ff; }
+  header .note { font-size: 12px; color: #b8c6e0; }
+  header .grow { flex: 1; }
+  header .links { display: flex; gap: 8px; font-size: 12px; }
+  .link-badge { padding: 3px 9px; border-radius: 999px; background: #22314f; color: #cbd5e1; white-space: nowrap; }
+  .link-badge.ok { background: #14532d; color: #bbf7d0; }
+  .link-badge.off { background: #4c1d24; color: #fecdd3; }
+  main { padding: 14px 16px 40px; display: grid; gap: 14px;
+         grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr); grid-template-areas:
+           "cross replay" "cross forecast" "chart chart" "report sensors" "plan exec" "events events"; }
+  @media (max-width: 1080px) {
+    main { grid-template-columns: minmax(0, 1fr);
+           grid-template-areas: "cross" "replay" "forecast" "chart" "sensors" "report" "plan" "exec" "events"; }
+  }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+           box-shadow: 0 2px 6px rgba(15, 23, 42, .05); overflow: hidden; }
+  .panel > h2 { margin: 0; padding: 10px 14px; font-size: 14px; font-weight: 800;
+                border-bottom: 1px solid #eef2f7; background: #fbfcfe; display: flex; align-items: center; gap: 8px; }
+  .panel > h2 em { font-style: normal; color: var(--blue); }
+  .panel > h2 small { font-weight: 600; color: var(--sub); margin-left: auto; }
+  .body { padding: 10px 12px; }
+  #cross { grid-area: cross; } #replay { grid-area: replay; } #forecast { grid-area: forecast; }
+  #chart { grid-area: chart; } #sensors { grid-area: sensors; } #report { grid-area: report; }
+  #plan { grid-area: plan; } #exec { grid-area: exec; } #events { grid-area: events; }
+  svg.cross { display: block; width: 100%; height: auto; background: #e9edf3; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 6px 12px 10px; font-size: 12px; color: var(--sub); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px;
+              vertical-align: -2px; border: 1px solid #cbd5e1; }
+  table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.kv th { text-align: left; color: var(--sub); font-weight: 600; width: 46%; padding: 4px 0; }
+  table.kv td { padding: 4px 0; font-weight: 700; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 8px; }
+  button { font: inherit; font-weight: 700; padding: 7px 12px; border-radius: 9px; border: 1px solid #c7d2e0;
+           background: #fff; color: var(--ink); cursor: pointer; }
+  button:hover:not(:disabled) { background: #f1f5f9; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--blue); border-color: #1d4ed8; color: #fff; }
+  button.primary:hover:not(:disabled) { background: #1d4ed8; }
+  button.danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  button.warning { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+  select, input[type=text], input[type=number], textarea {
+    font: inherit; padding: 6px 9px; border-radius: 8px; border: 1px solid #c7d2e0; background: #fff; color: var(--ink); }
+  textarea { width: 100%; min-height: 62px; resize: vertical; }
+  input.num { width: 74px; }
+  .muted { color: var(--sub); }
+  .small { font-size: 12px; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800;
+          background: #e2e8f0; color: #1e293b; margin: 2px 4px 2px 0; }
+  .chip.plan { background: #dbeafe; color: #1e40af; }
+  .chip.done { background: #ede9fe; color: #5b21b6; }
+  .chip.risk3 { background: #fee2e2; color: #991b1b; }
+  .chip.risk2 { background: #fef3c7; color: #92400e; }
+  .chip.risk1 { background: #dcfce7; color: #166534; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+  .pill.ok { background: #dcfce7; color: #166534; } .pill.bad { background: #fee2e2; color: #991b1b; }
+  .box { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #fcfdff; }
+  .box h3 { margin: 0 0 6px; font-size: 13px; color: #1e293b; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+  .question { margin-top: 8px; padding: 8px 10px; border-radius: 9px; background: #fff7ed;
+              border: 1px solid #fed7aa; color: #9a3412; font-size: 13px; font-weight: 700; }
+  .hint { font-size: 12px; color: var(--sub); }
+  .cellpick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .cellpick label { display: flex; gap: 5px; align-items: center; padding: 5px 9px; border: 1px solid #c7d2e0;
+                    border-radius: 9px; font-weight: 800; cursor: pointer; background: #fff; }
+  .cellpick label.salted { background: #f5f3ff; border-color: #ddd6fe; }
+  ul.events { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; font-size: 12.5px; }
+  ul.events li { display: grid; grid-template-columns: 62px 78px 1fr; gap: 6px; padding: 3px 0;
+                 border-bottom: 1px dashed #eef2f7; }
+  ul.events time { color: var(--sub); font-variant-numeric: tabular-nums; }
+  ul.events .kind { font-weight: 800; color: #1d4ed8; }
+  .state-badge { font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #e2e8f0; }
+  .state-badge.run { background: #dbeafe; color: #1e40af; }
+  .state-badge.done { background: #dcfce7; color: #166534; }
+  .state-badge.failed { background: #fee2e2; color: #991b1b; }
+  .state-badge.stopped { background: #fef3c7; color: #92400e; }
+  #toast { position: fixed; right: 16px; bottom: 16px; background: #0f172a; color: #fff;
+           padding: 10px 14px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .2s;
+           pointer-events: none; max-width: 340px; }
+  #toast.on { opacity: .95; }
+  .bar { height: 8px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--blue); width: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ICE-ZERO <span>사거리 모형</span></h1>
+  <div class="note">예측 동결확률 · 상대 우선순위 · 사람 승인 후 살포</div>
+  <div class="grow"></div>
+  <div class="links" id="links"></div>
+</header>
+
+<main>
+  <section class="panel" id="cross">
+    <h2>십자 사거리 <em>4갈래</em> <small id="crossNote">—</small></h2>
+    <svg class="cross" viewBox="0 0 900 900" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <pattern id="hatch" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="9" stroke="#64748b" stroke-width="4"/>
+        </pattern>
+        <pattern id="shadowPat" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="8" stroke="#94a3b8" stroke-width="4"/>
+        </pattern>
+      </defs>
+      <!-- 하천(동쪽 교량 아래) -->
+      <rect x="636" y="300" width="128" height="380" fill="#bfdbfe" stroke="#93c5fd"/>
+      <text x="700" y="700" font-size="13" fill="#1d4ed8" text-anchor="middle">하천</text>
+      <!-- 그늘 건물(서쪽) -->
+      <rect x="46" y="60" width="130" height="150" rx="6" fill="url(#shadowPat)" stroke="#64748b"/>
+      <rect x="46" y="700" width="130" height="150" rx="6" fill="url(#shadowPat)" stroke="#64748b"/>
+      <text x="111" y="140" font-size="13" fill="#334155" text-anchor="middle">건물</text>
+      <text x="111" y="780" font-size="13" fill="#334155" text-anchor="middle">건물</text>
+      <!-- 도로 -->
+      <rect x="375" y="0" width="150" height="900" fill="#94a3b8"/>
+      <rect x="0" y="375" width="900" height="150" fill="#94a3b8"/>
+      <line x1="450" y1="0" x2="450" y2="375" stroke="#fbbf24" stroke-width="3" stroke-dasharray="18 14"/>
+      <line x1="450" y1="525" x2="450" y2="900" stroke="#fbbf24" stroke-width="3" stroke-dasharray="18 14"/>
+      <line x1="0" y1="450" x2="375" y2="450" stroke="#fbbf24" stroke-width="3" stroke-dasharray="18 14"/>
+      <line x1="525" y1="450" x2="900" y2="450" stroke="#fbbf24" stroke-width="3" stroke-dasharray="18 14"/>
+      <g id="armsLayer"></g>
+      <rect x="375" y="375" width="150" height="150" fill="#64748b" stroke="#475569"/>
+      <text x="450" y="462" font-size="13" fill="#e2e8f0" text-anchor="middle" font-weight="800">사거리</text>
+      <text x="450" y="26" font-size="16" fill="#0f172a" text-anchor="middle" font-weight="800">북</text>
+      <text x="450" y="890" font-size="14" fill="#0f172a" text-anchor="middle" font-weight="800">남</text>
+      <text x="20" y="445" font-size="14" fill="#0f172a" font-weight="800">서</text>
+      <text x="878" y="445" font-size="14" fill="#0f172a" text-anchor="end" font-weight="800">동</text>
+    </svg>
+    <div class="legend">
+      <span><i style="background:#16a34a"></i>risk1 낮음</span>
+      <span><i style="background:#d97706"></i>risk2</span>
+      <span><i style="background:#dc2626"></i>risk3 높음</span>
+      <span><i style="background:#94a3b8"></i>자료 없음</span>
+      <span><i style="background:#ede9fe"></i>살포 완료</span>
+      <span>표시값: 예측 동결확률 p_max · 유효온도</span>
+    </div>
+  </section>
+
+  <section class="panel" id="replay">
+    <h2>재생 <em>밤·시각</em> <small id="replayTime">—</small></h2>
+    <div class="body">
+      <div class="row">
+        <span class="small muted">밤</span>
+        <select id="nightSel"></select>
+      </div>
+      <div class="row">
+        <button id="btnPrev" title="1시간 전">◀</button>
+        <button id="btnNext" title="1시간 후">▶</button>
+        <button id="btnAuto">자동 재생</button>
+        <span class="small muted" id="replayIndex">—</span>
+      </div>
+      <div class="row">
+        <span class="small muted">속도</span>
+        <input class="num" id="secPerHour" type="number" min="0.5" max="60" step="0.5" value="6">
+        <span class="small muted">초/시간</span>
+      </div>
+      <div class="hint" id="replayHint">재생은 관측 자료를 18:00부터 다음 날 09:00까지 시간 단위로 넘깁니다.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="forecast">
+    <h2>예보 <em>지면온도</em> <small id="modelNote">—</small></h2>
+    <div class="body">
+      <table class="kv">
+        <tr><th>현재 시각</th><td id="fTime">—</td></tr>
+        <tr><th>관측 지면온도</th><td id="fObs">—</td></tr>
+        <tr><th>관측 기온 · 습도 · 풍속</th><td id="fAir">—</td></tr>
+        <tr><th>예측 지면온도 h0(+0h)</th><td id="fH0">—</td></tr>
+        <tr><th>h1(+1h) · h3(+3h) · h6(+6h)</th><td id="fH136">—</td></tr>
+        <tr><th>RMSE (h3)</th><td id="fRmse">—</td></tr>
+        <tr><th>persistence RMSE (h3)</th><td id="fPers">—</td></tr>
+        <tr><th>Brier (h3)</th><td id="fBrier">—</td></tr>
+      </table>
+      <div class="hint" style="margin-top:6px">동결확률은 관측 지면온도 보정곡선을 갈래 유효온도에 적용한 가정값입니다.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="chart">
+    <h2>시간 추이 <em>관측 지면온도 · +3h 예측</em> <small id="chartNote">—</small></h2>
+    <div class="body">
+      <svg id="chartSvg" viewBox="0 0 900 220" preserveAspectRatio="none" style="width:100%;height:220px;display:block"></svg>
+      <div class="legend" style="padding:0">
+        <span><i style="background:#0f172a"></i>관측 지면온도</span>
+        <span><i style="background:#2563eb"></i>+3h 예측</span>
+        <span><i style="background:#dc2626"></i>현재 시각</span>
+        <span><i style="background:#f59e0b"></i>0 ℃ 기준선</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="report">
+    <h2>현장 제보 <em>해석 · 사람 확인</em> <small id="llmNote">—</small></h2>
+    <div class="body">
+      <textarea id="reportText" placeholder="예: 올림픽로 교량 쪽이 미끄럽습니다. 남은 제설제 2회분."></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="btnReport">해석하기</button>
+        <span class="small muted" id="reportHint">자유 문장으로 적으면 LLM이 갈래·예산·모호함을 정리합니다.</span>
+      </div>
+      <div id="reportResult" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="sensors">
+    <h2>센서 <em>교량 시험편</em> <small id="sensorSource">—</small></h2>
+    <div class="body">
+      <table class="kv">
+        <tr><th>Pico 링크</th><td id="sPico">—</td></tr>
+        <tr><th>t_bridge</th><td id="sBridge">—</td></tr>
+        <tr><th>t_air</th><td id="sAir">—</td></tr>
+        <tr><th>젖음</th><td id="sWet">—</td></tr>
+        <tr><th>교량 주의(로컬)</th><td id="sWarn">—</td></tr>
+        <tr><th>현장 보정 적용</th><td id="sOffset">—</td></tr>
+      </table>
+      <div class="row" style="margin-top:8px">
+        <label class="small"><input type="checkbox" id="useSensor"> 현장 보정 사용</label>
+      </div>
+      <div class="row">
+        <span class="small muted">수동 t_bridge</span>
+        <input class="num" id="manualBridge" type="number" step="0.1" placeholder="℃">
+        <button id="btnSensor">적용</button>
+      </div>
+      <div class="hint">Pico 가 5초 안에 t_bridge 를 보내면 그 값을, 없으면 수동 값을 씁니다. 보정은 교량 갈래(E)에만 들어갑니다.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="plan">
+    <h2>계획 <em>제안 · 승인</em> <small id="budgetNote">—</small></h2>
+    <div class="body">
+      <div class="small muted">제안(모델 계산)</div>
+      <div id="proposalCells" style="margin:4px 0 6px"></div>
+      <div id="proposalMeta" class="hint"></div>
+      <hr style="border:none;border-top:1px solid #eef2f7;margin:10px 0">
+      <div class="small muted">승인된 계획</div>
+      <div id="approvedCells" style="margin:4px 0 6px"></div>
+      <div id="approvedMeta" class="hint"></div>
+      <div class="row" style="margin-top:10px">
+        <span class="small muted">예산</span>
+        <input class="num" id="budgetInput" type="number" min="0" max="4" step="1" value="2">
+        <button id="btnBudget">예산 적용</button>
+      </div>
+      <div class="row">
+        <button class="primary" id="btnApprove">계획 승인</button>
+        <button id="btnDispatch" class="primary">출동 승인</button>
+        <button class="danger" id="btnEstop">비상 정지</button>
+        <button id="btnReset">초기화</button>
+      </div>
+      <div class="hint" id="dispatchHint" style="margin-top:6px"></div>
+      <div class="hint" id="scoreBoard" style="margin-top:4px"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="exec">
+    <h2>실행 진행 <em>살포 순서</em> <small id="execMode">—</small></h2>
+    <div class="body">
+      <div class="row"><span class="state-badge" id="execState">대기</span>
+        <span class="small muted" id="execMsg">—</span></div>
+      <div class="row"><div class="bar" style="flex:1"><i id="execBar"></i></div></div>
+      <table class="kv" style="margin-top:8px">
+        <tr><th>계획</th><td id="execPlan">—</td></tr>
+        <tr><th>순서</th><td id="execOrder">—</td></tr>
+        <tr><th>현재 갈래</th><td id="execCurrent">—</td></tr>
+        <tr><th>완료</th><td id="execDone">—</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="events">
+    <h2>이벤트 <small>최근 순</small></h2>
+    <div class="body"><ul class="events" id="eventList"></ul></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var ARMS = ['N', 'E', 'S', 'W'];
+  var ROADS = {N: '테헤란로115길', E: '올림픽로', S: '역삼로107길', W: '테헤란로'};
+  var LEVEL_COLOR = {risk1: '#16a34a', risk2: '#d97706', risk3: '#dc2626', off: '#94a3b8'};
+  var LEVEL_KR = {risk1: 'risk1(낮음)', risk2: 'risk2(주의)', risk3: 'risk3(높음)', off: '자료 없음'};
+  var EXEC_KR = {idle: '대기', running: '실행 중', done: '완료', failed: '중단', stopped: '정지'};
+  var lastNightOptions = '';
+  var lastPendingKey = null;
+  var editor = null;
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function fmt1(v) { return (v === null || v === undefined) ? '—' : Number(v).toFixed(1); }
+  function fmt2(v) { return (v === null || v === undefined) ? '—' : Number(v).toFixed(2); }
+  function ageText(age) {
+    if (age === null || age === undefined) return '신호 없음';
+    if (age < 1) return '방금';
+    return age.toFixed(1) + '초 전';
+  }
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'on';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.className = ''; }, 2600);
+  }
+  function api(path, body) {
+    return fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+        return data;
+      });
+    });
+  }
+  function act(path, body) {
+    return api(path, body).then(function () { return refresh(); })
+      .catch(function (e) { toast(e.message); });
+  }
+
+  // ------------------------------------------------------------- 십자 그림
+  function armColor(arm) {
+    var level = arm ? (arm.level || 'off') : 'off';
+    return LEVEL_COLOR[level] || LEVEL_COLOR.off;
+  }
+
+  function drawCross(st) {
+    var step = st.step || {};
+    var arms = step.arms || {};
+    var prop = st.proposal || {};
+    var order = prop.order || [];
+    var done = (st.execution || {}).done || [];
+    var out = [];
+
+    function box(armId, x, y, w, h, labelX, labelY, anchor, extra) {
+      var a = arms[armId] || {};
+      var color = armColor(a);
+      var idx = order.indexOf(armId);
+      var sprayed = done.indexOf(armId) >= 0;
+      out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+               '" fill="' + color + '" fill-opacity="' + (a.p_max ? 0.28 + 0.5 * Math.min(1, a.p_max) : 0.15) +
+               '" stroke="' + color + '" stroke-width="3"/>');
+      if (sprayed) {
+        out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+                 '" fill="url(#hatch)" opacity="0.45"/>');
+      }
+      if (extra) out.push(extra);
+      var lines = [
+        armId + ' · ' + (ROADS[armId] || ''),
+        'p_max ' + fmt2(a.p_max) + (a.level ? ' · ' + a.level : ''),
+        '유효온도 ' + fmt1((a.t_eff || {}).h0) + ' / ' + fmt1((a.t_eff || {}).h3) + ' ℃',
+        idx >= 0 ? ('선정 ' + (idx + 1) + '번째') : (a.candidate ? '후보' : '제외'),
+        sprayed ? '살포 완료' : ''
+      ];
+      var size = anchor === 'middle' ? 15 : 14;
+      lines.forEach(function (line, i) {
+        if (!line) return;
+        out.push('<text x="' + labelX + '" y="' + (labelY + i * 18) + '" font-size="' + size +
+                 '" font-weight="' + (i === 0 ? 800 : 600) + '" fill="#0f172a" text-anchor="' + anchor + '">' +
+                 esc(line) + '</text>');
+      });
+      if (idx >= 0) {
+        out.push('<circle cx="' + (anchor === 'middle' ? labelX + 96 : labelX + 96) + '" cy="' + (labelY - 5) +
+                 '" r="13" fill="#1d4ed8"/>');
+        out.push('<text x="' + (anchor === 'middle' ? labelX + 96 : labelX + 96) + '" y="' + labelY +
+                 '" font-size="14" font-weight="800" fill="#fff" text-anchor="middle">' + (idx + 1) + '</text>');
+      }
+    }
+
+    box('N', 375, 40, 150, 150, 450, 78, 'middle', null);
+    box('S', 375, 710, 150, 150, 450, 762, 'middle', null);
+    box('W', 40, 375, 150, 150, 200, 402, 'start', null);
+    box('E', 710, 375, 150, 150, 733, 402, 'start',
+        '<rect x="600" y="375" width="110" height="150" fill="url(#hatch)" stroke="#475569" stroke-width="2"/>' +
+        '<text x="655" y="462" font-size="12" fill="#0f172a" text-anchor="middle" font-weight="800">교량</text>');
+
+    document.getElementById('armsLayer').innerHTML = out.join('');
+    var d = step.dispatch || {};
+    document.getElementById('crossNote').textContent =
+      d.order && d.order.length ? ('선정 ' + d.order.join(' → ') + ' / 예산 ' + d.budget + '갈래') :
+      (st.step ? '선정된 갈래가 없습니다' : '엔진 자료 없음');
+  }
+
+  // --------------------------------------------------------------- 선 그래프
+  function drawChart(st) {
+    var svg = document.getElementById('chartSvg');
+    var series = st.series || {};
+    if (!series.ready || !series.time || !series.time.length) {
+      svg.innerHTML = '<text x="450" y="110" text-anchor="middle" font-size="14" fill="#94a3b8">' +
+        esc(series.note || '시계열을 계산하는 중입니다') + '</text>';
+      document.getElementById('chartNote').textContent = series.ready ? '' : '계산 중';
+      return;
+    }
+    var times = series.time, obs = series.obs_ground, pred = series.pred_h3;
+    var values = [];
+    for (var i = 0; i < obs.length; i++) {
+      if (obs[i] !== null && obs[i] !== undefined) values.push(obs[i]);
+      if (pred[i] !== null && pred[i] !== undefined) values.push(pred[i]);
+    }
+    values.push(0);
+    var lo = Math.min.apply(null, values) - 1.5;
+    var hi = Math.max.apply(null, values) + 1.5;
+    var W = 900, H = 220, padL = 44, padR = 16, padT = 16, padB = 28;
+    function xOf(i) { return padL + (W - padL - padR) * (times.length <= 1 ? 0.5 : i / (times.length - 1)); }
+    function yOf(v) { return padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo)); }
+    var out = [];
+    // 격자 + y축
+    for (var g = 0; g <= 4; g++) {
+      var v = lo + (hi - lo) * g / 4;
+      var y = yOf(v);
+      out.push('<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y +
+               '" stroke="#eef2f7" stroke-width="1"/>');
+      out.push('<text x="' + (padL - 6) + '" y="' + (y + 4) + '" font-size="11" fill="#64748b" text-anchor="end">' +
+               v.toFixed(1) + '</text>');
+    }
+    // 0도 기준선
+    if (lo <= 0 && hi >= 0) {
+      out.push('<line x1="' + padL + '" y1="' + yOf(0) + '" x2="' + (W - padR) + '" y2="' + yOf(0) +
+               '" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 5"/>');
+    }
+    function path(valuesArr, color) {
+      var d = '', started = false;
+      for (var i = 0; i < valuesArr.length; i++) {
+        var v = valuesArr[i];
+        if (v === null || v === undefined) { started = false; continue; }
+        d += (started ? ' L' : ' M') + xOf(i).toFixed(1) + ' ' + yOf(v).toFixed(1);
+        started = true;
+      }
+      return d ? '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>' : '';
+    }
+    out.push(path(pred, '#2563eb'));
+    out.push(path(obs, '#0f172a'));
+    // 현재 시각 표시
+    var idx = (st.replay || {}).index;
+    if (typeof idx === 'number' && idx >= 0 && idx < times.length) {
+      out.push('<line x1="' + xOf(idx) + '" y1="' + padT + '" x2="' + xOf(idx) + '" y2="' + (H - padB) +
+               '" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 4"/>');
+      out.push('<circle cx="' + xOf(idx) + '" cy="' + padT + '" r="4" fill="#dc2626"/>');
+      out.push('<text x="' + (xOf(idx) + 6) + '" y="' + (padT + 12) + '" font-size="11" fill="#b91c1c">현재</text>');
+    }
+    // x축 라벨(3개)
+    [0, Math.floor(times.length / 2), times.length - 1].forEach(function (i) {
+      if (times[i] === undefined) return;
+      var label = String(times[i]).slice(11, 16);
+      out.push('<text x="' + xOf(i) + '" y="' + (H - 8) + '" font-size="11" fill="#64748b" text-anchor="middle">' +
+               esc(label) + '</text>');
+    });
+    svg.innerHTML = out.join('');
+    document.getElementById('chartNote').textContent = esc(series.note || '');
+  }
+
+  // ----------------------------------------------------------------- 렌더
+  function renderLinks(st) {
+    var l = st.links || {};
+    var pico = l.pico || {}, llm = l.llm || {};
+    var parts = [];
+    parts.push('<span class="link-badge ' + (pico.ok ? 'ok' : 'off') + '">Pico ' +
+      (pico.mode === 'none' ? '없음' : (pico.ok ? '연결' : '끊김')) + '</span>');
+    parts.push('<span class="link-badge ' + (llm.enabled ? 'ok' : '') + '">LLM ' +
+      (llm.enabled ? '켜짐' : '규칙만') + '</span>');
+    var eng = st.engine || {};
+    parts.push('<span class="link-badge ' + (eng.ok ? 'ok' : 'off') + '">엔진 ' +
+      (eng.ok ? '정상' : (eng.present ? '오류' : '없음')) + '</span>');
+    document.getElementById('links').innerHTML = parts.join('');
+  }
+
+  function renderReplay(st) {
+    var rep = st.replay || {};
+    var sel = document.getElementById('nightSel');
+    var options = (rep.nights || []).map(function (n) {
+      return '<option value="' + esc(n) + '"' + (n === rep.night ? ' selected' : '') + '>' + esc(n) + '</option>';
+    }).join('');
+    if (!options && rep.night) {
+      options = '<option value="' + esc(rep.night) + '" selected>' + esc(rep.night) + '</option>';
+    }
+    if (options !== lastNightOptions) {
+      sel.innerHTML = options || '<option value="">밤 없음</option>';
+      lastNightOptions = options;
+    }
+    document.getElementById('replayTime').textContent = rep.ts ? String(rep.ts).replace('T', ' ') : '—';
+    document.getElementById('replayIndex').textContent = rep.total ?
+      ((rep.index + 1) + ' / ' + rep.total + ' 시간') : '시각 없음';
+    var btn = document.getElementById('btnAuto');
+    btn.textContent = rep.auto ? '자동 정지' : '자동 재생';
+    btn.className = rep.auto ? 'warning' : '';
+    var sp = document.getElementById('secPerHour');
+    if (document.activeElement !== sp) sp.value = rep.sec_per_hour || 6;
+    if (!rep.total) {
+      document.getElementById('replayHint').textContent = (st.engine || {}).error ||
+        '재생할 시각이 없습니다. engine/train.py 로 모델을 만드세요.';
+    }
+  }
+
+  function renderForecast(st) {
+    var step = st.step;
+    var model = (step || {}).model || {};
+    document.getElementById('fTime').textContent = step ? String(step.time || '').replace('T', ' ') : '—';
+    var obs = (step || {}).obs || {};
+    document.getElementById('fObs').textContent = obs.ground_temp === undefined ? '—' : (fmt1(obs.ground_temp) + ' ℃');
+    document.getElementById('fAir').textContent =
+      (obs.temp === undefined ? '—' : (fmt1(obs.temp) + ' ℃')) + ' · ' +
+      (obs.humidity === undefined ? '—' : (Math.round(obs.humidity) + '%')) + ' · ' +
+      (obs.wind === undefined ? '—' : (fmt1(obs.wind) + ' m/s'));
+    var fc = (step || {}).forecast || {};
+    document.getElementById('fH0').textContent = fc.h0 === undefined ? '—' : (fmt1(fc.h0) + ' ℃');
+    document.getElementById('fH136').textContent =
+      fmt1(fc.h1) + ' · ' + fmt1(fc.h3) + ' · ' + fmt1(fc.h6) + ' ℃';
+    var rmse = (model.rmse || {}), pers = (model.persistence_rmse || {}), brier = (model.brier || {});
+    document.getElementById('fRmse').textContent = rmse.h3 === undefined ? '—' : (fmt2(rmse.h3) + ' ℃');
+    document.getElementById('fPers').textContent = pers.h3 === undefined ? '—' : (fmt2(pers.h3) + ' ℃');
+    document.getElementById('fBrier').textContent = brier.h3 === undefined ? '—' : fmt2(brier.h3);
+    document.getElementById('modelNote').textContent = model.name ? model.name : '';
+    if (!step) {
+      document.getElementById('modelNote').textContent = (st.engine || {}).error || '엔진 자료 없음';
+    }
+  }
+
+  function renderSensors(st) {
+    var p = st.pico || {}, s = st.sensor || {}, tel = p.tel || {};
+    document.getElementById('sPico').textContent =
+      (p.mode === 'none' ? '연결 없음(모의 실행)' : (p.port || p.mode)) + ' · ' + (p.ok ? '정상' : '신호 없음') +
+      (p.age === null || p.age === undefined ? '' : (' (' + ageText(p.age) + ')'));
+    document.getElementById('sBridge').textContent = tel.t_bridge === null || tel.t_bridge === undefined ? '—' : (fmt1(tel.t_bridge) + ' ℃');
+    document.getElementById('sAir').textContent = tel.t_air === null || tel.t_air === undefined ? '—' : (fmt1(tel.t_air) + ' ℃');
+    document.getElementById('sWet').textContent = tel.wet === null || tel.wet === undefined ? '—' :
+      ((tel.wet ? '젖음' : '마름') + (tel.wet_raw === null || tel.wet_raw === undefined ? '' : ' (' + tel.wet_raw + ')'));
+    var warn = tel.warn;
+    document.getElementById('sWarn').innerHTML = warn === null || warn === undefined ? '—' :
+      '<span class="pill ' + (warn ? 'bad' : 'ok') + '">' + (warn ? '켜짐' : '꺼짐') + '</span>';
+    var src = s.source || 'none';
+    document.getElementById('sensorSource').textContent =
+      src === 'pico' ? 'Pico 값 사용' : (src === 'manual' ? '수동 값 사용' : '보정 안 함');
+    document.getElementById('sOffset').textContent =
+      s.use_sensor ? (s.t_bridge === null || s.t_bridge === undefined ? '사용 중(값 없음)' :
+        ('사용 중 · t_bridge ' + fmt1(s.t_bridge) + ' ℃')) : '사용 안 함';
+    var box = document.getElementById('useSensor');
+    if (document.activeElement !== box) box.checked = !!s.use_sensor;
+    var man = document.getElementById('manualBridge');
+    if (document.activeElement !== man) {
+      man.value = (s.manual_t_bridge === null || s.manual_t_bridge === undefined) ? '' : s.manual_t_bridge;
+    }
+  }
+
+  function renderPlan(st) {
+    var prop = st.proposal || {};
+    var appr = st.approved;
+    var exec = st.execution || {};
+    var order = prop.order || [];
+    document.getElementById('proposalCells').innerHTML = order.length ? order.map(function (a, i) {
+      return '<span class="chip plan">' + (i + 1) + '. ' + esc(a) + ' ' + esc(ROADS[a] || '') + '</span>';
+    }).join('') : '<span class="muted small">선정된 갈래가 없습니다</span>';
+    document.getElementById('proposalMeta').textContent =
+      '예산 ' + (prop.budget === undefined ? st.budget : prop.budget) + '갈래 · 기준 p_max ' +
+      (prop.threshold === undefined ? '—' : prop.threshold) +
+      ' · 제안 ' + (prop.recommend ? '있음' : '없음');
+    if (appr) {
+      document.getElementById('approvedCells').innerHTML = (appr.order || []).map(function (a) {
+        return '<span class="chip done">' + esc(a) + ' ' + esc(ROADS[a] || '') + '</span>';
+      }).join('') + ' <span class="chip">' + esc(appr.plan_id) + '</span>';
+      document.getElementById('approvedMeta').textContent = '승인 시각 ' + (appr.time || '—');
+    } else {
+      document.getElementById('approvedCells').innerHTML = '<span class="muted small">아직 승인된 계획이 없습니다</span>';
+      document.getElementById('approvedMeta').textContent = '승인하면 Pico LED 가 파랑(plan)으로 바뀝니다.';
+    }
+    var budgetBox = document.getElementById('budgetInput');
+    if (document.activeElement !== budgetBox) budgetBox.value = st.budget;
+    document.getElementById('budgetNote').textContent = '예산 ' + st.budget + '갈래';
+    document.getElementById('btnDispatch').disabled = !appr || exec.state === 'running';
+
+    var hint;
+    if (!appr) hint = '① 제보 확인 → ② 계획 승인 → ③ 출동 승인 순서입니다.';
+    else if (exec.state === 'running') hint = '실행 중입니다: ' + (exec.current || '—');
+    else if (!(st.pico || {}).ok) hint = '승인된 계획 ' + appr.plan_id + ' · Pico 신호가 없어 출동하면 모의 실행으로 표시됩니다.';
+    else hint = '승인된 계획 ' + appr.plan_id + ' · Pico 연결됨. 출동 승인을 누르면 순서대로 살포합니다.';
+    document.getElementById('dispatchHint').textContent = hint;
+
+    var arms = ((st.step || {}).arms) || {};
+    document.getElementById('scoreBoard').textContent = '상대 우선순위: ' + ARMS.map(function (a) {
+      var row = arms[a] || {};
+      return a + ' ' + fmt2(row.priority);
+    }).join(' · ');
+  }
+
+  function renderExec(st) {
+    var e = st.execution || {};
+    var badge = document.getElementById('execState');
+    badge.textContent = EXEC_KR[e.state] || e.state || '대기';
+    badge.className = 'state-badge ' + (e.state || '');
+    document.getElementById('execMsg').textContent = e.message || '—';
+    document.getElementById('execMode').textContent = e.mode === 'pico' ? 'Pico 실행' :
+      (e.mode === 'mock' ? '모의 실행' : '—');
+    document.getElementById('execPlan').textContent = e.plan_id || '—';
+    document.getElementById('execOrder').textContent = (e.order || []).join(' → ') || '—';
+    document.getElementById('execCurrent').textContent = e.current || '—';
+    document.getElementById('execDone').textContent = (e.done || []).join(', ') || '없음';
+    var total = (e.order || []).length || 0;
+    var done = (e.done || []).length || 0;
+    document.getElementById('execBar').style.width =
+      (total ? Math.round(100 * done / total) : 0) + '%';
+  }
+
+  function renderEvents(st) {
+    var list = (st.events || []).slice().reverse();
+    document.getElementById('eventList').innerHTML = list.map(function (e) {
+      return '<li><time>' + esc(e.time || '') + '</time><span class="kind">' + esc(e.kind || '') +
+             '</span><span>' + esc(e.text || '') + '</span></li>';
+    }).join('') || '<li class="muted">아직 이벤트가 없습니다.</li>';
+  }
+
+  // ------------------------------------------------------------ 제보 편집기
+  function resultBox(title, result, meta, cls) {
+    if (!result) return '<div class="box ' + cls + '"><h3>' + esc(title) + '</h3>' +
+      '<span class="muted small">없음</span></div>';
+    var arms = (result.arms || []).map(function (a) {
+      return '<span class="chip">' + esc(a) + ' ' + esc(ROADS[a] || '') + '</span>';
+    }).join('') || '<span class="muted small">갈래 없음</span>';
+    var amb = result.ambiguous ? '<div class="question">되물어야 합니다: ' +
+      esc(result.question || '어느 갈래인가요?') + '</div>' : '';
+    return '<div class="box ' + cls + '">' +
+      '<h3>' + esc(title) + '</h3>' +
+      '<div>' + arms + '</div>' +
+      '<div class="hint">' + esc(result.summary || '') +
+      ' · 조건 ' + esc(result.condition || '—') +
+      ' · 예산 ' + (result.budget === null || result.budget === undefined ? '없음' : (result.budget + '회분')) +
+      '</div>' + amb +
+      (meta ? '<div class="hint" style="margin-top:4px">' + esc(meta) + '</div>' : '') +
+      '</div>';
+  }
+
+  function renderPending(st) {
+    var pending = st.pending_report;
+    var host = document.getElementById('reportResult');
+    document.getElementById('llmNote').textContent = st.pending_report ? '' :
+      ((st.links || {}).llm || {}).enabled ? 'LLM + 규칙' : '규칙 파서만';
+    if (!pending) {
+      if (lastPendingKey !== null) {
+        host.innerHTML = '<div class="muted small">해석된 제보가 없습니다. 확인하지 않은 제보는 계획에 반영되지 않습니다.</div>';
+        lastPendingKey = null;
+        editor = null;
+      }
+      return;
+    }
+    var key = (pending.time || '') + '|' + (pending.text || '');
+    if (key === lastPendingKey && host.querySelector('#armPick')) return;
+    lastPendingKey = key;
+    var base = (pending.result && pending.result.arms && pending.result.arms.length) ?
+      pending.result : (pending.rule || {});
+    editor = {
+      arms: {},
+      budget: (base.budget === null || base.budget === undefined) ? '' : String(base.budget)
+    };
+    (base.arms || []).forEach(function (a) { editor.arms[a] = true; });
+
+    var llmBox = resultBox('LLM 해석', pending.engine === 'llm' ? pending.result : null,
+      pending.engine === 'llm' ? ('지연 ' + pending.latency_ms + ' ms') : ('실패: ' + (pending.error || 'LLM 꺼짐')),
+      pending.engine === 'llm' ? '' : 'bad');
+    var ruleBox = resultBox('규칙 해석(기준선)', pending.rule,
+      pending.engine === 'rule' ? 'LLM 대신 이 결과를 씁니다' : '비교용', '');
+
+    var pick = ARMS.map(function (a) {
+      var on = editor.arms[a] ? ' checked' : '';
+      return '<label><input type="checkbox" data-arm="' + a + '"' + on + '>' +
+             esc(a) + ' <span class="muted small">' + esc(ROADS[a] || '') + '</span></label>';
+    }).join('');
+
+    host.innerHTML =
+      '<div class="two">' + llmBox + ruleBox + '</div>' +
+      (pending.result && pending.result.ambiguous ?
+        '<div class="question">모호한 제보입니다. 사람이 확인하기 전에는 반영되지 않습니다: ' +
+        esc(pending.result.question || '어느 갈래인가요?') + '</div>' : '') +
+      '<div class="hint" style="margin-top:8px">확인할 갈래와 예산을 고친 뒤 확인을 누르세요. 제보: ' +
+      esc(pending.text || '') + '</div>' +
+      '<div class="cellpick" id="armPick">' + pick + '</div>' +
+      '<div class="row" style="margin-top:8px">' +
+        '<span class="small muted">예산</span>' +
+        '<input class="num" id="pendingBudget" type="number" min="0" max="4" step="1" value="' +
+          esc(editor.budget === '' ? st.budget : editor.budget) + '">' +
+        '<button class="primary" id="btnConfirm">확인</button>' +
+        '<button id="btnReject">버리기</button>' +
+      '</div>';
+
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-arm]'), function (box) {
+      box.addEventListener('change', function () {
+        if (box.checked) editor.arms[box.dataset.arm] = true;
+        else delete editor.arms[box.dataset.arm];
+      });
+    });
+    var budgetInput = host.querySelector('#pendingBudget');
+    if (budgetInput) budgetInput.addEventListener('change', function () { editor.budget = budgetInput.value; });
+    host.querySelector('#btnConfirm').addEventListener('click', function () {
+      var arms = Object.keys(editor.arms);
+      var b = budgetInput ? budgetInput.value : '';
+      act('/api/report/confirm', {arms: arms, budget: b === '' ? null : parseInt(b, 10)});
+    });
+    host.querySelector('#btnReject').addEventListener('click', function () {
+      act('/api/report/reject', {});
+    });
+  }
+
+  function render(st) {
+    drawCross(st);
+    drawChart(st);
+    renderLinks(st);
+    renderReplay(st);
+    renderForecast(st);
+    renderSensors(st);
+    renderPlan(st);
+    renderExec(st);
+    renderEvents(st);
+    renderPending(st);
+  }
+
+  function refresh() {
+    return fetch('/api/state', {cache: 'no-store'}).then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () {
+        document.getElementById('links').innerHTML = '<span class="link-badge off">서버 응답 없음</span>';
+      });
+  }
+
+  // ------------------------------------------------------------------ 이벤트
+  document.getElementById('btnPrev').addEventListener('click', function () { act('/api/replay/step', {hours: -1}); });
+  document.getElementById('btnNext').addEventListener('click', function () { act('/api/replay/step', {hours: 1}); });
+  document.getElementById('btnAuto').addEventListener('click', function () {
+    var rep = window.__lastState ? window.__lastState.replay : {};
+    var sp = parseFloat(document.getElementById('secPerHour').value, 10);
+    act('/api/replay/auto', {on: !(rep || {}).auto, sec_per_hour: isNaN(sp) ? 6 : sp});
+  });
+  document.getElementById('nightSel').addEventListener('change', function () {
+    act('/api/replay', {night: this.value});
+  });
+  document.getElementById('btnReport').addEventListener('click', function () {
+    var t = document.getElementById('reportText').value.trim();
+    if (!t) { toast('제보 문장을 입력하세요'); return; }
+    var btn = this;
+    btn.disabled = true;
+    document.getElementById('reportHint').textContent = '해석 중… (LLM은 최대 20초)';
+    api('/api/report', {text: t}).then(function () {
+      document.getElementById('reportHint').textContent = '해석 결과를 사람이 확인해야 계획에 반영됩니다.';
+      return refresh();
+    }).catch(function (e) { toast(e.message); })
+      .then(function () {
+        btn.disabled = false;
+        document.getElementById('reportText').value = '';
+      });
+  });
+  document.getElementById('btnBudget').addEventListener('click', function () {
+    var v = parseInt(document.getElementById('budgetInput').value, 10);
+    if (isNaN(v)) { toast('예산은 0~4 정수입니다'); return; }
+    act('/api/budget', {budget: v});
+  });
+  document.getElementById('btnSensor').addEventListener('click', function () {
+    var raw = document.getElementById('manualBridge').value.trim();
+    var body = {use_sensor: document.getElementById('useSensor').checked};
+    body.t_bridge = raw === '' ? null : parseFloat(raw);
+    act('/api/sensor', body);
+  });
+  document.getElementById('useSensor').addEventListener('change', function () {
+    act('/api/sensor', {use_sensor: this.checked});
+  });
+  document.getElementById('btnApprove').addEventListener('click', function () { act('/api/plan/approve', {}); });
+  document.getElementById('btnDispatch').addEventListener('click', function () { act('/api/dispatch', {}); });
+  document.getElementById('btnEstop').addEventListener('click', function () { act('/api/estop', {}); });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    if (confirm('시연 초기화: 제보·승인·실행·센서 보정을 모두 지웁니다. 계속할까요?')) act('/api/reset', {});
+  });
+
+  var _render = render;
+  render = function (st) { window.__lastState = st; _render(st); };
+
+  refresh();
+  setInterval(refresh, 500);
+})();
+</script>
+</body>
+</html>

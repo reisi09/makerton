@@ -1,0 +1,845 @@
+{
+ "generated_at": "2026-10-31T10:28:44",
+ "model": "deepseek/deepseek-v4.1-flash",
+ "reports_path": "tests/reports_cross_holdout.json",
+ "rule": {
+  "count": 12,
+  "arms_correct": 8,
+  "arms_accuracy": 0.667,
+  "ambiguous_correct": 9,
+  "ambiguous_accuracy": 0.75,
+  "exact_correct": 6,
+  "exact_accuracy": 0.5,
+  "budget_count": 3,
+  "budget_accuracy": 0.333
+ },
+ "llm": {
+  "count": 12,
+  "arms_correct": 12,
+  "arms_accuracy": 1.0,
+  "ambiguous_correct": 12,
+  "ambiguous_accuracy": 1.0,
+  "exact_correct": 12,
+  "exact_accuracy": 1.0,
+  "budget_count": 3,
+  "budget_accuracy": 1.0
+ },
+ "llm_note": null,
+ "llm_ids": null,
+ "differences": [
+  {
+   "text": "건물 그림자 진 쪽 차로가 아직 젖어 있어요",
+   "rule": {
+    "arms": [],
+    "exact": false
+   },
+   "llm": {
+    "arms": [
+     "W"
+    ],
+    "exact": true,
+    "engine": "llm"
+   }
+  },
+  {
+   "text": "역삼로 쪽 횡단보도 앞에 눈이 쌓였어요",
+   "rule": {
+    "arms": [],
+    "exact": false
+   },
+   "llm": {
+    "arms": [
+     "S"
+    ],
+    "exact": true,
+    "engine": "llm"
+   }
+  },
+  {
+   "text": "다리랑 남쪽 길 둘 다 미끄러워요, 제설제는 한 번 분량만 남았어요",
+   "rule": {
+    "arms": [
+     "E",
+     "S"
+    ],
+    "exact": false
+   },
+   "llm": {
+    "arms": [
+     "E",
+     "S"
+    ],
+    "exact": true,
+    "engine": "llm"
+   }
+  },
+  {
+   "text": "교차로 네 방향 다 하얗게 변했어요",
+   "rule": {
+    "arms": [],
+    "exact": false
+   },
+   "llm": {
+    "arms": [
+     "N",
+     "E",
+     "S",
+     "W"
+    ],
+    "exact": true,
+    "engine": "llm"
+   }
+  },
+  {
+   "text": "북쪽 길은 괜찮은데 동쪽 다리는 미끄럽대요",
+   "rule": {
+    "arms": [
+     "N",
+     "E"
+    ],
+    "exact": false
+   },
+   "llm": {
+    "arms": [
+     "E"
+    ],
+    "exact": true,
+    "engine": "llm"
+   }
+  },
+  {
+   "text": "남은 제설제 없음. 그늘진 테헤란로에 살얼음",
+   "rule": {
+    "arms": [
+     "W"
+    ],
+    "exact": false
+   },
+   "llm": {
+    "arms": [
+     "W"
+    ],
+    "exact": true,
+    "engine": "llm"
+   }
+  }
+ ],
+ "items": {
+  "rule": [
+   {
+    "text": "다리 쪽 노면이 반짝반짝해요 블랙아이스 같아요",
+    "gold": {
+     "text": "다리 쪽 노면이 반짝반짝해요 블랙아이스 같아요",
+     "gold_arms": [
+      "E"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "ice_suspected"
+    },
+    "result": {
+     "arms": [
+      "E"
+     ],
+     "condition": "other",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 E / 기타"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    }
+   },
+   {
+    "text": "올팍로 다리 진입부에서 차가 살짝 미끄러졌대요",
+    "gold": {
+     "text": "올팍로 다리 진입부에서 차가 살짝 미끄러졌대요",
+     "gold_arms": [
+      "E"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "'올림픽로' 오타"
+    },
+    "result": {
+     "arms": [
+      "E"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 E / 미끄럼"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    }
+   },
+   {
+    "text": "건물 그림자 진 쪽 차로가 아직 젖어 있어요",
+    "gold": {
+     "text": "건물 그림자 진 쪽 차로가 아직 젖어 있어요",
+     "gold_arms": [
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "그림자 = 그늘 갈래(W)"
+    },
+    "result": {
+     "arms": [],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": true,
+     "question": "어느 갈래인가요? 테헤란로115길(북)/올림픽로(동, 교량)/역삼로107길(남)/테헤란로(서, 그늘) 중에서 알려주세요.",
+     "summary": "갈래 확인이 필요합니다"
+    },
+    "score": {
+     "arms_ok": false,
+     "ambiguous_ok": false,
+     "budget_ok": null,
+     "exact": false
+    }
+   },
+   {
+    "text": "115길 위쪽 오르막이 미끄럽다는 신고가 왔어요",
+    "gold": {
+     "text": "115길 위쪽 오르막이 미끄럽다는 신고가 왔어요",
+     "gold_arms": [
+      "N"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery"
+    },
+    "result": {
+     "arms": [
+      "N"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 N / 미끄럼"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    }
+   },
+   {
+    "text": "역삼로 쪽 횡단보도 앞에 눈이 쌓였어요",
+    "gold": {
+     "text": "역삼로 쪽 횡단보도 앞에 눈이 쌓였어요",
+     "gold_arms": [
+      "S"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "snow",
+     "note": "역삼로는 S(역삼로107길)뿐"
+    },
+    "result": {
+     "arms": [],
+     "condition": "snow",
+     "budget": null,
+     "ambiguous": true,
+     "question": "어느 갈래인가요? 테헤란로115길(북)/올림픽로(동, 교량)/역삼로107길(남)/테헤란로(서, 그늘) 중에서 알려주세요.",
+     "summary": "갈래 확인이 필요합니다"
+    },
+    "score": {
+     "arms_ok": false,
+     "ambiguous_ok": false,
+     "budget_ok": null,
+     "exact": false
+    }
+   },
+   {
+    "text": "테헤란로 쪽이 얼어붙은 것 같아요",
+    "gold": {
+     "text": "테헤란로 쪽이 얼어붙은 것 같아요",
+     "gold_arms": [],
+     "gold_ambiguous": true,
+     "gold_budget": null,
+     "gold_condition": "ice_suspected",
+     "note": "W(테헤란로)와 N(테헤란로115길) 사이에서 모호"
+    },
+    "result": {
+     "arms": [],
+     "condition": "ice_suspected",
+     "budget": null,
+     "ambiguous": true,
+     "question": "테헤란로인가요, 테헤란로115길인가요? (테헤란로는 서쪽 그늘 갈래, 테헤란로115길은 북쪽 갈래입니다)",
+     "summary": "갈래 확인이 필요합니다"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    }
+   },
+   {
+    "text": "다리랑 남쪽 길 둘 다 미끄러워요, 제설제는 한 번 분량만 남았어요",
+    "gold": {
+     "text": "다리랑 남쪽 길 둘 다 미끄러워요, 제설제는 한 번 분량만 남았어요",
+     "gold_arms": [
+      "E",
+      "S"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": 1,
+     "gold_condition": "slippery"
+    },
+    "result": {
+     "arms": [
+      "E",
+      "S"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 E, S / 미끄럼"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": false,
+     "exact": false
+    }
+   },
+   {
+    "text": "제설제 3회분 있어요. 서쪽 큰길이 얼었어요",
+    "gold": {
+     "text": "제설제 3회분 있어요. 서쪽 큰길이 얼었어요",
+     "gold_arms": [
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": 3,
+     "gold_condition": "ice_suspected"
+    },
+    "result": {
+     "arms": [
+      "W"
+     ],
+     "condition": "ice_suspected",
+     "budget": 3,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 W / 얼음 의심"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": true,
+     "exact": true
+    }
+   },
+   {
+    "text": "교차로 네 방향 다 하얗게 변했어요",
+    "gold": {
+     "text": "교차로 네 방향 다 하얗게 변했어요",
+     "gold_arms": [
+      "N",
+      "E",
+      "S",
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "snow"
+    },
+    "result": {
+     "arms": [],
+     "condition": "other",
+     "budget": null,
+     "ambiguous": true,
+     "question": "어느 갈래인가요? 테헤란로115길(북)/올림픽로(동, 교량)/역삼로107길(남)/테헤란로(서, 그늘) 중에서 알려주세요.",
+     "summary": "갈래 확인이 필요합니다"
+    },
+    "score": {
+     "arms_ok": false,
+     "ambiguous_ok": false,
+     "budget_ok": null,
+     "exact": false
+    }
+   },
+   {
+    "text": "미끄러워요",
+    "gold": {
+     "text": "미끄러워요",
+     "gold_arms": [],
+     "gold_ambiguous": true,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "장소 없음 → 되묻기"
+    },
+    "result": {
+     "arms": [],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": true,
+     "question": "어느 갈래인가요? 테헤란로115길(북)/올림픽로(동, 교량)/역삼로107길(남)/테헤란로(서, 그늘) 중에서 알려주세요.",
+     "summary": "갈래 확인이 필요합니다"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    }
+   },
+   {
+    "text": "북쪽 길은 괜찮은데 동쪽 다리는 미끄럽대요",
+    "gold": {
+     "text": "북쪽 길은 괜찮은데 동쪽 다리는 미끄럽대요",
+     "gold_arms": [
+      "E"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "부정(괜찮은데) 처리"
+    },
+    "result": {
+     "arms": [
+      "N",
+      "E"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 N, E / 미끄럼"
+    },
+    "score": {
+     "arms_ok": false,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": false
+    }
+   },
+   {
+    "text": "남은 제설제 없음. 그늘진 테헤란로에 살얼음",
+    "gold": {
+     "text": "남은 제설제 없음. 그늘진 테헤란로에 살얼음",
+     "gold_arms": [
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": 0,
+     "gold_condition": "ice_suspected"
+    },
+    "result": {
+     "arms": [
+      "W"
+     ],
+     "condition": "ice_suspected",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "후보 갈래 W / 얼음 의심"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": false,
+     "exact": false
+    }
+   }
+  ],
+  "llm": [
+   {
+    "text": "다리 쪽 노면이 반짝반짝해요 블랙아이스 같아요",
+    "gold": {
+     "text": "다리 쪽 노면이 반짝반짝해요 블랙아이스 같아요",
+     "gold_arms": [
+      "E"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "ice_suspected"
+    },
+    "result": {
+     "arms": [
+      "E"
+     ],
+     "condition": "ice_suspected",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "동쪽 다리 갈래 노면이 반짝이며 블랙아이스 의심 제보"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 3232.6
+   },
+   {
+    "text": "올팍로 다리 진입부에서 차가 살짝 미끄러졌대요",
+    "gold": {
+     "text": "올팍로 다리 진입부에서 차가 살짝 미끄러졌대요",
+     "gold_arms": [
+      "E"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "'올림픽로' 오타"
+    },
+    "result": {
+     "arms": [
+      "E"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "다리 진입부에서 차가 살짝 미끄러졌다는 제보"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 3146.0
+   },
+   {
+    "text": "건물 그림자 진 쪽 차로가 아직 젖어 있어요",
+    "gold": {
+     "text": "건물 그림자 진 쪽 차로가 아직 젖어 있어요",
+     "gold_arms": [
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "그림자 = 그늘 갈래(W)"
+    },
+    "result": {
+     "arms": [
+      "W"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "건물 그림자 진 서쪽(W) 차로가 젖어 있음"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2429.2
+   },
+   {
+    "text": "115길 위쪽 오르막이 미끄럽다는 신고가 왔어요",
+    "gold": {
+     "text": "115길 위쪽 오르막이 미끄럽다는 신고가 왔어요",
+     "gold_arms": [
+      "N"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery"
+    },
+    "result": {
+     "arms": [
+      "N"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "115길(N) 위쪽 오르막이 미끄럽다는 제보"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2097.8
+   },
+   {
+    "text": "역삼로 쪽 횡단보도 앞에 눈이 쌓였어요",
+    "gold": {
+     "text": "역삼로 쪽 횡단보도 앞에 눈이 쌓였어요",
+     "gold_arms": [
+      "S"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "snow",
+     "note": "역삼로는 S(역삼로107길)뿐"
+    },
+    "result": {
+     "arms": [
+      "S"
+     ],
+     "condition": "snow",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "역삼로 쪽 횡단보도 앞에 눈이 쌓임"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2943.7
+   },
+   {
+    "text": "테헤란로 쪽이 얼어붙은 것 같아요",
+    "gold": {
+     "text": "테헤란로 쪽이 얼어붙은 것 같아요",
+     "gold_arms": [],
+     "gold_ambiguous": true,
+     "gold_budget": null,
+     "gold_condition": "ice_suspected",
+     "note": "W(테헤란로)와 N(테헤란로115길) 사이에서 모호"
+    },
+    "result": {
+     "arms": [],
+     "condition": "ice_suspected",
+     "budget": null,
+     "ambiguous": true,
+     "question": "어느 갈래인가요? 테헤란로(W)와 테헤란로115길(N) 중 어느 쪽인가요?",
+     "summary": "테헤란로 쪽 결빙 의심 제보이나 W/N 갈래가 모호함"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2570.5
+   },
+   {
+    "text": "다리랑 남쪽 길 둘 다 미끄러워요, 제설제는 한 번 분량만 남았어요",
+    "gold": {
+     "text": "다리랑 남쪽 길 둘 다 미끄러워요, 제설제는 한 번 분량만 남았어요",
+     "gold_arms": [
+      "E",
+      "S"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": 1,
+     "gold_condition": "slippery"
+    },
+    "result": {
+     "arms": [
+      "E",
+      "S"
+     ],
+     "condition": "slippery",
+     "budget": 1,
+     "ambiguous": false,
+     "question": "",
+     "summary": "다리(E)와 남쪽 길(S)이 미끄럽고 제설제는 1회분 남음"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": true,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2151.4
+   },
+   {
+    "text": "제설제 3회분 있어요. 서쪽 큰길이 얼었어요",
+    "gold": {
+     "text": "제설제 3회분 있어요. 서쪽 큰길이 얼었어요",
+     "gold_arms": [
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": 3,
+     "gold_condition": "ice_suspected"
+    },
+    "result": {
+     "arms": [
+      "W"
+     ],
+     "condition": "ice_suspected",
+     "budget": 3,
+     "ambiguous": false,
+     "question": "",
+     "summary": "서쪽(W) 갈래 얼음 의심 제보, 제설제 3회분"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": true,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 3037.9
+   },
+   {
+    "text": "교차로 네 방향 다 하얗게 변했어요",
+    "gold": {
+     "text": "교차로 네 방향 다 하얗게 변했어요",
+     "gold_arms": [
+      "N",
+      "E",
+      "S",
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "snow"
+    },
+    "result": {
+     "arms": [
+      "N",
+      "E",
+      "S",
+      "W"
+     ],
+     "condition": "snow",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "교차로 네 방향 모두 하얗게 변했다는 제보"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 1947.1
+   },
+   {
+    "text": "미끄러워요",
+    "gold": {
+     "text": "미끄러워요",
+     "gold_arms": [],
+     "gold_ambiguous": true,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "장소 없음 → 되묻기"
+    },
+    "result": {
+     "arms": [],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": true,
+     "question": "어느 갈래가 미끄러운가요? N·E·S·W 중에서 알려주세요.",
+     "summary": "미끄럽다는 제보가 있으나 갈래가 확인되지 않음"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2934.1
+   },
+   {
+    "text": "북쪽 길은 괜찮은데 동쪽 다리는 미끄럽대요",
+    "gold": {
+     "text": "북쪽 길은 괜찮은데 동쪽 다리는 미끄럽대요",
+     "gold_arms": [
+      "E"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": null,
+     "gold_condition": "slippery",
+     "note": "부정(괜찮은데) 처리"
+    },
+    "result": {
+     "arms": [
+      "E"
+     ],
+     "condition": "slippery",
+     "budget": null,
+     "ambiguous": false,
+     "question": "",
+     "summary": "동쪽 다리(E)가 미끄럽고 북쪽 길(N)은 괜찮다는 제보"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": null,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 2113.4
+   },
+   {
+    "text": "남은 제설제 없음. 그늘진 테헤란로에 살얼음",
+    "gold": {
+     "text": "남은 제설제 없음. 그늘진 테헤란로에 살얼음",
+     "gold_arms": [
+      "W"
+     ],
+     "gold_ambiguous": false,
+     "gold_budget": 0,
+     "gold_condition": "ice_suspected"
+    },
+    "result": {
+     "arms": [
+      "W"
+     ],
+     "condition": "ice_suspected",
+     "budget": 0,
+     "ambiguous": false,
+     "question": "",
+     "summary": "W(테헤란로) 그늘 구간 살얼음 의심, 남은 제설제 없음"
+    },
+    "score": {
+     "arms_ok": true,
+     "ambiguous_ok": true,
+     "budget_ok": true,
+     "exact": true
+    },
+    "engine": "llm",
+    "error": null,
+    "latency_ms": 3199.5
+   }
+  ]
+ }
+}

@@ -1,0 +1,92 @@
+{
+  "note": "현장 제보 12건과 사람이 정한 정답. eval_reports_cross.py 가 규칙 파서와 LLM 실호출을 같은 기준으로 채점한다. gold_ambiguous=true 인 건은 arms 가 비어 있는 것이 정답이다(되물어야 함).",
+  "arms": ["N", "E", "S", "W"],
+  "reports": [
+    {
+      "text": "올림픽로 교량 위가 미끄럽습니다",
+      "gold_arms": ["E"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "slippery"
+    },
+    {
+      "text": "테헤란로 그늘 쪽에 살얼음이 보여요",
+      "gold_arms": ["W"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "ice_suspected"
+    },
+    {
+      "text": "테헤란로115길 북쪽 끝이 얼었습니다",
+      "gold_arms": ["N"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "ice_suspected"
+    },
+    {
+      "text": "역삼로107길 남쪽에 사고가 났어요",
+      "gold_arms": ["S"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "accident"
+    },
+    {
+      "text": "동쪽 다리 위가 얼음이에요",
+      "gold_arms": ["E"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "ice_suspected"
+    },
+    {
+      "text": "서쪽 테헤란로가 젖어 있어요",
+      "gold_arms": ["W"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "slippery"
+    },
+    {
+      "text": "북쪽 115길이 하얗게 얼었습니다",
+      "gold_arms": ["N"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "ice_suspected"
+    },
+    {
+      "text": "남쪽 역삼로 쪽이 눈으로 덮였습니다",
+      "gold_arms": ["S"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "snow"
+    },
+    {
+      "text": "테헤란로가 미끄럽습니다",
+      "gold_arms": [],
+      "gold_ambiguous": true,
+      "gold_budget": null,
+      "gold_condition": "slippery",
+      "note": "테헤란로(W)와 테헤란로115길(N) 사이에서 모호하다. 되물어야 한다."
+    },
+    {
+      "text": "교량이랑 그늘 쪽 둘 다 미끄러워요",
+      "gold_arms": ["E", "W"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "slippery"
+    },
+    {
+      "text": "올림픽로 교량 미끄럼, 남은 제설제 2회분",
+      "gold_arms": ["E"],
+      "gold_ambiguous": false,
+      "gold_budget": 2,
+      "gold_condition": "slippery"
+    },
+    {
+      "text": "사거리 전체가 얼음 같아요",
+      "gold_arms": ["N", "E", "S", "W"],
+      "gold_ambiguous": false,
+      "gold_budget": null,
+      "gold_condition": "ice_suspected",
+      "note": "사거리 전체 = 네 갈래 모두. 이때는 되묻지 않는다."
+    }
+  ]
+}

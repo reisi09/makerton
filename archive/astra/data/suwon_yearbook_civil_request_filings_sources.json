@@ -1,0 +1,45 @@
+{
+  "publisher": "수원시",
+  "landing_url": "https://data.suwon.go.kr/portal/stats/report/",
+  "unit": "건",
+  "table_title": "10. 민원서류 처리 (Handling of Civil Request Filings)",
+  "source_department": "혁신민원과",
+  "aggregation_scope": "시 전체; 표의 당해 연도 세부기관: 본청, 장안구, 권선구, 팔달구, 영통구, 차량등록사업소, 보건소, 기타사업소. 서류 처리 건수이며 확인·증명/교부 등을 포함. 생활불편 신고 또는 콜센터 상담 건수와 다름.",
+  "sources": [
+    {
+      "book": "제65회 수원기본통계(2024년 기준)",
+      "worksheet": "16-10.민원서류 처리",
+      "years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ],
+      "range": "A9:J13",
+      "download_url": "https://data.suwon.go.kr/portal/api/v2/report/file/download/b1c94fad-119e-4235-bee8-4e82027d4746",
+      "local_file": "suwon_basic_statistics_2024_public_administration.xlsx",
+      "original_filename": "15. 공공행정 및 사법2.xlsx"
+    },
+    {
+      "book": "제64회 2024 수원기본통계(2023년 기준)",
+      "worksheet": "17-10.민원서류 처리",
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023
+      ],
+      "range": "A9:J13",
+      "download_url": "https://data.suwon.go.kr/portal/api/v2/report/file/download/83956832-d490-4ab6-8d83-2f435c628e06",
+      "local_file": "suwon_basic_statistics_2023_public_administration.xlsx",
+      "original_filename": "2024(64회) ⅩⅥ. 공공행정 및 사법_공표.xlsx"
+    }
+  ],
+  "retrieved": "2026-10-30",
+  "opening_evidence": "두 XLSX 모두 openpyxl.load_workbook(data_only=True,read_only=True)으로 실제 열고 각 민원서류 처리 시트의 제목, 단위, 헤더, 연도별 수치, 자료 부서를 읽음.",
+  "call_center_scope_url": "https://www.suwon.go.kr/sw-www/www01/www01-05/www01-05-01.jsp",
+  "call_center_note": "공식 명칭 휴먼콜센터. 안내 페이지에는 상담분야만 있고 연도별·분야별 상담 건수 표 없음. 지방세, 상하수도, 환경개선부담금, 주정차위반, 차량등록, 교통유발부담금, 민원안내, 교통, 문화관광, 사회복지, 시정일반.",
+  "2025_note": "조회한 기본통계 목록 최신 항목은 제65회(2024년 기준). 2025년 연간 민원서류 처리 원문 수치는 확보하지 못함."
+}

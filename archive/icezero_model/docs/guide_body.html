@@ -1,0 +1,484 @@
+{{DEFS}}
+
+<!-- 표지 -->
+<section class="page">
+  <h1>ICE-ZERO 사거리 모형 — 구현 가이드</h1>
+  <div class="sub">맥북에서 ICE-ZERO 예보 모델을 돌리고, Pico 2 W가 우드락 사거리에서 실행한다 · 설계도 · 배선 · 순서 · 시험 · 시연 &nbsp;|&nbsp; 2026 수원고교 피지컬 AI 메이커톤</div>
+  <div style="display:grid; grid-template-columns: 1.55fr 1fr; gap:5mm; align-items:start;">
+    <img src="{{COVER}}" alt="완성 모습" style="width:100%; border:1px solid #cbd5e1; border-radius:2mm;">
+    <div>
+      <div class="box g"><b>되어 있는 것</b>
+        <ul>
+          <li><b>엔진</b>: ICE-ZERO 예보 모델(XGBoost)을 실제 ASOS 겨울 자료로 학습했다. 2025년 시험 구간 성능은 1-2장에 있다.</li>
+          <li><b>서버</b>: 대시보드, 겨울밤 재생, 승인 흐름, LLM 제보 해석</li>
+          <li><b>Pico 펌웨어</b>: 갈래 LED, 서보 살포기 4개, 교량 센서</li>
+          <li><b>자동 시험</b>(부록 A)</li>
+        </ul>
+        코드 위치: <code>suwon-makeathon-2026/icezero_model/</code></div>
+      <div class="box r"><b>아직 안 된 것</b><br>
+        실물 배선, 서보·LED·센서 동작은 <b>검증하지 않았다</b>. 9장 시험 T1~T10을 순서대로 통과시킨다. 키트 안 부품 목록도 확인하지 않았다(3장 확인표).</div>
+      <div class="box"><b>읽는 순서</b>
+        <ol>
+          <li>1장에서 무엇을 계산하는지 본다.</li>
+          <li>2장 총괄 순서로 역할을 나눈다.</li>
+          <li>A는 4~5장(설계도·제작), B는 5~6장(배선), C는 7~8장(소프트웨어)을 맡는다.</li>
+          <li>9장 시험을 통과시킨다.</li>
+          <li>10장 리허설로 마무리한다.</li>
+        </ol></div>
+    </div>
+  </div>
+</section>
+
+<!-- 1 한눈에 -->
+<section class="page">
+  <h2>1. 한눈에 보기</h2>
+  <div class="cols">
+    <div>
+      <p><b>무엇을 만드나.</b> 우드락 900×900 위의 <b>십자 사거리</b> 하나다. 실제 강남구 교차로(ICE-ZERO 도로망 노드 1220041600)의 네 갈래를 그대로 옮겼다.</p>
+      <ul>
+        <li>교량인 올림픽로(E)</li>
+        <li>그늘이 지는 테헤란로(W)</li>
+        <li>일반 도로인 테헤란로115길(N)과 역삼로107길(S)</li>
+      </ul>
+      <p><b>맥북이 하는 일.</b> 실제 겨울밤 하나(2025년 시험 구간)를 시간 단위로 재생한다.</p>
+      <ol>
+        <li>ICE-ZERO 예보 모델로 +0·+1·+3·+6시간 지면온도를 예측한다.</li>
+        <li>예측값을 동결확률로 바꾼다.</li>
+        <li>갈래마다 유효 노면온도와 동결확률을 낸다. 교량은 −2.5°C 가정을 쓰거나, 현장 센서가 있으면 그 값으로 보정한다.</li>
+        <li>ICE-ZERO 상대 위험 순위(risk_v2)로 우선순위를 정한다.</li>
+        <li>예산 안에서 어느 갈래를 어떤 순서로 처리할지 고른다.</li>
+      </ol>
+      <p><b>Pico가 하는 일.</b> 맥북에 USB로 연결된다.</p>
+      <ul>
+        <li>갈래마다 LED 색으로 위험을 보여 준다.</li>
+        <li>사람이 승인하면 갈래별 <b>서보 살포기</b>를 순서대로 연다(실제 자동 염수분사시설을 축소한 모형).</li>
+        <li>교량 시험편의 온도·젖음을 맥북에 보낸다.</li>
+      </ul>
+      <h3>사람 승인 3단계</h3>
+      <ol class="steps">
+        <li><b>제보 해석 확인</b>: LLM(Command Code)이 자유 문장 현장 제보를 갈래·예산으로 정리하고, 모호하면 되묻는다. 확인해야 반영된다.</li>
+        <li><b>계획 승인</b>: 엔진이 낸 선정·순서를 사람이 승인하면 갈래 LED가 파랗게 깜박인다.</li>
+        <li><b>출동 승인</b>: 승인된 순서대로 살포기가 하나씩 열린다. 언제든 비상 정지할 수 있다.</li>
+      </ol>
+      <div class="box y"><b>원칙</b>
+        <ul>
+          <li>결빙을 확정하지 않는다. 화면에는 '예측 동결확률'과 '상대 우선순위'로 쓴다.</li>
+          <li>LLM은 기기를 조종하지 않는다.</li>
+          <li>교량 주의 LED는 Pico가 맥북 없이도 켠다.</li>
+        </ul></div>
+    </div>
+    <div>{{SVG_SYSTEM}}<div class="figcap">그림 1. 시스템 구성. 맥북이 계산하고 Pico가 실행한다. 사람이 가운데서 승인한다.</div>
+      <h3>갈래(실제 도로 속성 — ICE-ZERO 결과에서 추출)</h3>
+      {{ARMS_TABLE}}
+    </div>
+  </div>
+</section>
+
+<!-- 1-2 모델 -->
+<section class="page">
+  <h2>1-2. 맥북에서 도는 ICE-ZERO 모델</h2>
+  {{SVG_PIPELINE}}
+  <div class="cols">
+    <div>
+      <h3>예보 성능(2025년 시험 구간, 학습은 2020~2024)</h3>
+      {{METRICS_TABLE}}
+      <p class="small">
+        persistence는 '지금 지면온도가 그대로 간다'는 기준선이다. h0은 시차·현재 기상으로 현재 지면온도를 추정하는 값이다.<br>
+        원래 ICE-ZERO 피처 중 일사·일조는 이 자료에 없어 뺐다(경량 재현판). 그래서 원 발표 수치와 정확히 같지 않다.</p>
+    </div>
+    <div>
+      <h3>계산식</h3>
+      <ul>
+        <li><b>갈래 유효온도</b> = 예측 지면온도 − 2.5 × 교량(ICE-ZERO 공학 가정). 교량 센서가 있으면 (센서값 − 모델 h0 유효온도)를 모든 시점에 더한다.</li>
+        <li><b>동결확률</b> = 2024년 예측으로 맞춘 isotonic 보정곡선(예측 → 실제 지면온도 ≤ 0일 확률)을 갈래 유효온도에 적용한다(가정).</li>
+        <li><b>p_max</b> = +1·+3·+6h 동결확률의 최댓값
+          <ul>
+            <li>색: 0.3 미만 초록, 0.6 미만 노랑, 그 이상 빨강</li>
+            <li>후보: p_max ≥ 0.5이거나 확인된 제보가 있는 갈래</li>
+          </ul></li>
+        <li><b>우선순위</b> = ICE-ZERO risk_v2(강남구 2,189개 도로 상대 순위) + 0.5 × 확인된 제보
+          <ul>
+            <li>후보 중 예산(기본 2) 개를 우선순위 순서로 고른다.</li>
+            <li>처리 순서도 우선순위 순서다(교차로 하나라 경로 = 순서).</li>
+          </ul></li>
+      </ul>
+      <div class="box r small">이 수치는 관측소 지면온도 예보다. 갈래별 실제 노면 결빙을 검증한 값이 아니다. 교량 −2.5°C와 보정곡선 적용은 ICE-ZERO의 공학 가정이다.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 1-3 재생 결과 -->
+<section class="page">
+  <h2>1-3. 겨울밤 재생 결과(엔진 실제 출력)</h2>
+  <div class="night-grid">
+    <div>{{NIGHT_INTRO}}{{SVG_NIGHT}}</div>
+    <div>{{NIGHT_TABLE}}</div>
+  </div>
+</section>
+
+<!-- 2 순서 -->
+<section class="page">
+  <h2>2. 구현 순서 총괄 (3인 기준)</h2>
+  <p class="sub">A = 우드락 모형, B = Pico 배선·살포기, C = 맥북 엔진·서버. 확인점(✔)을 못 넘으면 오른쪽 대체안으로 간다.</p>
+  <table>
+    <thead><tr><th style="width:11%">단계</th><th style="width:22%"><span class="tag tA">A</span>우드락</th><th style="width:22%"><span class="tag tB">B</span>Pico·살포기</th><th style="width:22%"><span class="tag tC">C</span>맥북 엔진·서버</th><th>확인점과 대체안</th></tr></thead>
+    <tbody>
+      <tr><td><b>0단계</b><br>30분</td><td>우드락 3장·은박·테이프 확보</td><td>키트 4개 열기 → 3장 확인표(서보 4개, LED, DS18B20, 젖음센서)</td><td><code>python3 engine/train.py</code>로 모델 확인, 서버 <code>--no-llm --pico-serial none</code> 기동</td><td>✔ 대시보드에서 겨울밤 재생이 된다. 서보가 4개 미만이면 있는 갈래만 살포기를 달고 나머지는 LED만 쓴다</td></tr>
+      <tr><td><b>1단계</b><br>~2시간</td><td>A1~A6: 바닥 이음·받침, 도로·횡단보도, 교량·하천</td><td>B1~B4: Pico 업로드, T1 LED, T2 서보 1개, 살포기 상자 1개 시제품</td><td>T6 서버-Pico 시리얼, T7 엔진·재생 확인, 대시보드 익히기</td><td>✔ 살포기 시제품이 알갱이를 1회분씩 떨어뜨린다. 막히면 구멍을 키우거나 각도를 바꾼다</td></tr>
+      <tr><td><b>2단계</b><br>~2시간</td><td>A7~A9: 건물·그늘, 살포기 자리·미끄럼판, 배선 구멍</td><td>B5~B7: 살포기 4개, 교량 관측부, T3 센서·T4 주의 LED</td><td>T8 현장 보정(센서 → E 갈래), T9 LLM 해석</td><td>✔ 서보 4개가 순서대로 한 번에 하나씩 움직인다(전원 확인). 리셋되면 서보 전원을 따로 둔다</td></tr>
+      <tr><td><b>3단계</b><br>~2시간</td><td>A10 꾸미기, 배선 정리</td><td>배선 고정, 전원 정리</td><td>T10 전체 흐름(재생 → 권고 → 승인 → 출동 → 살포), 측정 정리</td><td>✔ 승인 순서대로 살포되고 대시보드·LED 완료 표시가 맞는다</td></tr>
+      <tr><td><b>4단계</b><br>~2시간</td><td colspan="3">리허설 5회, 초기화 연습(알갱이·물받이·대시보드 초기화), 발표 수치 정리(1-2·1-3장)</td><td>✔ 90초 시연 3회 연속 성공</td></tr>
+    </tbody>
+  </table>
+  <div class="cols">
+    <div class="box"><b>왜 이 순서인가</b><br>살포기는 상자·구멍·서보 각도를 실물로 맞춰야 해서 시간이 걸린다. 그래서 1단계에서 <b>한 개를 먼저 완성</b>하고 나머지 세 개를 복제한다. 엔진은 이미 학습되어 있으니 C는 대시보드 흐름과 시리얼 연결을 먼저 확인한다.</div>
+    <div class="box y"><b>시간이 부족하면 줄이는 순서</b><br>① 부저 → ② 건물 꾸밈 → ③ 교량 센서(대시보드 수동 값으로 대체) → ④ 살포기 개수(E·W 두 갈래만). <b>엔진 재생 → 승인 → 살포기 실행</b>은 끝까지 지킨다.</div>
+  </div>
+</section>
+
+<!-- 3 준비물·키트 -->
+<section class="page">
+  <h2>3. 준비물과 키트 확인표 (라즈베리파이 피코 WH 프로젝트 키트 × 4)</h2>
+  <p class="sub">키트 겉면 사진의 보드는 <b>Pico 2 W(RP2350)</b>다. 펌웨어는 RPI_PICO2_W용을 쓴다. 키트 안의 부품 목록은 아직 확인하지 않았다.</p>
+  <div class="cols">
+    <div>
+      <table class="tight">
+        <tr><th>□</th><th>부품</th><th>필요</th><th>없으면</th></tr>
+        <tr><td>□</td><td>Pico 2 WH</td><td>1(+예비 3)</td><td>-</td></tr>
+        <tr><td>□</td><td><b>SG90 서보</b></td><td>4(키트당 1개면 딱 맞음)</td><td>있는 수만큼 E·W 우선. 나머지 갈래는 LED만</td></tr>
+        <tr><td>□</td><td>WS2812(네오픽셀)</td><td>4픽셀</td><td>단색 LED 4개 + 220Ω → LED_MODE="gpio"(GP6~9)</td></tr>
+        <tr><td>□</td><td>DS18B20(방수형)</td><td>2</td><td>대시보드 '수동 값'으로 교량 온도 입력(현장 보정 시연은 말로 설명)</td></tr>
+        <tr><td>□</td><td>빗물·수위 감지 모듈(AO)</td><td>1</td><td>젖음 없이 온도만으로 주의 LED(FREEZE_C)</td></tr>
+        <tr><td>□</td><td>LED + 220Ω(교량 주의)</td><td>1</td><td>-</td></tr>
+        <tr><td>□</td><td>능동 부저</td><td>1(선택)</td><td>config BUZZER=False</td></tr>
+        <tr><td>□</td><td>4.7kΩ, 330Ω, 470~1000µF</td><td>각 1</td><td>4.7kΩ 없으면 DS18B20이 안 읽힌다 → 수동 값</td></tr>
+        <tr><td>□</td><td>브레드보드, 점퍼(수-암 긴 것)</td><td>-</td><td>서보 선 연장은 점퍼 2개를 이어서</td></tr>
+        <tr><td>□</td><td><b>서보 전용 5V</b>(보조배터리 USB 단자 또는 AA 니켈수소 4개)</td><td>1</td><td>없으면 한 번에 서보 하나만(코드가 이미 그렇게 함) + 콘덴서. 그래도 리셋되면 서보 2개만 쓴다</td></tr>
+      </table>
+    </div>
+    <div>
+      <table class="tight">
+        <tr><th>재료·공구</th><th>수량</th><th>용도</th></tr>
+        <tr><td>우드락 5mm 900×600</td><td>3장</td><td>바닥(1장 + 0.5장), 받침, 건물·살포기 부재(4-4장)</td></tr>
+        <tr><td>검정·회색 종이 또는 마커</td><td>-</td><td>아스팔트 도로(이 모형은 라인센서가 없으니 어두워도 된다)</td></tr>
+        <tr><td>흰·노란 테이프</td><td>-</td><td>중앙선·횡단보도</td></tr>
+        <tr><td>쿠킹 호일, 파란 종이</td><td>-</td><td>교량 상판, 하천</td></tr>
+        <tr><td>글루건, 양면테이프, 커터, 쇠자</td><td>-</td><td>조립</td></tr>
+        <tr><td>얕은 플라스틱 뚜껑, 분무기</td><td>각 1</td><td>교량 관측부 물받이, 적시기</td></tr>
+        <tr><td>(선택) 밀폐 냉각팩</td><td>1</td><td>교량 시험편 식히기 → 현장 보정 시연</td></tr>
+        <tr><td>모형 제설제</td><td>한 줌</td><td>마른 쌀알·스티로폼 알갱이. <span class="bad">실제 염화칼슘 금지</span></td></tr>
+      </table>
+      <h3>소프트웨어(맥북)</h3>
+      <ul>
+        <li>Python 3.9, pandas, numpy, xgboost, scikit-learn, pyserial이 이 맥북에 이미 설치되어 있다. xgboost가 쓰는 libomp는 Homebrew로 설치했다.</li>
+        <li>Thonny, MicroPython UF2(RPI_PICO2_W)</li>
+        <li>Command Code 키는 환경변수로만 넘긴다. LLM 없이도 <code>--no-llm</code>으로 전체 흐름이 돈다.</li>
+      </ul>
+      <div class="box y small"><b>Pico 2 W 주의</b>: BOOTSEL 드라이브 이름은 RP2350이다. 입력은 내부 풀업이나 센서 출력만 쓴다(RP2350-E9). 핀 번호(GP)는 Pico W와 같다.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 설계도 -->
+<section class="page">
+  <h2>4. 우드락 설계도</h2>
+  <h3>도면 1. 전체 평면도 (단위 mm, 위쪽 = 북)</h3>
+  <div style="display:grid; grid-template-columns: 1.25fr 1fr; gap:4mm; align-items:start;">
+    <div>{{SVG_PLAN}}</div>
+    <div>
+      <table class="tight plan">
+        <tr><th>요소</th><th>위치(mm)</th><th>메모</th></tr>
+        <tr><td>바닥</td><td>900×900</td><td>1번(900×600) + 2번에서 자른 900×300, y=600에서 잇기</td></tr>
+        <tr><td>도로</td><td>세로 x 375~525, 가로 y 375~525</td><td>폭 150, 중앙선, 횡단보도(중앙에서 45mm)</td></tr>
+        <tr><td>교량 상판</td><td>x 610~790, y 355~545</td><td>은박 + 난간 2줄(보도 20mm 포함)</td></tr>
+        <tr><td>하천</td><td>x 660~740, 전체 높이</td><td>파란 종이(교량 아래로 지나감)</td></tr>
+        <tr><td>건물(그늘)</td><td>북서 (40,240)·(250,240), 남서 (40,535)·(250,535)</td><td>바닥 100×125, 높이 120인 L자 상자. 남서 건물 그림자가 W 갈래에 진다</td></tr>
+        <tr><td>살포기 N</td><td>(535,150) 56×56</td><td>미끄럼판 서쪽으로 → N 갈래 동쪽 차로</td></tr>
+        <tr><td>살포기 E</td><td>(600,292)</td><td>미끄럼판 남쪽으로 → 교량 시작부</td></tr>
+        <tr><td>살포기 S</td><td>(309,692)</td><td>미끄럼판 동쪽으로 → S 갈래 서쪽 차로</td></tr>
+        <tr><td>살포기 W</td><td>(162,537)</td><td>미끄럼판 북쪽으로 → W 갈래 남쪽 차로(그늘)</td></tr>
+        <tr><td>교량 관측부</td><td>(650,575) 110×62</td><td>시험편 + DS18B20 + 젖음센서, 주의 LED는 왼쪽</td></tr>
+        <tr><td>받침 가로대</td><td>y 20~100, 560~640, 800~880</td><td>900×80 두 겹 = 10mm 배선 통로</td></tr>
+        <tr><td>전자부</td><td>보드 동쪽 책상</td><td>Pico, 브레드보드, 서보 5V, 맥북 USB</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="page">
+  <h3>도면 2. 서보 살포기(4개 공통)</h3>
+  <div class="fit" style="height:92mm">{{SVG_UNIT}}</div>
+  <h3>도면 3. 교량 관측부(E 갈래 남쪽)</h3>
+  <div class="fit" style="height:62mm">{{SVG_OBS}}</div>
+</section>
+
+<section class="page">
+  <h3>도면 4. 재단 배치와 부재표</h3>
+  {{SVG_CUT}}
+  <table class="tight">
+    <tr><th>부재</th><th>치수(mm)</th><th>개수</th><th>쓰는 곳</th></tr>
+    <tr><td>바닥 북쪽 / 남쪽</td><td>900×600 / 900×300</td><td>1 / 1</td><td>y=600에서 이어 붙이고 위를 투명 테이프로 덮는다</td></tr>
+    <tr><td>받침 가로대</td><td>900×80</td><td>6 → 2겹 3개</td><td>밑면 y 20~100 · 560~640(이음 보강) · 800~880</td></tr>
+    <tr><td>건물 앞벽 / 옆벽 / 지붕</td><td>100×120 / 125×120 / 100×125</td><td>각 4</td><td>L자 상자 4동(뒤는 열림, 그늘 구역)</td></tr>
+    <tr><td>살포기 벽 / 바닥판 / 덮개 / 미끄럼판</td><td>56×105 / 56×56 / 20×35 / 40×80</td><td>16 / 4 / 4 / 4</td><td>도면 2. 앞벽 아래에 40×30 구멍</td></tr>
+    <tr><td>교량 난간</td><td>180×15</td><td>2</td><td>2번 우드락 남는 조각에서. 상판 위·아래 가장자리</td></tr>
+  </table>
+</section>
+
+<!-- 5 제작 순서 -->
+<section class="page">
+  <h2>5. 제작 순서</h2>
+  <div class="cols">
+    <div>
+      <h3><span class="tag tA">A</span>우드락 (A1~A10)</h3>
+      <ol class="steps">
+        <li><b>A1 받침</b>: 2번 우드락에서 900×300 조각과 가로대를 자른다. 바닥 두 조각을 뒤집어 y=600에서 맞대고, 밑면에 2겹 가로대 3개를 붙인다.</li>
+        <li><b>A2 이음</b>: 바로 놓고 윗면 이음선을 투명 테이프로 평평하게 덮는다.</li>
+        <li><b>A3 먹줄</b>: 연필로 x=375·525, y=375·525(도로), 교량 x 610~790, 하천 x 660~740을 긋는다.</li>
+        <li><b>A4 하천·도로</b>: 하천에 파란 종이를 먼저 붙이고, 도로에 회색·검정 종이를 붙인다.</li>
+        <li><b>A5 교량</b>: x 610~790, y 355~545에 은박을 붙이고 난간(180×15) 2개를 세운다.</li>
+        <li><b>A6 표시</b>: 중앙선(노랑 점선), 횡단보도(흰 테이프 10mm 간격), 갈래 이름 표지를 붙인다.</li>
+        <li><b>A7 건물</b>: 앞·옆 벽과 지붕을 붙여 L자 상자 4동을 만들고 북서·남서에 세운다. 남쪽에서 램프를 비추면 W 갈래에 그림자가 진다.</li>
+        <li><b>A8 살포기 자리</b>: 도면 1 위치에 살포기 상자(B 담당이 만듦)를 놓을 자리와 미끄럼판 각도를 표시한다.</li>
+        <li><b>A9 배선 구멍</b>: 살포기 4곳, 교량 관측부, 주의 LED 옆에 Ø8 구멍을 뚫는다. 받침 가로대 사이 통로로 선이 지나가는지 본다.</li>
+        <li><b>A10 꾸밈</b>: 차·나무 등을 둔다. 미끄럼판 아래와 살포 지점은 비워 둔다.</li>
+      </ol>
+    </div>
+    <div>
+      <h3><span class="tag tB">B</span>Pico·살포기 (B1~B8)</h3>
+      <ol class="steps">
+        <li><b>B1</b> Pico 2 W에 MicroPython(RPI_PICO2_W)을 굽는다. <code>pico_cross/</code>의 config.py · cross_core.py · main.py · hwtest.py를 올린다.</li>
+        <li><b>B2</b> LED 4개(또는 WS2812 4픽셀)를 연결한다 → T1</li>
+        <li><b>B3</b> 서보 1개 + 서보 전용 5V를 연결한다. GND는 공통이다 → T2 서보 각도</li>
+        <li><b>B4 살포기 시제품</b>(도면 2): 상자 → 바닥 구멍 → 서보와 덮개 → 미끄럼판. 알갱이를 넣고 hwtest로 '1회분'이 떨어지는지 맞춘다.</li>
+        <li><b>B5</b> 나머지 살포기 3개를 복제한다. 신호선은 GP18(N)·GP19(E)·GP20(S)·GP21(W)에 꽂는다.</li>
+        <li><b>B6 교량 관측부</b>(도면 3): 물받이 → 시험편 → DS18B20 밀착 → 젖음센서 → 4.7kΩ 풀업 → T3</li>
+        <li><b>B7</b> 교량 주의 LED(GP15), 부저(GP17, 선택) → T4</li>
+        <li><b>B8</b> 모든 선을 보드 밑 통로로 정리하고 전자부를 보드 동쪽 책상에 고정한다. 맥북 USB를 꽂는다.</li>
+      </ol>
+      <div class="box y"><b>전원</b>
+        <ul>
+          <li>Pico는 맥북 USB로 켠다.</li>
+          <li>서보 4개는 <b>서보 전용 5V</b>에서 먹인다(+ 470~1000µF). GND는 Pico와 공통이다.</li>
+          <li>펌웨어는 한 번에 서보 하나만 움직인다.</li>
+        </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 배선 -->
+<section class="page">
+  <h2>6. 배선도 (Pico #1 · Pico 2 W)</h2>
+  {{SVG_WIRING}}
+</section>
+
+<!-- 7 소프트웨어 -->
+<section class="page">
+  <h2>7. 맥북 소프트웨어: 엔진 · 서버 · 업로드</h2>
+  <div class="cols">
+    <div>
+      <h3><span class="tag tC">C</span>순서</h3>
+      <ol class="steps">
+        <li><b>C1 확인</b>: <code>cd suwon-makeathon-2026/icezero_model</code> → <code>python3 -m unittest discover -s tests</code> → OK</li>
+        <li><b>C2 엔진</b>: <code>python3 engine/train.py</code>. 저장된 모델이 있으면 바로 불러오고 성능표·기본 시연 밤을 출력한다. 다시 학습하려면 <code>--force</code>(약 1분).</li>
+        <li><b>C3 서버</b>(아래 명령). 처음에는 LLM·Pico 없이 흐름을 익힌다.</li>
+        <li><b>C4 대시보드</b>: <code>http://localhost:8000</code>(7-2장)</li>
+        <li><b>C5 Pico 연결</b>: Thonny를 닫는다(포트 점유). <code>ls /dev/tty.usbmodem*</code>로 포트를 확인한다. <code>--pico-serial auto</code>로 서버를 다시 켠다.</li>
+      </ol>
+      {{SERVER_RUN}}
+    </div>
+    <div>
+      <h3>Pico 업로드(Thonny)</h3>
+      <ol class="steps">
+        <li><span class="kbd">BOOTSEL</span>을 누른 채 USB를 꽂으면 <b>RP2350</b> 드라이브가 생긴다. Pico 2 W용 UF2(RPI_PICO2_W)를 복사한다.</li>
+        <li>Thonny 인터프리터를 'MicroPython (Raspberry Pi Pico)'로 맞추고 포트를 고른다. <span class="kbd">Stop</span>을 누르면 REPL로 들어간다.</li>
+        <li><code>pico_cross/</code>의 <b>config.py · cross_core.py · main.py · hwtest.py</b>를 같은 이름으로 Pico에 저장한다. main.py는 전원을 켜면 자동 실행된다.</li>
+        <li>배선 시험은 Thonny에서 hwtest.py를 열고 실행한다(F5). 끝나면 Thonny를 닫아야 서버가 포트를 쓸 수 있다.</li>
+      </ol>
+      <div class="box"><b>시리얼 약속(요약)</b><br>
+        Pico → 맥: <code>@@TEL {"t_bridge","t_air","wet","wet_raw","warn","busy","up"}</code> 1초마다, <code>@@EVT {"e":"spray_start|spray_done|spray_reject|stopped","seq","arm"}</code><br>
+        맥 → Pico: <code>@@LED {"arms":{"N":"risk1|risk2|risk3|plan|done|off",…}}</code>, <code>@@SPRAY {"seq":n,"arm":"E","ms":600}</code>, <code>@@STOP {}</code></div>
+      <div class="box y small">Pico 없이 시연할 때: 서버를 <code>--pico-serial none</code>으로 켜면 출동이 '모의 실행'으로 표시된다. 교량 센서는 대시보드 '수동 값'으로 넣는다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="page">
+  <h2>7-2. 대시보드</h2>
+  <div class="cols">
+    <div><img src="{{DASH_TOP}}" style="width:100%; border:1px solid #cbd5e1; border-radius:2mm;" alt="대시보드 위"><div class="figcap">그림 2-1. 사거리·재생·예보</div></div>
+    <div><img src="{{DASH_BOTTOM}}" style="width:100%; border:1px solid #cbd5e1; border-radius:2mm;" alt="대시보드 아래"><div class="figcap">그림 2-2. 제보·센서·계획·실행</div></div>
+  </div>
+  <p class="small">{{DASH_CAPTION}}</p>
+  <div class="cols">
+    <ul>
+      <li><b>재생</b>: 밤을 고르고 ◀ ▶로 한 시간씩 움직인다. '자동 재생'은 정한 초마다 한 시간씩 넘긴다.</li>
+      <li><b>사거리 그림</b>: 갈래마다 실제 도로명, 색(p_max 단계), 유효온도, 선정 순번, 살포 완료를 보여 준다.</li>
+      <li><b>예보</b>: 관측 지면온도, +0/+1/+3/+6h 예측, 모델 RMSE와 persistence를 함께 보여 준다. 아래 그래프는 관측과 +3h 예측이다.</li>
+      <li><b>센서</b>
+        <ul>
+          <li>Pico 링크, 교량 시험편 온도, 젖음, 교량 주의(로컬)를 보여 준다.</li>
+          <li>'현장 보정 사용'을 켜면 E 갈래 유효온도가 센서 기준으로 바뀐다.</li>
+          <li>Pico가 없으면 수동 값을 넣는다.</li>
+        </ul></li>
+    </ul>
+    <ul>
+      <li><b>제보</b>: LLM 해석과 규칙 해석이 나란히 나온다. 모호하면 질문이 뜬다. 체크박스·예산을 고친 뒤 '확인'을 눌러야 반영된다.</li>
+      <li><b>계획·출동</b>: 제안과 승인 계획을 비교하고 계획 승인 → 출동 승인 순서로 누른다. 비상 정지와 초기화도 여기서 한다.</li>
+      <li><b>실행 진행</b>: Pico 실행이면 spray_done을 받을 때마다 한 갈래씩 완료된다. Pico가 없으면 '모의 실행'으로 표시된다.</li>
+      <li><b>이벤트</b>: 모든 동작이 <code>server/events.jsonl</code>에 남는다.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8 설정 -->
+<section class="page">
+  <h2>8. Pico 설정값 <code>pico_cross/config.py</code> (코드에서 자동 추출)</h2>
+  <div class="cols">
+    <div>{{PICO_CFG_A}}</div>
+    <div>{{PICO_CFG_B}}</div>
+  </div>
+</section>
+
+<section class="page">
+  <h2>8-2. 서버 옵션(실제 <code>--help</code>)과 환경변수</h2>
+  <div class="cols">
+    <div>{{SERVER_HELP}}</div>
+    <div>
+      <table class="tight">
+        <tr><th>환경변수</th><th>뜻</th></tr>
+        <tr><td><code>CMD_API_KEY</code></td><td>Command Code 키. <code>$(omp token commandcode)</code>로 넘기고 파일·화면에 쓰지 않는다</td></tr>
+        <tr><td><code>CMD_TEXT_MODEL</code></td><td>기본 deepseek/deepseek-v4.1-flash</td></tr>
+        <tr><td><code>CMD_TEXT_REASONING</code></td><td>기본 low</td></tr>
+        <tr><td><code>CMD_ZDR</code></td><td>기본 1(데이터 미보존 헤더)</td></tr>
+      </table>
+      {{README_NOTES}}
+    </div>
+  </div>
+</section>
+
+<!-- 9 시험 -->
+<section class="page">
+  <h2>9. 단계별 시험·보정 (T1~T10)</h2>
+  <table>
+    <thead><tr><th style="width:11%">시험</th><th style="width:32%">방법</th><th style="width:24%">합격 기준</th><th>실패하면</th></tr></thead>
+    <tbody>
+      <tr><td><b>T1</b> 갈래 LED<br><span class="tag tB">B</span></td><td>Thonny에서 hwtest.py 실행</td><td>N→E→S→W 순서로 초록·노랑·빨강·파랑(깜박)·흰색이 바뀐다</td><td>순서가 틀리면 체인 순서(N,E,S,W)를 확인한다. WS2812가 불안하면 5V 선에 다이오드를 넣거나 LED_MODE='gpio'로 바꾼다</td></tr>
+      <tr><td><b>T2</b> 서보·살포기<br><span class="tag tB">B</span></td><td>hwtest.py의 서보 순환. 알갱이를 넣고 한 번 열림당 양을 본다</td><td>열림 60°에서 1회분이 떨어지고, 닫히면 새지 않는다. 다른 서보와 동시에 움직이지 않는다</td><td>SERVO_OPEN_DEG·SERVO_CLOSED_DEG와 구멍 크기를 고친다. Pico가 리셋되면 서보 전원을 분리하고 콘덴서를 단다</td></tr>
+      <tr><td><b>T3</b> 교량 센서<br><span class="tag tB">B</span></td><td>main.py 실행 중 Thonny 셸의 <code>@@TEL</code>을 본다. 시험편을 쥐었다 놓고, 적신다</td><td>t_bridge가 변한다. wet이 젖으면 true다</td><td>None이면 4.7kΩ 풀업을 확인한다. 부팅 ROM 목록을 보고 PIECE_INDEX를 고친다. WET_THRESHOLD는 마른 값과 젖은 값의 중간으로 둔다</td></tr>
+      <tr><td><b>T4</b> 주의 LED<br><span class="tag tB">B</span></td><td>냉각팩이나 찬물로 시험편을 1°C 아래로 식히고 적신다</td><td>맥북 연결과 상관없이 주의 LED가 켜진다. 마르거나 따뜻해지면 3회 뒤 꺼진다</td><td>WARN_ON_C·FREEZE_C를 시연 온도대에 맞춘다</td></tr>
+      <tr><td><b>T5</b> 엔진<br><span class="tag tC">C</span></td><td><code>python3 engine/train.py</code></td><td>성능표와 기본 시연 밤 표가 1-2·1-3장과 같게 나온다</td><td>모델 파일이 없으면 자동으로 학습한다(약 1분). xgboost 오류가 나면 <code>brew install libomp</code></td></tr>
+      <tr><td><b>T6</b> 시리얼<br><span class="tag tC">C</span></td><td>Thonny를 닫고 서버를 <code>--pico-serial auto</code>로 켠다</td><td>대시보드 Pico 링크가 '연결'이고 t_bridge가 1초마다 갱신된다. 갈래 LED가 대시보드 색과 같다</td><td>Pico가 2개 꽂혀 있으면 auto가 고르지 못한다. 포트를 직접 적는다</td></tr>
+      <tr><td><b>T7</b> 재생<br><span class="tag tC">C</span></td><td>대시보드에서 기본 밤을 18시부터 ▶로 넘긴다</td><td>1-3장 표와 같은 시각에 출동 권고와 선정 갈래가 나온다</td><td>밤을 다시 고르거나 서버를 재시작한다</td></tr>
+      <tr><td><b>T8</b> 현장 보정<br><span class="tag tC">C</span><span class="tag tB">B</span></td><td>'현장 보정 사용'을 켜고 시험편을 식힌다(또는 수동 값 −2)</td><td>E 갈래 source가 sensor가 되고 유효온도·p_max가 그만큼 바뀐다</td><td>센서가 5초 넘게 조용하면 모델값으로 돌아간다(의도된 동작)</td></tr>
+      <tr><td><b>T9</b> LLM 해석<br><span class="tag tC">C</span></td><td>키를 넣고 "올림픽로 다리 위가 미끄럽대요, 제설제 3회분 남았어요"와 "테헤란로 쪽 미끄러워요"를 입력한다</td><td>첫 문장 → E, 예산 3. 둘째 문장 → W인지 N(115길)인지 되묻는 질문</td><td>키·네트워크를 확인한다. 실패하면 규칙 해석으로 대체되고 화면에 이유가 뜬다</td></tr>
+      <tr><td><b>T10</b> 전체<br><span class="tag tAll">전원</span></td><td>재생 → 권고 → 제보 확인 → 계획 승인 → 출동 승인 → 살포 → 비상 정지 1회 → 초기화</td><td>승인 순서대로 하나씩 살포되고, LED가 파랑 깜박 → 흰색으로 바뀐다</td><td><code>server/events.jsonl</code>에서 SPRAY → spray_done 짝을 확인한다</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h2>9-2. 측정: 현장 제보 해석(규칙 vs LLM)</h2>
+  {{EVAL}}
+</section>
+
+<!-- 10 시연 -->
+<section class="page">
+  <h2>10. 리허설과 90초 시연</h2>
+  <div class="cols">
+    <div>
+      <h3>부팅 순서</h3>
+      <ol class="steps">
+        <li>Pico를 맥북 USB에 꽂고 서보 5V를 연결한다. Thonny는 닫는다.</li>
+        <li>서버를 실행한다(키 포함, <code>--pico-serial auto</code>). 대시보드를 열고 'Pico 연결'을 확인한다.</li>
+        <li>대시보드 초기화 → 기본 밤 선택 → 살포기에 알갱이 채우기 → 물받이 마른 상태</li>
+      </ol>
+      <h3>90초 대본</h3>
+      {{DEMO_TABLE}}
+    </div>
+    <div>
+      <h3>실패 장면별 대응</h3>
+      <table class="tight">
+        <tr><th>장면</th><th>대응</th></tr>
+        <tr><td>Pico 연결 끊김</td><td>서버를 <code>--pico-serial none</code>으로 다시 켠다. 출동은 '모의 실행'으로 화면에서 보여 준다</td></tr>
+        <tr><td>서보가 안 움직임·리셋</td><td>비상 정지 → 서보 전원 확인. 해당 갈래만 손으로 알갱이를 뿌리고 다음으로 간다</td></tr>
+        <tr><td>LLM 지연·실패</td><td>규칙 해석 결과로 확인한다. "실패하면 규칙 해석으로 대체됩니다"라고 말한다</td></tr>
+        <tr><td>센서 이상</td><td>현장 보정을 끄거나 수동 값을 넣는다</td></tr>
+      </table>
+      <div class="box y"><b>말하지 않을 것</b>
+        <ul>
+          <li>'결빙을 감지·확정한다'</li>
+          <li>'사고가 줄어든다'(측정 안 함)</li>
+          <li>'실제 도로에서 검증했다'. 관측소 지면온도 예보이고, 갈래 차이는 ICE-ZERO 가정이다</li>
+          <li>'LLM이 더 정확하다'. 9-2장 표본 범위를 넘지 않는다</li>
+        </ul></div>
+      <div class="box"><b>발표에서 쓸 수치</b>
+        <ul>
+          <li>1-2장 예보 RMSE(모델 vs persistence)</li>
+          <li>1-3장 첫 출동 권고 시각과 실제 0°C 도달 시각의 차이</li>
+          <li>E 갈래 risk_v2가 강남구 상위 몇 %인지(1장 표)</li>
+        </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 문제 해결 -->
+<section class="page">
+  <h2>11. 문제 해결</h2>
+  <table>
+    <thead><tr><th style="width:26%">증상</th><th style="width:30%">흔한 원인</th><th>조치</th></tr></thead>
+    <tbody>
+      <tr><td>서보가 움직이면 Pico가 리셋된다</td><td>맥북 USB 전류 부족, 서보 전원 공유</td><td>서보 전용 5V를 쓰고 GND는 공통, 470~1000µF를 단다. 동시 동작은 코드가 막는다</td></tr>
+      <tr><td>살포기가 막히거나 샌다</td><td>구멍 크기, 덮개 틈, 알갱이 습기</td><td>구멍 12×30을 키우거나 덮개를 넓힌다. 각도를 보정하고 마른 알갱이를 쓴다</td></tr>
+      <tr><td>LED 색이 이상하거나 꺼짐</td><td>3.3V 데이터, 전원, 10초 명령 없음</td><td>DIN 330Ω, 5V 다이오드, GND 공통을 확인한다. 서버 링크를 확인한다(10초 넘게 명령이 없으면 꺼지는 게 정상)</td></tr>
+      <tr><td>대시보드에 Pico 없음</td><td>Thonny가 포트 점유, 포트 2개</td><td>Thonny를 닫는다. <code>--pico-serial /dev/tty.usbmodemXXXX</code></td></tr>
+      <tr><td>t_bridge None·85.0</td><td>풀업 없음, 변환 직후</td><td>4.7kΩ(DQ↔3V3)을 단다. 85.0은 코드가 버린다</td></tr>
+      <tr><td>엔진 import 오류(xgboost)</td><td>libomp 없음</td><td><code>brew install libomp</code>(이 맥북은 설치됨)</td></tr>
+      <tr><td>출동 승인이 눌리지 않음</td><td>승인 계획 없음, 실행 중</td><td>계획 승인부터 누른다. 비상 정지 후 다시 한다</td></tr>
+      <tr><td>살포 하나가 4초 넘게 걸려 중단</td><td>spray_done 미수신, 큐 가득</td><td>시리얼 로그에서 EVT를 확인한다. 비상 정지 → 초기화 → 다시 출동한다</td></tr>
+      <tr><td>LLM 401·빈 응답</td><td>키 없음, 추론 토큰</td><td>환경변수를 확인한다(코드는 max_tokens 2000을 이미 씀). 실패하면 규칙 해석으로 진행한다</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 부록 -->
+<section class="page">
+  <h2>부록 A. 자동 시험과 파일</h2>
+  <div class="cols">
+    <div>
+      <h3>하드웨어 없이 돌린 자동 시험(이 PDF를 만들 때 실행)</h3>
+      {{TEST_SUMMARY}}
+      <h3>파일</h3>
+      <table class="tight">
+        <tr><th>경로</th><th>역할</th></tr>
+        <tr><td><code>engine/icezero_cross.py</code>, <code>engine/train.py</code></td><td>ICE-ZERO 예보·보정·갈래 계산, 학습 CLI</td></tr>
+        <tr><td><code>engine/data/</code></td><td>ASOS 겨울 자료(사용자 저장소에서 복사), 교차로 4갈래 속성</td></tr>
+        <tr><td><code>engine/models/</code></td><td>학습된 모델·보정·지표·시연 밤</td></tr>
+        <tr><td><code>server/</code></td><td>서버, LLM, 대시보드</td></tr>
+        <tr><td><code>pico_cross/</code></td><td>Pico 펌웨어</td></tr>
+        <tr><td><code>tests/</code></td><td>자동 시험, 제보 평가 세트</td></tr>
+        <tr><td><code>CONTRACT_CROSS.md</code></td><td>모듈 사이 약속</td></tr>
+        <tr><td><code>docs/</code></td><td>이 PDF 생성기(도면 좌표는 계약 상수)</td></tr>
+        <tr><td><code>archive_4lane/</code></td><td>이전 4차로 버전 보관</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>자료 출처와 한계</h3>
+      <ul class="small">
+        <li><b>기상</b>: <code>~/Desktop/smart-deicing-map/outputs/data/cleaned/weather_winter_clean.csv</code>(ASOS 시간 자료, 2020~2025 겨울)를 복사했다. 원본은 수정하지 않았다.</li>
+        <li><b>도로</b>: ICE-ZERO <code>results/roads_rescored.csv</code>(risk_v2), smart-deicing-map <code>gangnam_roads_result.geojson</code>(도로명·그림자 지수·노드 좌표). geojson 링크 2,072개의 노드 805개 중 이웃 노드가 4개인 교차로는 184곳이다. 그 가운데 교량 링크가 있고 갈래 사이 위험도 차이가 큰 노드 1220041600을 골랐다.</li>
+        <li><b>한계</b>
+          <ul>
+            <li>예보 대상은 관측소 지면온도다. 갈래별 차이는 ICE-ZERO의 교량 가정, 현장 센서 보정, risk_v2 상대 순위로만 반영한다.</li>
+            <li>실제 도로 결빙 라벨이 없다.</li>
+            <li>일사·일조 피처는 이 자료에 없다.</li>
+          </ul></li>
+        <li><b>정책 근거</b>
+          <ul>
+            <li>행안부(연합 2025-12-17): 2020~2024 결빙 사고 4,112건, 사망 83명, 54%는 맑거나 흐린 날</li>
+            <li>국토부(정책브리핑 2026-02-12): 결빙 취약지점 121곳에 열선·염수분사·가변 속도제한, 선제 예측 고도화</li>
+          </ul></li>
+      </ul>
+    </div>
+  </div>
+</section>

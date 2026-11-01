@@ -1,0 +1,50 @@
+[
+  {
+    "text": "교량 위가 얼음 같아요. 상행 방향이에요. 제설제는 3회분 남았습니다.",
+    "expect": {"cells": ["U2"], "ambiguous": false, "budget": 3}
+  },
+  {
+    "text": "물 위 지나는 구간이 미끄럽다는 제보가 있어요.",
+    "expect": {"cells": ["U2", "D2"], "ambiguous": true, "budget": null}
+  },
+  {
+    "text": "그늘 진 구간, 해 안 드는 벽 옆이 젖어 있어요. 양방향 다요.",
+    "expect": {"cells": ["U3", "D3"], "ambiguous": false, "budget": null}
+  },
+  {
+    "text": "동쪽으로 가는 쪽 첫 구간이 눈으로 덮였어요.",
+    "expect": {"cells": ["U1"], "ambiguous": false, "budget": null}
+  },
+  {
+    "text": "서쪽 방면 그늘 구간이 미끄럽습니다.",
+    "expect": {"cells": ["D3"], "ambiguous": false, "budget": null}
+  },
+  {
+    "text": "D1 쪽에 사고가 났다는 연락이 왔어요.",
+    "expect": {"cells": ["D1"], "ambiguous": false, "budget": null}
+  },
+  {
+    "text": "상행 일반 구간이 살얼음 같아요.",
+    "expect": {"cells": [], "ambiguous": true, "budget": null}
+  },
+  {
+    "text": "제설제 2회분 남았어요. 교량 아랫길이 얼었대요.",
+    "expect": {"cells": ["U2", "D2"], "ambiguous": true, "budget": 2}
+  },
+  {
+    "text": "왕복 다 미끄럽고, 교량이 특히 그래요. 예산 5",
+    "expect": {"cells": ["U2", "D2"], "ambiguous": false, "budget": 5}
+  },
+  {
+    "text": "방음벽 옆 그늘, 상행이요. 눈이 쌓였어요.",
+    "expect": {"cells": ["U3"], "ambiguous": false, "budget": null}
+  },
+  {
+    "text": "동쪽 방면 마지막 칸에 물이 고여 있어요.",
+    "expect": {"cells": ["U4"], "ambiguous": false, "budget": null}
+  },
+  {
+    "text": "하행 방향이에요. 교량 쪽이 젖었고 제설제 2회분 남았습니다.",
+    "expect": {"cells": ["D2"], "ambiguous": false, "budget": 2}
+  }
+]

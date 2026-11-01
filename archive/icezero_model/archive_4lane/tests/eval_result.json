@@ -1,0 +1,523 @@
+{
+  "generated_at": "2026-10-31T09:40:34",
+  "items": 12,
+  "cell_scope_note": "칸 완전 일치는 ambiguous=false 항목만 집계(모호한 제보는 모호 판정으로 따로 봄)",
+  "llm": {
+    "available": true,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "reasoning": "low",
+    "failures": 0
+  },
+  "rule": {
+    "items": 12,
+    "cells_ok": 7,
+    "cells_total": 9,
+    "cells_accuracy": 0.778,
+    "ambiguous_ok": 10,
+    "ambiguous_accuracy": 0.833,
+    "budget_ok": 12,
+    "budget_accuracy": 1.0,
+    "mean_latency_ms": 0.0
+  },
+  "llm_scores": {
+    "items": 12,
+    "cells_ok": 8,
+    "cells_total": 9,
+    "cells_accuracy": 0.889,
+    "ambiguous_ok": 12,
+    "ambiguous_accuracy": 1.0,
+    "budget_ok": 12,
+    "budget_accuracy": 1.0,
+    "mean_latency_ms": 3852.4
+  },
+  "details": [
+    {
+      "text": "교량 위가 얼음 같아요. 상행 방향이에요. 제설제는 3회분 남았습니다.",
+      "expect": {
+        "cells": [
+          "U2"
+        ],
+        "ambiguous": false,
+        "budget": 3
+      },
+      "rule": {
+        "cells": [
+          "U2"
+        ],
+        "ambiguous": false,
+        "budget": 3,
+        "latency_ms": 0.08
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U2"
+        ],
+        "ambiguous": false,
+        "budget": 3,
+        "engine": "llm",
+        "latency_ms": 2909.0,
+        "error": null
+      }
+    },
+    {
+      "text": "물 위 지나는 구간이 미끄럽다는 제보가 있어요.",
+      "expect": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": true,
+        "budget": null
+      },
+      "rule": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": true,
+        "budget": null,
+        "latency_ms": 0.04
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": true,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 3472.5,
+        "error": null
+      }
+    },
+    {
+      "text": "그늘 진 구간, 해 안 드는 벽 옆이 젖어 있어요. 양방향 다요.",
+      "expect": {
+        "cells": [
+          "U3",
+          "D3"
+        ],
+        "ambiguous": false,
+        "budget": null
+      },
+      "rule": {
+        "cells": [
+          "U3",
+          "D3"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U3",
+          "D3"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 3342.8,
+        "error": null
+      }
+    },
+    {
+      "text": "동쪽으로 가는 쪽 첫 구간이 눈으로 덮였어요.",
+      "expect": {
+        "cells": [
+          "U1"
+        ],
+        "ambiguous": false,
+        "budget": null
+      },
+      "rule": {
+        "cells": [],
+        "ambiguous": true,
+        "budget": null,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": false,
+          "ambiguous_ok": false,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U1"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 2950.9,
+        "error": null
+      }
+    },
+    {
+      "text": "서쪽 방면 그늘 구간이 미끄럽습니다.",
+      "expect": {
+        "cells": [
+          "D3"
+        ],
+        "ambiguous": false,
+        "budget": null
+      },
+      "rule": {
+        "cells": [
+          "D3"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "D3"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 2095.5,
+        "error": null
+      }
+    },
+    {
+      "text": "D1 쪽에 사고가 났다는 연락이 왔어요.",
+      "expect": {
+        "cells": [
+          "D1"
+        ],
+        "ambiguous": false,
+        "budget": null
+      },
+      "rule": {
+        "cells": [
+          "D1"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "D1"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 3301.7,
+        "error": null
+      }
+    },
+    {
+      "text": "상행 일반 구간이 살얼음 같아요.",
+      "expect": {
+        "cells": [],
+        "ambiguous": true,
+        "budget": null
+      },
+      "rule": {
+        "cells": [],
+        "ambiguous": true,
+        "budget": null,
+        "latency_ms": 0.0
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [],
+        "ambiguous": true,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 4704.8,
+        "error": null
+      }
+    },
+    {
+      "text": "제설제 2회분 남았어요. 교량 아랫길이 얼었대요.",
+      "expect": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": true,
+        "budget": 2
+      },
+      "rule": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": true,
+        "budget": 2,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": true,
+        "budget": 2,
+        "engine": "llm",
+        "latency_ms": 9718.3,
+        "error": null
+      }
+    },
+    {
+      "text": "왕복 다 미끄럽고, 교량이 특히 그래요. 예산 5",
+      "expect": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": false,
+        "budget": 5
+      },
+      "rule": {
+        "cells": [
+          "U2",
+          "D2"
+        ],
+        "ambiguous": false,
+        "budget": 5,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": false,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U1",
+          "U2",
+          "U3",
+          "U4",
+          "D4",
+          "D3",
+          "D2",
+          "D1"
+        ],
+        "ambiguous": false,
+        "budget": 5,
+        "engine": "llm",
+        "latency_ms": 5574.8,
+        "error": null
+      }
+    },
+    {
+      "text": "방음벽 옆 그늘, 상행이요. 눈이 쌓였어요.",
+      "expect": {
+        "cells": [
+          "U3"
+        ],
+        "ambiguous": false,
+        "budget": null
+      },
+      "rule": {
+        "cells": [
+          "U3"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U3"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 2138.1,
+        "error": null
+      }
+    },
+    {
+      "text": "동쪽 방면 마지막 칸에 물이 고여 있어요.",
+      "expect": {
+        "cells": [
+          "U4"
+        ],
+        "ambiguous": false,
+        "budget": null
+      },
+      "rule": {
+        "cells": [],
+        "ambiguous": true,
+        "budget": null,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": false,
+          "ambiguous_ok": false,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "U4"
+        ],
+        "ambiguous": false,
+        "budget": null,
+        "engine": "llm",
+        "latency_ms": 3185.9,
+        "error": null
+      }
+    },
+    {
+      "text": "하행 방향이에요. 교량 쪽이 젖었고 제설제 2회분 남았습니다.",
+      "expect": {
+        "cells": [
+          "D2"
+        ],
+        "ambiguous": false,
+        "budget": 2
+      },
+      "rule": {
+        "cells": [
+          "D2"
+        ],
+        "ambiguous": false,
+        "budget": 2,
+        "latency_ms": 0.01
+      },
+      "flags": {
+        "rule": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        },
+        "llm": {
+          "cells_ok": true,
+          "ambiguous_ok": true,
+          "budget_ok": true
+        }
+      },
+      "llm": {
+        "cells": [
+          "D2"
+        ],
+        "ambiguous": false,
+        "budget": 2,
+        "engine": "llm",
+        "latency_ms": 2834.6,
+        "error": null
+      }
+    }
+  ]
+}

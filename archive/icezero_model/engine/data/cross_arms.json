@@ -1,0 +1,78 @@
+{
+ "source": {
+  "node_id": "1220041600",
+  "roads_rescored": "~/Downloads/ICE-ZERO_github_repo_v3/results/roads_rescored.csv",
+  "geojson": "~/Desktop/smart-deicing-map/outputs/data/gangnam_roads_result.geojson",
+  "center_lonlat": [
+   127.06738485843555,
+   37.510045095061656
+  ],
+  "note": "강남구 도로망에서 4방향 교차로(이웃 노드 4개) 중 교량 링크가 있고 위험도 차이가 큰 곳을 골랐다"
+ },
+ "arms": {
+  "N": {
+   "name": "테헤란로115길",
+   "label": "general",
+   "structure": 0,
+   "shadow_index": 0.0,
+   "road_width": 8,
+   "risk_v2": 0.5805,
+   "risk_v2_pct": 0.621,
+   "length_m": 600,
+   "bearing_deg": 353,
+   "link_ids": [
+    "1220079700",
+    "1220110100"
+   ],
+   "neighbor_node": "1220045000"
+  },
+  "E": {
+   "name": "올림픽로",
+   "label": "bridge",
+   "structure": 1,
+   "shadow_index": 0.0,
+   "road_width": 8,
+   "risk_v2": 0.9142,
+   "risk_v2_pct": 0.975,
+   "length_m": 108,
+   "bearing_deg": 78,
+   "link_ids": [
+    "1220029400",
+    "1220029500"
+   ],
+   "neighbor_node": "1220041700"
+  },
+  "S": {
+   "name": "역삼로107길",
+   "label": "general",
+   "structure": 0,
+   "shadow_index": 0.06,
+   "road_width": 8,
+   "risk_v2": 0.5213,
+   "risk_v2_pct": 0.556,
+   "length_m": 340,
+   "bearing_deg": 178,
+   "link_ids": [
+    "1220076900",
+    "1220109800"
+   ],
+   "neighbor_node": "1220037700"
+  },
+  "W": {
+   "name": "테헤란로",
+   "label": "general",
+   "structure": 0,
+   "shadow_index": 0.38,
+   "road_width": 8,
+   "risk_v2": 0.7922,
+   "risk_v2_pct": 0.856,
+   "length_m": 83,
+   "bearing_deg": 258,
+   "link_ids": [
+    "1220078500",
+    "1220078400"
+   ],
+   "neighbor_node": "1220041400"
+  }
+ }
+}

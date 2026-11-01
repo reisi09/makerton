@@ -1,0 +1,2205 @@
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="_csrf_parameter" content="_csrf" /><meta name="_csrf_header" content="X-CSRF-TOKEN" /><meta name="_csrf" content="44cf3eff-03dd-47f6-b890-1f18b1dbb1c5" />	
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- <meta name="description"  lang="ko" content="실시간 민원 현황, 지역별·기관별·신청인별 민원 통계, 급상승 민원 키워드 등을 한눈에!" /> -->
+    <meta name="description"  lang="ko" content="국민권익위원회가 운영하는 민원 빅데이터 개방 시스템" />
+    <meta name="twitter:image" 		  content="/resource/images/paid/big/common/kakaoContImg.png" />
+	<meta property="og:type"          content="website" />
+	<meta property="og:title"         content="한눈에 보는 민원 빅데이터" />
+<!-- 	<meta property="og:description"   content="국민의 소리를 만나는 새로운 창이 열립니다." /> -->
+	<meta property="og:description"   content="국민권익위원회가 운영하는 민원 빅데이터 개방 시스템" />
+	<meta property="og:image"         content="/resource/images/paid/big/common/bigdata2.png" />
+	
+    <title>한눈에 보는 민원 빅데이터</title>
+
+ 	
+
+
+
+
+ 
+    
+
+    
+    
+ 	<link rel="shortcut icon" href="/resource/images/paid/big/common/favicon.ico"> 
+		
+	<!-- 2020.11.27 한눈에 빅데이터 메인 디자인 변경후 css 캐시 문제로 수정 -->
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/font.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/default.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/common.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/layout.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/main.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/jquery-ui.min.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/content.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/js/paid/big/mCustomScrollbar/jquery.mCustomScrollbar.min.css?dt=2026103019"/>
+	<link rel="stylesheet" type="text/css" href="/resource/js/paid/big/slick/slick.css?dt=2026103019"/>
+
+ 	
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXGrid.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXButton.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXFrameUpload.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXInput.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXJ.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXSearch.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXSelect.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXSplit.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXTabs.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXUpload5.css"/>
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/page.css"/>
+ 	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/AXJ.min.css"/>
+ 	
+	
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/cmmn/jAlert.css">	
+ 
+ 	
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery-2.1.1.min.js"></script> 
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery-ui.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery.cookie.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery.form.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/pgwslideshow/pgwslideshow.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/loading.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/common.utils.js"></script>
+	
+	
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery.money.plus.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery.alphanumeric.js"></script>	
+	<script type="text/javascript" src="/resource/js/paid/cmmn/jquery.alerts.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/cmmn/validation.js"></script>
+	
+	
+	<script type="text/javascript" src="/resource/js/paid/cmmn/common.popup.js"></script>
+	
+	
+	<script type="text/javascript" src="/resource/js/paid/big/cmmn/big.file.js"></script>	
+	<script type="text/javascript" src="/resource/js/paid/big/cmmn/big.page.js"></script>	
+ 
+	
+	<script type="text/javascript" src="/resource/js/paid/big/mCustomScrollbar/jquery.mCustomScrollbar.concat.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/jquery.bxslider.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/slick/slick.min.js"></script>
+	
+		
+	<script type="text/javascript" src="/resource/js/paid/big/hashtable-3.0.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/jquery.numberformatter-1.2.3.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/jquery.mtz.monthpicker.js"></script>
+		
+	<script type="text/javascript" src="/resource/js/paid/big/cmmn/sendAjaxReq.js?dt=2026103019"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/cmmn/setAjaxResult.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/cmmn/setClsf.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/cmmn/big_cmmn.js?dt=2026103019"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/common.js?dt=2026103019"></script>
+	
+	
+	
+	
+	<script type="text/javascript" src="/resource/js/paid/big/axisj/AXJ.min.js"></script>
+	
+     
+	<!-- [if lt IE 9]>
+	<script type="text/javascript" src="/resource/js/paid/big/html5shiv.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/respond.min.js"></script>
+	<![endif]-->
+	
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/axisj/ax5mask.css">
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/font-awesome/font-awesome.min.css">
+	<script type="text/javascript" src="/resource/js/paid/big/axisj/ax5core.min.js"></script>
+	<script type="text/javascript" src="/resource/js/paid/big/axisj/ax5mask.js"></script>
+ 
+ 	
+	<style type="text/css">
+	.fontBold {
+	    font-weight: 800;
+	    cursor: pointer !important;
+	}
+	.AXTree input[name="chk"]{
+	    vertical-align: unset !important;
+	    margin-top: 0px !important;
+	}	
+
+	.easy-autocomplete {margin:7px; margin-top:10px;}
+	.easy-autocomplete-container {position:relative;}
+	.easy-autocomplete input{background-image:url(/resource/images/paid/big/layout/icon_search.png); background-position: right 10px center; background-repeat:no-repeat; width:220px;font-size: 15px;}
+	@media all and (max-width:1380px){.easy-autocomplete input{width:180px;font-size: 12px;}.easy-autocomplete-container ul li {font-size: 12px;padding: 4px 4px;}.easy-autocomplete-container ul li b{font-size: 13px;}}
+
+	.mIsu_item a {cursor:default;}
+	.mt2_wrap .mt2_graph .mt2_gwrap{ width:100%; height:100%; position:relative;  display:block; }
+	.mt2_wrap .mt2_graph .mt2_gwrap .mt2_gcontent{width:210px; height:100px; position:absolute; display:block; top:50%; left:50%; -ms-transform:translate(-50%,-50%); transform:translate(-50%,-50%);}
+	.mt2_wrap .mt2_graph .mt2_gwrap .mt2_gcontent span{display:block; color: #fc6c6c;    font-size: 24px; font-weight:500;    letter-spacing: 0.05em;}
+	.mt2_wrap .mt2_graph .mt2_gwrap .mt2_gcontent strong{display:block;     font-size: 32px; margin-top:-5px;}
+	#cChart {padding-top:19px;}
+	#devis_aChart > g > g > g.vis-pieWrap.visvis > g > g > g.vis-pieLabels > g > text{
+		fill: rgb(255, 255, 255) !important;
+		font-size:15px;
+		stroke:#111; stroke-width:0.5;
+		stroke-linecap:butt;
+		stroke-linejoin:miter;
+		font-weight:800;
+	}
+	#devis_aChart g.vis-pie > g.vis-slice > path {cursor:pointer;}
+	#devis_iChart > g > g > g.vis-pieWrap.visvis > g > g > g.vis-pieLabels > g > text{
+		fill: rgb(255, 255, 255) !important;
+		font-size:15px;
+		stroke:#000; stroke-width:0.5;
+		stroke-linecap:butt;
+		stroke-linejoin:miter;
+		font-weight:800;
+	}
+	#devis_iChart g.vis-pie > g.vis-slice > path {cursor:pointer;}
+	#instTable thead th {word-break:break-all; padding:0;}
+
+	#minwonTop5 .rank_list{float:left;width:50%;}
+	#minwonTop5 .rank_list a {cursor:pointer;}
+	#minwonTop5 .kw_item { padding: 13px 0 13px 60px !important;}
+
+	#flsTop5 .rank_list {float:left;width:50%;}
+	#flsTop5 .rank_list a {cursor:pointer;} 
+	#flsTop5 .kw_item { padding: 13px 0 13px 60px;}
+
+	#portalTop10 .rank_list {float:left;width:50%;}
+	#portalTop10 .rank_list a {cursor:pointer;}
+	#portalTop10 .kw_item {padding:13px 0 13px 60px;}
+
+	#wcld_anals_keyword {font-size:14px;box-sizing:border-box;height:33px;
+		color:#666;border-radius:3px;box-shadow:inset 0 0 4px rgba(0,0,0,.11);text-indent:3px}
+	
+	#notice_tab > div > table > tbody > tr > td {text-overflow: ellipsis;white-space: nowrap;;overflow: hidden;}
+
+	/* 지역별 현황 */
+	.stat_tab>li{float:right;margin-left:2% !important;}
+	
+	/* 민원인 현황 */
+	/* .vis-pieLabels text {font-size:21px; fill:rgb(255,255,255);} */
+	#devis_agChart text {fill:rgb(111,127,144) !important;}
+	#devis_agChart .vis-x .tick text {font-size:14px; font-weight:bold; }
+	#devis_agChart g.vis-bar {cursor:pointer;}
+	/* 국민콜110 */
+	.c_chart_content {position:relative;}
+	.c_chart_title {position:absolute; width:100%; top:95px; color:#555;}
+	.cc_subject1 {display:block;text-align:center; font-weight:bold; font-size:18px;}
+	.cc_subject2 {display:block;text-align:center; font-size:24px;}
+	.cc_subject2 strong {font-size:30px;}
+	.etc_rank a {cursor:default;}
+	
+	/* 민원키워드 */
+	.inK_stat>.uad.up {background:url(/resource/images/paid/big/content/icon_rank_up.png) center center no-repeat}
+	
+	/* 분야별 현황 */
+	.minUn_graph{ width:100%; height:100%; position:relative;  display:block; }
+	.minUn_graph .minUn_content{width:210px; height:80px; position:absolute; display:block; top:50%; left:50%; -ms-transform:translate(-50%,-50%); transform:translate(-50%,-50%);}
+	.minUn_graph .minUn_content span{color: #444;    font-size: 16px; font-weight:500;    letter-spacing: 0.05em;}
+	.minUn_graph .minUn_content strong{display:block;     font-size: 38px; margin-top:-5px;}
+	#devis_mChart {width:100%; height:400px;}
+	#devis_mChart g.vis-pie > g.vis-slice {cursor:pointer;}
+	#devis_mChart g.vis-pieLabels  text {
+		fill:black !important; font-size:16px; font-weight:bold;
+		/* stroke:#000; stroke-width:0.5;
+		stroke-linecap:butt;
+		stroke-linejoin:miter; */
+	}
+	#devis_bChart {width:100%;}
+	#devis_bChart g.vis-pie > g.vis-slice {cursor:pointer;}
+	#devis_bChart g.vis-pieLabels  text {
+		fill:black !important; font-size:16px; font-weight:bold;
+		/* stroke:#000; stroke-width:0.5;
+		stroke-linecap:butt;
+		stroke-linejoin:miter; */
+	}
+	
+	#devis_dChart > g > g > g.vis-pieWrap.visvis > g > g > g.vis-pieLabels > g > text{
+		fill:black !important; 
+		font-size:12px;
+		font-weight:bold;
+	}
+	
+	.circle_graph_parent #devis_gdChart g.vis-pie > g.vis-slice {cursor:pointer;}
+	#devis_gdChart > g > g > g.vis-pieWrap.visvis > g > g > g.vis-pieLabels > g > text{
+		fill:white !important;
+		font-weight:bold;
+		stroke:#000; stroke-width:0.3;
+	}
+	
+	#devis_csTypeChart > g > g > g.vis-pieWrap.visvis > g > g > g.vis-pieLabels > g > text{
+		fill:black !important;
+		font-weight:bold;
+	}
+	
+	.minU_info .uad.up:before{content:'▲'; color:#f44a4a;}
+	
+	/* 주간동향  */
+	.pdf_loading {position:absolute;width:300px;height:300px;}
+    .openedDocTitle {color:#b5b4b4 !important;}
+	
+	</style>
+ 
+
+	<script type="text/javascript">
+		//이용가이드 팝업
+		$(function() {
+			fn_guidePopup = function(){
+			
+			    var param = {
+					};
+			    gfn_openPopupPost("guidePopup", param, "guidePopup", '/bigdata/pot/stst/popup/forwardGuidePopup.npaid', 800, 835, JSON.stringify({scrollbars:'yes'}));
+			}
+		});
+
+		//공공데이터 개방 팝업
+		$(function() {
+			fn_openApiPopup = function(){
+			
+			    var param = {
+					};
+			    gfn_openPopupPost("fn_openApiPopup", param, "fn_openApiPopup", '/bigdata/pot/stst/popup/forwardOpenApiPopup.npaid', 800, 835, JSON.stringify({scrollbars:'yes'}));
+			}
+		});
+		
+		//공지사항 팝업
+		$(function() {
+			fn_openPbntPopup = function(){
+			
+			    var param = {
+					};
+			    gfn_openPopupPost("fn_openPbntPopup", param, "fn_openPbntPopup", '/bigdata/pot/stst/popup/forwardOpenPbntPopup.npaid', 800, 835, JSON.stringify({scrollbars:'yes'}));
+			}
+		});
+	</script>
+
+</head>
+<body>
+<div id="skip">
+    <strong class="hide">반복영역 건너뛰기</strong>
+    <a href="#gnb">주메뉴 바로가기</a>
+    <a href="#con_body">본문 바로가기</a>
+</div>
+
+<div id="wrap">
+    <!-- 태블릿, 모바일 용 헤더 : s -->
+    <div id="m_header">
+        <div style="background:#2b3d51; width:100%; height:20px;padding: 15px 0px;display: flex;align-items: center;">
+    		<img src="/resource/images/paid/big/layout/header_flag.png" style="height:20px; padding-left:12px;" alt="이 누리집은 대한민국 공식 전자정부 누리집입니다" />
+<!--         	<span style="width: 56px; height: 20px; margin-left:12px; background: url('/resource/images/paid/big/layout/main_img_sprites.png') no-repeat -290px -132px;"></span> -->
+        	<span style="position:absolute;color:#fff;font-size:15px;left:40px;line-height: 20px;padding:0px 10px;word-break:keep-all;">이 누리집은 대한민국 공식 전자정부 누리집입니다.</span>
+    	</div>
+        <h1 class="mHeader_logo">
+        	
+            <a href="/">
+                <img style="height:38px; padding-left:30px;" src="/resource/images/paid/big/layout/logo_20221014.png" alt="한눈에 보는 민원 빅데이터">
+            </a>
+        </h1>
+        <button style="left:15px;"type="button" class="moMenu_btn">메뉴열기</button>
+    </div>
+    <!-- 태블릿, 모바일 용 헤더 : e -->
+
+    <!-- pc 좌측메뉴 : s -->
+    <nav id="leftMenu">
+        <h1 style="height:60px;" class="logo">
+         	
+            <a href="/">
+                <img style="width:250px;" src="/resource/images/paid/big/layout/logo_20221014.png" alt="한눈에 보는 민원 빅데이터">
+            </a>
+        </h1>
+        
+        <h1 class="logoAdd">
+         	<a href="/">
+                <img src="/resource/images/paid/big/layout/logo.png" alt="한눈에 보는 민원 빅데이터">
+            </a>
+        </h1>
+        
+        <div id="gnbWrap" style="padding-top: 60px;">
+			<!-- menu [S] -->
+			
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/easy-autocomplete.css"/>
+<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/easy-autocomplete.themes.css"/>
+<script type="text/javascript" src="/resource/js/paid/cmmn/jquery.easy-autocomplete.js"></script> 
+
+<div class="gnbScroll">
+   <!-- 개발시 참고사항 : 페이지가 이동하는 경우 선택한 메뉴의 2뎁스 또는 3뎁스의 a태그에 class="on"을 넣어주면 해당 메뉴의 상위 메뉴까지 활성화 된 상태로 표시 됩니다. -->
+    <ul id="gnb">
+        <li>                                                                                                                                              
+     <a href=""   title="통계정보"><span class="icon t1"alt="통계정보"></span>통계정보</a>                                   						               
+     <ul>                                                                                                                                          
+         <li><a  onclick="cfn_sendMenuId('P0047','/bigdata/pot/stst/area/areaMain.npaid','P0047','')"  title="지역별 현황">지역별 현황</a>                                                                                                           
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0048','/bigdata/pot/stst/inst/instMain.npaid','P0048','')"  title="기관별 현황">기관별 현황</a>                                                                                                           
+             <ul>                                                                                                                                  
+         <li><a  onclick="cfn_sendMenuId('P1270','/bigdata/pot/stst/inst/forwardStstInstCntGvr.npaid','P1270','')"  title="중앙행정기관">중앙행정기관</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1271','/bigdata/pot/stst/inst/forwardStstInstMetroGovt.npaid','P1271','')"  title="광역자치단체">광역자치단체</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1272','/bigdata/pot/stst/inst/forwardStstInstLocalGovt.npaid','P1272','')"  title="기초자치단체">기초자치단체</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1273','/bigdata/pot/stst/inst/forwardStstInstEduOfc.npaid','P1273','')"  title="교육청">교육청</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1274','/bigdata/pot/stst/inst/forwardStstInstPbns.npaid','P1274','')"  title="공공기관">공공기관</a></li>                                                                                                            
+             </ul>                                                                                                                                 
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P1275','/bigdata/pot/stst/gndrage/forwardStstGndrAge.npaid','P1275','')"  title="민원인 현황">민원인 현황</a>                                                                                                           
+             <ul>                                                                                                                                  
+         <li><a  onclick="cfn_sendMenuId('P1276','/bigdata/pot/stst/gndr/forwardStstGndr.npaid','P1276','')"  title="성별현황">성별현황</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1277','/bigdata/pot/stst/age/forwardStstAge.npaid','P1277','')"  title="연령별현황">연령별현황</a></li>                                                                                                            
+             </ul>                                                                                                                                 
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0051','/bigdata/pot/stst/mltdm/forwardStstMltdm.npaid','P0051','')"  title="다차원분석">다차원분석</a>                                                                                                           
+         </li>                                                                                                                                     
+     </ul>                                                                                                                                         
+ </li>                                                                                                                                             
+ <li>                                                                                                                                              
+     <a href=""   title="분석정보"><span class="icon t2"alt="분석정보"></span>분석정보</a>                                   						               
+     <ul>                                                                                                                                          
+         <li><a  onclick="cfn_sendMenuId('P0053','/bigdata/pot/stst/mwkwrd/forwardStstMwkwrd.npaid','P0053','')"  title="민원키워드">민원키워드</a>                                                                                                           
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0054','/bigdata/pot/stst/mwfld/forwardStstFldstt.npaid','P0054','')"  title="분류별현황">분류별현황</a>                                                                                                           
+             <ul>                                                                                                                                  
+         <li><a  onclick="cfn_sendMenuId('P1278','/bigdata/pot/stst/mwfld/forwardStstMwfld.npaid','P1278','')"  title="민원분류">민원분류</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1279','/bigdata/pot/stst/prsfld/forwardStstPrsfld.npaid','P1279','')"  title="언론분류">언론분류</a></li>                                                                                                            
+             </ul>                                                                                                                                 
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0055','/bigdata/pot/anals/frcst/forwardBigdataPttnFrcstRegular.npaid','P1264','')"  title="민원예보">민원예보</a>                                                                                                           
+             <ul>                                                                                                                                  
+         <li><a  onclick="cfn_sendMenuId('P1264','/bigdata/pot/anals/frcst/forwardBigdataPttnFrcstRegular.npaid','P1264','')"  title="정기예보">정기예보</a></li>                                                                                                            
+         <li><a  onclick="cfn_sendMenuId('P1265','/bigdata/pot/anals/frcst/forwardBigdataPttnFrcstOccasional.npaid','P1265','')"  title="수시예보">수시예보</a></li>                                                                                                            
+             </ul>                                                                                                                                 
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0056','/bigdata/pot/stst/signal/forwardPttnSignalGnrzList.npaid','P0056','')"  title="민원신호등">민원신호등</a>                                                                                                           
+         </li>                                                                                                                                     
+     </ul>                                                                                                                                         
+ </li>                                                                                                                                             
+ <li>                                                                                                                                              
+     <a href=""   title="분석리포트"><span class="icon t3"alt="분석리포트"></span>분석리포트</a>                                   						               
+     <ul>                                                                                                                                          
+         <li><a  onclick="cfn_sendMenuId('P0058','/bigdata/pot/rptst/forwardBigdataAnalsRptstWeek.npaid','P0058','')"  title="주간동향">주간동향</a>                                                                                                           
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0059','/bigdata/pot/rptst/forwardBigdataAnalsRptstMonth.npaid','P0059','')"  title="월간동향">월간동향</a>                                                                                                           
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0160','/bigdata/pot/rptst/forwardBigdataAnalsRptstYear.npaid','P0160','')"  title="연간동향">연간동향</a>                                                                                                           
+         </li>                                                                                                                                     
+         <li><a  onclick="cfn_sendMenuId('P0060','/bigdata/pot/rptst/forwardBigdataAnalsRptstIssue.npaid','P0060','')"  title="이슈분석">이슈분석</a>                                                                                                           
+         </li>                                                                                                                                     
+     </ul>                                                                                                                                         
+ </li>                                                                                                                                             
+ <li>                                                                                                                                              
+     <a href=""   title="맞춤형 통계"><span class="icon t4"alt="맞춤형 통계"></span>맞춤형 통계</a>                                   						               
+     <ul>                                                                                                                                          
+         <li><a  onclick="cfn_sendMenuId('P0062','/bigdata/pot/gnrz/forwardBigdataGnrzSttsStstList.npaid','P0062','')"  title="맞춤형 통계">맞춤형 통계</a>                                                                                                           
+         </li>                                                                                                                                     
+     </ul>                                                                                                                                         
+ </li>                                                                                                                                             
+
+    </ul>
+    
+   	<label for="searchMenu"><span class="lab-txt">찾고 계신 메뉴가 무엇인가요?</span><input id="searchMenu" title="찾고 계신 메뉴가 무엇인가요?" ></label>
+    <ul class="moMenu_link">
+        <li><a href="#" onclick="fn_guidePopup();">이용가이드</a></li>
+        <li><a href="#" onclick="fn_openApiPopup();">공공데이터개방</a></li>
+        <li><a href="#" onclick="fn_openPbntPopup();">공지사항</a></li>
+        <li><a href="/bigdata/pot/stst/sitemap/forwardStstSitemap.npaid" >사이트맵</a></li>
+    </ul>
+    <!-- <ul class ="banner">
+    	<li><a href="http://naver.me/FUw0mNzU" target="_blank"><img src="/resource/images/paid/big/main/banner_1123.png" alt="또래 공감 EVENT"></a></li>
+    	<li><a href="/resource/pdf/민원예보 퀴즈쇼 이벤트 당첨자 명단.pdf" target="_blank"><img src="/resource/images/paid/big/main/banner.png" alt="민원예보 퀴즈쇼 이벤트 당첨자 바로가기"></a></li> 
+    </ul>-->
+</div>
+
+
+
+<!-- 왼쪽메뉴폼 [S] -->
+<form id="leftMenuForm" name="leftMenuForm" action="/bigdata/pot/stst/area/forwardStstAreaDtlLcl.npaid?o_area=%EC%88%98%EC%9B%90%EC%8B%9C&amp;mtrArea=%EA%B2%BD%EA%B8%B0%EB%8F%84" method="post">
+	<input type="hidden" name="dspMenuId" id="dspMenuIdTop" />  
+	<input type="hidden" name="dspLinkMenuId" id="dspLinkMenuIdTop" />
+<div>
+<input type="hidden" name="_csrf" value="44cf3eff-03dd-47f6-b890-1f18b1dbb1c5" />
+</div></form>
+	
+ 
+	<script src="/resource/js/paid/big/kakao.min.js"></script>
+ 
+<script type="text/javascript">
+
+var options = {
+	url: function (phrase) {
+		return "/bigdata/pot/cmmn/main/selectMenu.npaid";
+	},
+	getValue: function (element){
+		var menuNm = '';
+		
+		if(element.menuId == 'P0018' || element.menuId == 'P9997' || element.menuId == 'P9998'){
+			menuNm = element.menuNm;
+		}else{
+			menuNm = element.menuNmPath;
+		}
+		
+		return menuNm;
+	},
+	ajaxSettings: {
+		dataType: "json",
+		method: "POST",
+		data: {
+			dataType: "json"
+		}
+	},
+	preparePostData: function(data) {
+		data.pharse = replaceAll($("#searchMenu").val()," ","");
+		if(data.pharse == ""){
+			return false;
+		}
+		return data;
+	},
+	placeholder: "찾고 계신 메뉴가 무엇인가요?",
+	list: {
+		match: {
+			enabled: false
+		},
+		maxNumberOfElements: 20,
+		onChooseEvent: function() {
+			var value = $("#searchMenu").getSelectedItemData();
+			
+			if(value.menuId == 'P0018'){
+				fn_openPbntPopup();
+			}else if(value.menuId == 'P9997'){
+				fn_openApiPopup();
+			}else if(value.menuId == 'P9998'){
+				fn_guidePopup();
+			}else{
+				cfn_sendMenuId(value.menuId, value.linkUrl, value.linkMenuId, '');
+			}
+		},
+		onHideListEvent: function() {
+			var containerList = $("#searchMenu").next('.easy-autocomplete-container').find("ul");
+			if(containerList.children('li').length <= 0){
+				$(containerList).html("<li><div class='eac-item'>검색 결과가 없습니다.</div></li>").show();
+			}
+		}
+	},
+	theme: "square",
+	requestDelay: 500
+};
+
+$('#searchMenu').easyAutocomplete(options);
+
+$(document).ready(function() {
+	if("true" == "false") {
+		$(".shareBox").attr("style","display:none");
+	} else {
+		Kakao.init('dd00d2b25b1995c9c78c349d340bedb4');
+	}
+
+});
+
+
+// 메뉴 이동
+function cfn_sendMenuId(menuId, linkUrl, linkMenuId, target) {
+	var $form = $("#leftMenuForm");
+
+	target = cfn_nvl(target);
+	
+	if(cfn_trim(linkUrl) == "") {		
+		return;
+	}
+	
+	if(cfn_trim(linkUrl) != "") {		 
+		$("#dspMenuIdTop", $form).val(menuId);
+		$("#dspLinkMenuIdTop", $form).val(linkMenuId);		
+ 
+		$form.attr({method: 'get', target : target,  action : linkUrl}).submit();
+	}
+}
+
+// SNS 이동
+function cfn_sendSNS(val, title) {
+	
+	if("true" == "true"){
+		var sUrl = '';
+		
+		var cUrl = window.location.href;
+		var goUrl = cUrl.replace(/&/gi, "%26");
+		
+		if(val == 1){
+			//페이스북
+			sUrl = 'http://www.facebook.com/sharer/sharer.php?u=' + goUrl;
+			window.open(sUrl,'','width=600,height=300,top=100,left=100,scrollbars=yes');
+		}
+		
+		if(val == 2){
+			//트위터
+			sUrl = 'https://twitter.com/intent/tweet?url=' + goUrl;
+			window.open(sUrl,'','width=600,height=300,top=100,left=100,scrollbars=yes');		
+		}
+		
+		if(val == 3){
+			//카카오톡
+			if(cfn_nvl(title) == "") title = '한눈에 보는 민원 빅데이터';	
+	  
+			Kakao.Link.sendDefault({
+			      objectType: 'feed',
+			      content: {
+			        title: title,
+			        imageUrl: 'http://'+location.host+'/resource/images/paid/big/common/kakaoContImg.png',
+			        link: {
+			          mobileWebUrl: goUrl,
+			          webUrl: goUrl
+			        }
+			      }
+			});
+		}	
+	}
+}
+</script>
+			<!-- menu [E] -->	            
+        </div>
+        <button type="button" class="moMenu_close">메뉴 닫기</button>
+    </nav>
+    <!-- pc 좌측메뉴 : e -->
+
+    <!-- 컨텐츠 영역 : s -->
+    <div id="container">
+        <div id="con_header">
+        	<img src="/resource/images/paid/big/layout/header_flag.png" style="position:absolute; height:20px; left:12px; top:15px;" alt="이 누리집은 대한민국 공식 전자정부 누리집입니다" />
+        	<span style="position:absolute;color:#fff;font-size:15px;left:50px;margin:1px;">이 누리집은 대한민국 공식 전자정부 누리집입니다.</span>
+            
+        </div>
+        <div id="con_body">
+        
+             <!-- 우측 컨텐츠 영역 : s -->          	
+	      	
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+ 
+ 
+<!-- Webpagetest 웹사이트 진단을 위한 시각화 솔루션 사용하는 Devis js 분리 적용 -->
+
+	<link rel="stylesheet" type="text/css" href="/resource/css/paid/big/devis/devis.css"/>
+	<script type="text/javascript" src="/resource/js/paid/big/devis/devis.min.js"></script> 
+
+
+ 
+<script type="text/javascript" src="/resource/js/paid/big/devis/topojson.v1.min.js"></script> 
+
+<div class="con_bodyWrap">
+<div class="con_rank" id="con_rank">
+	<div class="con_rank_box">
+		<div class="rank_top">
+			<div class="location_menu">
+				&nbsp;
+			</div>
+			<div class="rankTit">
+				<h2><!-- 상세현황 --> <button class="rankTog_btn on">닫기</button>&nbsp;</h2>
+				<div class="shareBox">
+					<button type="button" class="shareBtn"><img src="/resource/images/paid/big/layout/icon_share.png" alt="공유하기"></button>
+					<div class="snsLayer">
+						
+					</div>
+				</div>
+				<span class="slideCount"><i class="hide">순위 슬라이드의 현재 페이지와 총 페이지</i></span>
+			</div>
+		</div>
+		<div class="rank_wrap">
+			<div class="rankBox" id="rankBox">
+								<!-- 지역 리스트 출력 부 -->
+				<div>
+					<ul class="rank_list">
+						
+							
+									<li>
+										<a href="#" value="고양시">
+											<span  class="topRank">1</span>
+											<strong>고양시</strong>
+											<div class="rankInfo">
+												<span class="cnt">913 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">26.4%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="수원시">
+											<span  class="topRank">2</span>
+											<strong>수원시</strong>
+											<div class="rankInfo">
+												<span class="cnt">845 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">3.7%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="안산시">
+											<span  class="topRank">3</span>
+											<strong>안산시</strong>
+											<div class="rankInfo">
+												<span class="cnt">735 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">16.9%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="성남시">
+											<span  class="topRank">4</span>
+											<strong>성남시</strong>
+											<div class="rankInfo">
+												<span class="cnt">719 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-21.9%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="화성시">
+											<span  class="topRank">5</span>
+											<strong>화성시</strong>
+											<div class="rankInfo">
+												<span class="cnt">653 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">27.5%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="평택시">
+											<span  class="topRank">6</span>
+											<strong>평택시</strong>
+											<div class="rankInfo">
+												<span class="cnt">646 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-7.7%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="용인시">
+											<span  class="topRank">7</span>
+											<strong>용인시</strong>
+											<div class="rankInfo">
+												<span class="cnt">610 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">8.9%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+					</ul>
+				</div>
+				<div>
+					<ul class="rank_list">
+							
+									<li>
+										<a href="#" value="시흥시">
+											<span >8</span>
+											<strong>시흥시</strong>
+											<div class="rankInfo">
+												<span class="cnt">428 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">10.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="부천시">
+											<span >9</span>
+											<strong>부천시</strong>
+											<div class="rankInfo">
+												<span class="cnt">399 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">10.2%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="김포시">
+											<span >10</span>
+											<strong>김포시</strong>
+											<div class="rankInfo">
+												<span class="cnt">346 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">46.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="안양시">
+											<span >11</span>
+											<strong>안양시</strong>
+											<div class="rankInfo">
+												<span class="cnt">283 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-32.3%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="과천시">
+											<span >12</span>
+											<strong>과천시</strong>
+											<div class="rankInfo">
+												<span class="cnt">254 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-16.7%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="의정부시">
+											<span >13</span>
+											<strong>의정부시</strong>
+											<div class="rankInfo">
+												<span class="cnt">246 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">11.8%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="파주시">
+											<span >14</span>
+											<strong>파주시</strong>
+											<div class="rankInfo">
+												<span class="cnt">245 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-8.6%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+					</ul>
+				</div>
+				<div>
+					<ul class="rank_list">
+							
+									<li>
+										<a href="#" value="남양주시">
+											<span >15</span>
+											<strong>남양주시</strong>
+											<div class="rankInfo">
+												<span class="cnt">243 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">2.1%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="하남시">
+											<span >16</span>
+											<strong>하남시</strong>
+											<div class="rankInfo">
+												<span class="cnt">226 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-8.5%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="광명시">
+											<span >17</span>
+											<strong>광명시</strong>
+											<div class="rankInfo">
+												<span class="cnt">198 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-24.7%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="광주시">
+											<span >18</span>
+											<strong>광주시</strong>
+											<div class="rankInfo">
+												<span class="cnt">187 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">12.7%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="오산시">
+											<span >19</span>
+											<strong>오산시</strong>
+											<div class="rankInfo">
+												<span class="cnt">179 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-27.2%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="양주시">
+											<span >20</span>
+											<strong>양주시</strong>
+											<div class="rankInfo">
+												<span class="cnt">145 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">8.2%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="구리시">
+											<span >21</span>
+											<strong>구리시</strong>
+											<div class="rankInfo">
+												<span class="cnt">106 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">5.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+					</ul>
+				</div>
+				<div>
+					<ul class="rank_list">
+							
+									<li>
+										<a href="#" value="의왕시">
+											<span >22</span>
+											<strong>의왕시</strong>
+											<div class="rankInfo">
+												<span class="cnt">105 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-11.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="이천시">
+											<span >23</span>
+											<strong>이천시</strong>
+											<div class="rankInfo">
+												<span class="cnt">102 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">36.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="군포시">
+											<span >24</span>
+											<strong>군포시</strong>
+											<div class="rankInfo">
+												<span class="cnt">98 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-5.8%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="안성시">
+											<span >25</span>
+											<strong>안성시</strong>
+											<div class="rankInfo">
+												<span class="cnt">87 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-4.4%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="포천시">
+											<span >26</span>
+											<strong>포천시</strong>
+											<div class="rankInfo">
+												<span class="cnt">57 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-5.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="양평군">
+											<span >27</span>
+											<strong>양평군</strong>
+											<div class="rankInfo">
+												<span class="cnt">56 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">7.7%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="여주시">
+											<span >28</span>
+											<strong>여주시</strong>
+											<div class="rankInfo">
+												<span class="cnt">51 건</span>
+												
+													<span class="uad up">증가</span>
+													
+													
+												
+												<span class="percent">21.4%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+					</ul>
+				</div>
+				<div>
+					<ul class="rank_list">
+							
+									<li>
+										<a href="#" value="가평군">
+											<span >29</span>
+											<strong>가평군</strong>
+											<div class="rankInfo">
+												<span class="cnt">27 건</span>
+												
+													
+													
+													<span class="uad">-</span>
+												
+												<span class="percent">0.0%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="동두천시">
+											<span >30</span>
+											<strong>동두천시</strong>
+											<div class="rankInfo">
+												<span class="cnt">12 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-63.6%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+							
+									<li>
+										<a href="#" value="연천군">
+											<span >31</span>
+											<strong>연천군</strong>
+											<div class="rankInfo">
+												<span class="cnt">10 건</span>
+												
+													
+													<span class="uad down">감소</span>
+													
+												
+												<span class="percent">-41.2%</span>
+											</div>
+										</a>
+									</li>
+			
+						
+					</ul>
+				</div>
+				
+				
+				<!--  지역 출력 부 E -->
+			</div>
+		</div>
+		<script>
+			//rankList();	//순위 활성화
+		</script>
+	</div>
+</div>
+
+<!-- 우측 컨텐츠 영역 : s -->
+<div class="content" id="content">
+	<div class="content_inner">
+		<!-- 메뉴 차례(location) : s -->
+		<!-- 구조상 location_menu는 아래와 .rank_top 아래에 두군데 있으므로 개발 시 참고 하시기 바랍니다.(클래스는 동일) -->
+		<div class="location_menu">
+			
+		</div>
+		<!-- 메뉴 차례(location) : s -->
+
+		<div class="article mt0">
+			<div class="statD_wrap">
+				<div class="statD_left">
+					<h3>경기도 &gt; <strong id="area-title"></strong> 현황</h3>
+					<div class="stat_detailMap">
+						<div id="areaMap"></div>
+					</div>
+				</div>
+				<div class="statD_right">
+					<div class="upD_info">
+					    
+						<!-- Update <strong>2019.07.15 08:41</strong> -->
+						Update <strong id="dateT">&nbsp;</strong>
+						<ul>
+							<li><a href="javascript:void(0)" id="btnStstAreaCSVDnd" class="downBtn stat_csv">CSV 다운로드</a></li>
+							<li><a href="javascript:void(0)" id="btnStstAreaImgDnd" class="downBtn stat_img">이미지 다운로드</a></li>
+						</ul>
+					</div>
+					<div class="statBox type_2"  id="ststBox">
+						<ul class="statList">
+							<li>
+								<strong>오늘</strong>
+								<div class="stat" id="ststDay">
+									<div class="cnt">0 <span>건</span></div>
+									<div class="uad">증가</div>
+									<div class="percent">0.0 <span>%</span></div>
+								</div>
+							</li>
+							<li>
+								<strong id="ststMonthTitle">월</strong>
+								<div class="stat" id="ststMonth">
+									<div class="cnt">0 <span>건</span></div>
+									<div class="uad">증가</div>
+									<div class="percent">0.0 <span>%</span></div>
+								</div>
+							</li>
+							<li>
+								<strong id="ststYearTitle">년</strong>
+								<div class="stat" id="ststYear">
+									<div class="cnt">0 <span>건</span></div>
+									<div class="uad">증가</div>
+									<div class="percent">0.0 <span>%</span></div>
+								</div>
+							</li>
+						</ul>
+					</div>
+
+					<div class="ymd_stat">
+						<button type="button" class="btn_help" id="layerBtn-help" title="그래프 도움말"><span class="sr-only">그래프 도움말</span></button>
+						<ul class="stat_tab" id="stst_tab">
+							<li>
+								<a href="#" class="on" onclick="fn_graphTab('01');">일별</a>
+								<div class="tab_con">
+
+								</div>
+							</li>
+							<li><a href="#" onclick="fn_graphTab('02');">월별</a>
+								<div class="tab_con">
+								
+								</div>
+							</li>
+							<li><a href="#" onclick="fn_graphTab('03');">연도별</a>
+								<div class="tab_con">
+
+								</div>
+							</li>
+						</ul>
+						<div class="stat_graph"  style="height:400px;">
+							<!-- 그래프 삽입(아래 이미지는 삽입 시 제거) -->
+							<div id="mChart">
+							</div>
+						</div>
+						<script>
+							statTab(".stat_tab");	// 기간별 탭 메뉴(접근성, 반응형 적용)
+						</script>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="article artLeft keyW">
+			<div class="keyW_wrap">
+				<div class="keyW_box" id="st-cloud">
+					<div id="cChart" style="padding:25px 5px 5px 5px;"></div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 클래스명 article 박스에 blue 클래스를 넣으면 제목부분이 파란 박스가 됩니다. -->
+		<div class="article blue" id="bigdataAnaly">
+			
+		</div>
+
+	</div>
+ <!-- 민원 키워드 폼 -->
+<form id="minwonKwrdForm" name="minwonKwrdForm" action="/bigdata/pot/stst/area/forwardStstAreaDtlLcl.npaid?o_area=%EC%88%98%EC%9B%90%EC%8B%9C&amp;mtrArea=%EA%B2%BD%EA%B8%B0%EB%8F%84" method="post">
+	<input type = "hidden" id = "mwkwrd" name = "mwkwrd" value = "">
+	<input type="hidden" name="dspMenuId" value=""/>
+	<input type="hidden" name="dspLinkMenuId" value=""/>
+<div>
+<input type="hidden" name="_csrf" value="44cf3eff-03dd-47f6-b890-1f18b1dbb1c5" />
+</div></form>	
+ 
+</div>
+<!-- 우측 컨텐츠 영역 : e -->
+
+</div>
+<script type="text/javascript">
+	
+	/** 기본 개인정보 정규식 패턴 */
+	const PERSONAL_INFO_PATTERNS = [
+	
+		/* ── 성명: 3글자 (주요 성씨 + 2글자 한글) ── */
+	    /[김이박최정강조윤임한오서신권황안송전홍유고문양소손배백허유남심노하전성차우진구임신민유나엄채병지편]{1}[가-힣]{2}/,
+	
+	    /* ── 성명: 복성(선우·남궁·독고·황보 등) + 2글자 ── */
+	    /(선우|남궁|독고|황보|사공|서문|제갈|동방|무본|망절|온달|장곡)[가-힣]{2}/,
+	
+	    /* ── 성명: 2글자 (외국계 한국명·예명 대응) ── */
+	    /* /[김이박최정강조윤장임한오서신권황안송전홍유고문양손배백남허심노하주류강]{1}[가-힣]{1}/, */
+	
+	    /* ── 전화번호: 휴대폰 / 일반전화 / 대표번호 ── */
+	    /(01[016789])[-\s]?\d{3,4}[-\s]?\d{4}/,
+	    /0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/,
+	    /1[5-9]\d{2}[-\s]?\d{4}/,
+	
+	    /* ── 이메일 주소 ── */
+	    /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/,
+	
+	    /* ── 주민등록번호 ── */
+	    /\d{6}[-\s]?\d{7}/,
+	
+	    /* ── 사업자등록번호 ── */
+	    /\d{3}[-\s]?\d{2}[-\s]?\d{5}/,
+	
+	    /* ── 계좌번호 (은행별 10~14자리 변형 대응) ── */
+	    /\d{3,6}[-\s]?\d{2,6}[-\s]?\d{2,6}([-\s]?\d{1,3})?/,
+	
+	    /* ── 운전면허번호 ── */
+	    /\d{2}[-\s]?\d{2}[-\s]?\d{6}[-\s]?\d{2}/,
+	
+	    /* ── 여권번호 ── */
+	    /[A-Z]{1}\d{8}/,
+	
+	    /* ── IP 주소 (v4) ── */
+	    /(\d{1,3}\.){3}\d{1,3}/,
+	
+	    /* ── 생년월일: YYYYMMDD / YYYY-MM-DD / YYYY.MM.DD ── */
+	    /(19|20)\d{2}[-.\s]?(0[1-9]|1[0-2])[-.\s]?(0[1-9]|[12]\d|3[01])/
+	];
+	
+	/** 문자열 내 포함 패턴 (완전일치가 아닌 부분 매칭) */
+	const PERSONAL_INFO_INLINE_PATTERNS = [
+	    /\d{2,4}[-\s]\d{3,4}[-\s]\d{4}/,           // 전화번호 변형 포함
+	    /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+/,       // 이메일 일부 포함
+	    /\b(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/, // 생년월일 연속숫자
+	    /\b\d{6}[-\s]?\d{7}\b/,                     // 주민번호 포함
+	    /\b01[016789]\d{7,8}\b/                     // 휴대폰번호 연속숫자
+	];
+	
+	/* ============================================================================
+	 * ② 명예훼손 가능 정보 관리 필터 (강화)
+	 * 근거: 정보통신망법 제70조, 형법 제307조(명예훼손)
+	 *
+	 * [v2.0 추가]
+	 *   - 공직자 특정 비방 표현 추가
+	 *   - 허위사실 유포 조장 표현 추가
+	 *   - 인종·성별 혐오 결합 명예훼손 표현 추가
+	 * ============================================================================ */
+	const DEFAMATION_KEYWORDS = [
+	    /* 개인 비방 */
+	    /파렴치/, /사기꾼/, /전과자/, /범죄자/, /부패/, /비리/, /횡령/, /배임/, /뇌물/,
+	    /성추행/, /성희롱/, /성폭행/, /성범죄/, /도둑/, /마약범/, /음주운전/,
+	    /* 허위사실 조장 */
+	    /의혹/, /루머/, /카더라/, /~카더라/, /~했다더라/, /사실확인/,
+	    /* 공직자 비방 */
+	    /비리공무원/, /부패공무원/, /세금도둑/, /직권남용/, /표적수사/,
+	    /* 신규: 특정인 낙인 표현 */
+	    /전력자/, /낙인/, /내부고발자색출/, /불순분자/, /빨갱이/,
+	    /* 신규: 단체·기관 명예훼손 */
+	    /어용기관/, /부패단체/, /유령기관/, /불법운영/
+	];
+	
+	/* ============================================================================
+	 * ③ 불법정보 제거 필터
+	 * 근거: 정보통신망법 제44조의7(불법정보의 유통금지)
+	 * ============================================================================ */
+	const ILLEGAL_INFO_KEYWORDS = [
+	    /불법도박/, /도박사이트/, /토토사이트/, /마약/, /필로폰/, /대마초/, /음란물/,
+	    /몰카/, /야동/, /성매매/, /불법대출/, /사채/, /보이스피싱/, /해킹/, /피싱사이트/,
+	    /* 신규 */
+	    /다크웹/, /불법총기/, /위조지폐/, /신분위조/, /계정탈취/, /개인정보판매/,
+	    /도박추천/, /메스암페타민/, /히로뽕/, /케타민/
+	];
+	
+	/* ============================================================================
+	 * ④ 비속어 및 부적절 표현 필터 (강화)
+	 * 근거: 전자정부 웹사이트 품질관리 지침, 공공기관 웹사이트 운영 가이드
+	 *
+	 * [v2.0 추가]
+	 *   - 자모음 조합 욕설 패턴 강화
+	 *   - 혐오표현(지역·성별·세대·인종) 확장
+	 *   - 영문 욕설 (공공민원 맥락) 추가
+	 * ============================================================================ */
+	const PROFANITY_KEYWORDS = [
+	    /* 일반 비속어 */
+	    /씨발/, /씨팔/, /시발/, /개새끼/, /병신/, /ㅂㅅ/, /미친놈/, /미친년/, /닥쳐/,
+	    /지랄/, /ㅈㄹ/, /찐따/, /창녀/, /호로자식/,
+	    /* 혐오표현: 지역 */
+	    /전라디언/, /홍어/, /경상디언/,
+	    /* 혐오표현: 성별 */
+	    /김치녀/, /한남충/, /된장녀/,
+	    /* 혐오표현: 세대 */
+	    /틀딱충/, /틀딱/, /급식충/, /맘충/,
+	    /* 혐오표현: 인종 */
+	    /짱깨/, /쪽바리/, /양놈/,
+	    /* 공직 비하 */
+	    /공무원새끼/, /공무원놈/,
+	    /* 신규 비속어 */
+	    /꺼져/, /뒤져/, /처먹어/, /쳐죽여/, /죽어버려/, /엿먹어/,
+	    /ㄴㄴ하지마라/, /머저리/, /얼간이/, /쓰레기새끼/, /돼지새끼/,
+	    /* 신규 혐오표현 */
+	    /오팔년/, /중꺼리/, /흑형/, /깜둥이/, /왜놈/, /빨갱이새끼/, /새끼/, /호로/
+	];
+	
+	const PROFANITY_PATTERNS = [
+	    /* 자모음 조합 욕설 */
+	    /ㅅ[ㅂ]+/, /ㄱ[ㅅ]+ㄲ/, /ㅂ[ㅅ]+/, /ㅈ[ㄹ]+/,
+	    /* 띄어쓰기·특수문자 회피 패턴 */
+	    /시[^\w가-힣]*발/, /씨[^\w가-힣]*발/, /개[^\w가-힣]*새/,
+	    /* 신규: 숫자·기호 치환 우회 패턴 */
+	    /s[1i!]+b[a@]+l/i,      // sib@l 류 영문 치환
+	    /f+u+c+k+/i,            // 영문 욕설
+	    /b+i+t+c+h+/i,
+	    /a+s+s+h+o+l+e+/i
+	];
+	
+	
+	/** 정규식 패턴 매칭 */
+	function matchesBannedPattern(label, patterns) {
+		
+		const filteredDatas = label.datas.filter(item => !patterns.some(regex => regex.test(item.term)));
+		
+		const updateJson = {...label, datas : filteredDatas};
+		
+		const resultText = JSON.stringify(updateJson, null, 2);
+		
+		return resultText;
+	}
+	
+	/* ============================================================================
+	 * [개별 필터 함수] (동기 - 규칙 기반)
+	 * ============================================================================ */
+	
+	/** ① 개인정보 필터 */
+	function isPersonalInfo(label) {
+	    return matchesBannedPattern(label, PERSONAL_INFO_PATTERNS) || matchesBannedPattern(label, PERSONAL_INFO_INLINE_PATTERNS);
+	}
+	
+	/** ② 명예훼손 가능 정보 필터 */
+	function isDefamatory(label) {
+	    return matchesBannedPattern(label, DEFAMATION_KEYWORDS);
+	}
+	
+	/** ③ 불법정보 필터 */
+	function isIllegalInfo(label) {
+	    return matchesBannedPattern(label, ILLEGAL_INFO_KEYWORDS);
+	}
+	
+	/** ④ 비속어·부적절 표현 필터 */
+	function isProfanity(label) {
+	    return matchesBannedPattern(label, PROFANITY_KEYWORDS) || matchesBannedPattern(label, PROFANITY_PATTERNS);
+	}
+
+	var mask_list = new ax5.ui.mask();
+	var mask_today = new ax5.ui.mask();
+	var mask_mChart = new ax5.ui.mask();
+	var mask_cloud = new ax5.ui.mask();
+	var mask_map = new ax5.ui.mask();
+	var mask_bigdata = new ax5.ui.mask();
+	//User Inst Info
+	var usrInstName = "";
+	var slctAreaName = "";
+	var slctMtrAreaName ="경기도";
+
+	//today
+	var today = "2026-10-30";
+	var todayDate = new Date(today);
+
+	var mdataObj = [];
+	var mapDataObj = null;
+
+	// 날짜 처리 메소드
+	function fn_dateTo_yyyymmdd(date) {
+		var yyyy = date.getFullYear().toString();
+		var mm = (parseInt(date.getMonth())+1).toString();
+		var dd = date.getDate().toString();
+		return yyyy+""+(mm[1]?mm:'0'+mm[0])+""+(dd[1]?dd:'0'+dd[0]);
+	}
+	function numberWithCommas(x){
+		return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
+	}
+
+	// 지역명 -> workbook 번호 변환
+	function fn_localToCode(localName) {
+		var localCode = "58";
+		switch(localName){
+			case "서울특별시" :
+				localCode = "59";
+				break;
+			case "경기도" :
+				localCode = "60";
+				break;
+			case "강원도" :
+				localCode = "61";
+				break;
+			case "강원특별자치도" :
+				localCode = "61";
+				break;
+			case "경상남도" :
+				localCode = "62";
+				break;
+			case "경상북도" :
+				localCode = "63";
+				break;
+			case "광주광역시" :
+				localCode = "64";
+				break;
+			case "대구광역시" :
+				localCode = "65";
+				break;
+			case "대전광역시" :
+				localCode = "66";
+				break;
+			case "부산광역시" :
+				localCode = "67";
+				break;
+			case "세종특별자치시" :
+				localCode = "68";
+				break;
+			case "울산광역시" :
+				localCode = "69";
+				break;
+			case "인천광역시" :
+				localCode = "70";
+				break;
+			case "전라남도" :
+				localCode = "71";
+				break;
+			case "전라북도" :
+				localCode = "72";
+				break;
+			case "전북특별자치도" :
+				localCode = "72";
+				break;
+			case "제주특별자치도" :
+				localCode = "73";
+				break;
+			case "충청남도" :
+				localCode = "74";
+				break;
+			case "충청북도" :
+				localCode = "75";
+				break;
+			default :
+				alert("없는 지역입니다.");
+				break;
+		}
+		return localCode;
+	}
+
+	$(document).ready(function() {
+		//fn_areaList();								// 지역 리스트 생성 / 이벤트 : 지역 맵 데이터 차트 생성
+
+		if(slctMtrAreaName) {
+			var localName = slctMtrAreaName;
+		 	var localCode = fn_localToCode(localName);
+		 	//console.log(localCode);
+		 	fn_todayCount(slctMtrAreaName+"/"+slctAreaName,usrInstName,"");
+		 	fn_vsd_ststArea(localCode, localName);
+		 	fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+slctAreaName,"DAILY");
+		 	fn_Bigdata(slctMtrAreaName+"/"+slctAreaName);
+		 }
+		
+		if(slctAreaName) {
+			$('#rankBox > div > div > div > ul > li > a[value='+slctAreaName+']').addClass('on');
+		}
+		//클릭 이벤트
+		$('#rankBox > div > div > div > ul > li > a').on('click', function(d){
+			$('#rankBox > div > div > div > ul > li > a').removeClass('on');
+			$(this).addClass('on');
+			var localName = $(this).attr('value');
+			//console.log(localName);
+			slctAreaName = localName;
+
+			$("#area-title").text(localName);
+			fn_todayCount(slctMtrAreaName+"/"+slctAreaName,usrInstName,"");
+			fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+slctAreaName,"DAILY");
+			
+			fn_Bigdata(slctMtrAreaName+"/"+slctAreaName);
+		})
+
+	});
+
+
+	// 오늘의 카운트 출력
+	function fn_todayCount(area,inst,age)
+	{
+		var url = "/bigdata/pot/stst/cmmn/forwardPrevToday.paid";
+		var reqData = {'brtcNameAKeyword':area,'mngAncName':inst,'age':age, 'dspMenuId':''};
+		var reqOptions = $.sendAjaxReq.setOptions(url,'POST', reqData, true, fn_todayCountSuccessHandler, cfn_submitErrorHandler);
+		$.sendAjaxReq.start(reqOptions);
+		cfn_maskOpen(mask_today,"ststBox","content");
+		// 오늘의 카운트 SuccessHandler
+		function fn_todayCountSuccessHandler(result){
+			cfn_maskClose(mask_today);
+			
+			
+			console.dir(result);
+			if(result.result != null) {
+				console.dir(result.result[0].to); //20200303222124
+				if(result.result[0].to !== undefined && result.result[0].to.length > 0) {
+					var searchDateTime = result.result[0].to;
+			        var setDateTime = searchDateTime.substring(0, 4).concat('-').concat(searchDateTime.substring(4, 6)).concat('-').concat(searchDateTime.substring(6, 8))
+			        .concat(' ').concat(searchDateTime.substring(8, 10)).concat(':').concat(searchDateTime.substring(10, 12));
+					$('#dateT').text(setDateTime);	
+				}
+			}
+
+			
+			
+			for(var i in  result.result)
+			{
+				if(result.result[i].timeLine!==undefined && result.result[i].timeLine.length>0)
+				{
+					//오늘,이번달,올해 처리
+					$("#ststMonthTitle").text(todayDate.getMonth()+1+"월");
+					$("#ststYearTitle").text(todayDate.getFullYear()+"년");
+
+					if(result.result[i].keyword === "전일대비")
+					{
+						$("#ststDay .cnt").html(numberWithCommas(result.result[i].timeLine[0].hits) + "<span>건</span>");
+						if(result.result[i].timeLine[0].prevRatio < 0){
+							$("#ststDay .uad").removeClass('up');
+							$("#ststDay .uad").addClass('down');
+							$("#ststDay .uad").text('감소');
+							$("#ststDay .percent").removeClass('up');
+						}
+						else {
+							$("#ststDay .uad").removeClass('down');
+							$("#ststDay .uad").addClass('up');
+							$("#ststDay .uad").text('증가');
+							$("#ststDay .percent").addClass('up');
+						}
+						$("#ststDay .percent").html(result.result[i].timeLine[0].prevRatio + "<span>%</span>");
+					}
+					else if(result.result[i].keyword === "전월대비")		{
+						$("#ststMonth .cnt").html(numberWithCommas(result.result[i].timeLine[0].hits) + "<span>건</span>");
+						if(result.result[i].timeLine[0].prevRatio < 0){
+							$("#ststMonth .uad").removeClass('up');
+							$("#ststMonth .uad").addClass('down');
+							$("#ststMonth .uad").text('감소');
+							$("#ststMonth .percent").removeClass('up');
+						}
+						else {
+							$("#ststMonth .uad").removeClass('down');
+							$("#ststMonth .uad").addClass('up');
+							$("#ststMonth .uad").text('증가');
+							$("#ststMonth .percent").addClass('up');
+						}
+						$("#ststMonth .percent").html(result.result[i].timeLine[0].prevRatio + "<span>%</span>");
+					}
+					else if(result.result[i].keyword === "전년대비")
+					{
+						$("#ststYear .cnt").html(numberWithCommas(result.result[i].timeLine[0].hits) + "<span>건</span>");
+						if(result.result[i].timeLine[0].prevRatio < 0){
+							$("#ststYear .uad").removeClass('up');
+							$("#ststYear .uad").addClass('down');
+							$("#ststYear .uad").text('감소');
+							$("#ststYear .percent").removeClass('up');
+						}
+						else {
+							$("#ststYear .uad").removeClass('down');
+							$("#ststYear .uad").addClass('up');
+							$("#ststYear .uad").text('증가');
+							$("#ststYear .percent").addClass('up');
+						}
+						$("#ststYear .percent").html(result.result[i].timeLine[0].prevRatio + "<span>%</span>");
+					}
+				}
+			}
+		}
+	}
+	
+	// 지역 리스트 생성
+	function fn_areaList() {
+		cfn_maskOpen(mask_list,"rankBox","con_rank");
+		var url = "/bigdata/pot/stst/area/selectStstAreaDtlList.paid";
+
+		var options = $.sendAjaxHtml.setOptions(url, "post", {areaName:slctMtrAreaName}, true,
+				fn_areaListSuccessHandler, cfn_submitErrorHandler);
+		$.sendAjaxHtml.start(options);
+		
+		// 지역 리스트 생성 SuccessHandler
+		function fn_areaListSuccessHandler(result) {
+			
+			$("#rankBox").html(result);
+			cfn_maskClose(mask_list);
+			rankList();
+			
+			if(slctAreaName) {
+				$('#rankBox > div > ul > li > a[value='+slctAreaName+']').addClass('on');
+			}
+			//클릭 이벤트
+			$('#rankBox > div > div > div > ul > li > a').on('click', function(d){
+				$('#rankBox > div > div > div > ul > li > a').removeClass('on');
+				$(this).addClass('on');
+				var localName = $(this).attr('value');
+				
+				slctAreaName = localName;
+
+				$("#area-title").text(localName);
+				fn_todayCount(slctMtrAreaName+"/"+slctAreaName,usrInstName,"");
+				fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+slctAreaName,"DAILY");
+				
+				fn_Bigdata(slctMtrAreaName+"/"+slctAreaName);
+			})
+		}
+
+	}
+
+
+
+	// 지역 일,월,년 전일대비 건수 차트 생성
+	function fn_vsd_ststAreaInfo(area,period) {
+
+		var prevDate = new Date(today);
+		prevDate.setDate(todayDate.getDate()-15);
+
+
+		var dateFrom = fn_dateTo_yyyymmdd(prevDate);
+		var dateTo = fn_dateTo_yyyymmdd(todayDate);
+		var wdId = 76;
+		if(period==="DAILY")
+		{
+			//탭  초기화
+			$('#stst_tab > li > a').removeClass('on');
+			$('#stst_tab > li:nth-child(1) > a').addClass('on');
+			
+			
+			//날짜형식
+			dateFrom = fn_dateTo_yyyymmdd(prevDate);
+		}
+		else if(period==="MONTHLY"){
+			//탭  초기화
+			 wdId = 761;
+			$('#stst_tab > li > a').removeClass('on');
+			$('#stst_tab > li:nth-child(2) > a').addClass('on');
+			
+			//날짜형식
+			var prevMonthDate = new Date(today);
+			prevMonthDate.setMonth(todayDate.getMonth()-12);
+			dateFrom = fn_dateTo_yyyymmdd(prevMonthDate);
+		}
+		else if(period==="YEARLY"){
+			//탭  초기화
+			 wdId = 762;
+			$('#stst_tab > li > a').removeClass('on');
+			$('#stst_tab > li:nth-child(3) > a').addClass('on');
+			
+			//날짜형식
+			var prevYearDate = new Date(today);
+			prevYearDate.setYear(todayDate.getFullYear()-6);
+			dateFrom = fn_dateTo_yyyymmdd(prevYearDate);
+		}
+		fn_vsd_keywordCloud(fn_dateTo_yyyymmdd(todayDate)+"16",area);
+		var rq = {
+			"workbookId" : wdId,
+			"params" : {
+				"brtcNameAKeyword":area,
+				"mainSubName":usrInstName,
+				"dateFrom":dateFrom,
+				"dateTo":dateTo,
+				"period":period
+				,"target": "pttn,dfpt,saeol" 
+			}
+		};
+		var url = "/bigdata/pot/api/devis/devisVsd.paid";
+		var options = $.sendAjaxJson.setOptions(url, "POST",
+				JSON.stringify({
+					rqstStr: JSON.stringify(rq)
+				}), true, fn_devisSuccessHandler_ststAreaInfo,
+				cfn_submitErrorHandler);
+		$.sendAjaxReq.start(options);
+		cfn_maskOpen(mask_mChart,"mChart","content");
+
+		function fn_devisSuccessHandler_ststAreaInfo(result) {
+			cfn_maskClose(mask_mChart);
+			
+			mdataObj = JSON.parse(result.resultList).datas;
+			dvRequester.workbookBindingTs(result.resultList, {
+				bindTo : 'mChart',
+				height : 400,
+				color : ['rgb(29,179,169)', 'rgb(252,108,108)']
+			});
+		}
+	}
+
+
+
+
+
+	// 지역 지도 생성
+	function fn_vsd_ststArea(localNo, localName) {
+		var rq = {
+			"workbookId" : localNo,
+			"params" : {
+				"dateFrom" : fn_dateTo_yyyymmdd(todayDate),
+				"dateTo" : fn_dateTo_yyyymmdd(todayDate),
+				"primaryKeyword" : localName
+				,"target": "pttn,dfpt,saeol" 
+			}
+		};
+
+		var url = "/bigdata/pot/api/devis/devisVsd.paid";
+		var options = $.sendAjaxJson.setOptions(url,
+				"POST", JSON.stringify({
+					rqstStr: JSON.stringify(rq)
+				}), true, fn_devisSuccessHandler_ststArea, cfn_submitErrorHandler);
+		$.sendAjaxReq.start(options);
+		cfn_maskOpen(mask_map,"areaMap","content");
+		function fn_devisSuccessHandler_ststArea(result) {
+			fn_vsd_ststMapInfo(result);
+		}
+	}
+
+
+	// 지도 렌더링 요청
+	function fn_vsd_ststMapInfo($workbookInfoResult) {
+		var workbookInfoResult = JSON.parse($workbookInfoResult.resultList);
+		mapDataObj = workbookInfoResult.datas;
+		var rq = {
+			"areaId" : workbookInfoResult.chartJson.geoVectorMapGraph.mapId,
+		};
+
+		var url = "/bigdata/pot/api/devis/devisMap.paid";
+		var options = $.sendAjaxJson.setOptions(url, "POST",
+				JSON.stringify(rq), true, fn_devisSuccessHanlder_ststMapInfo,
+				cfn_submitErrorHandler);
+		$.sendAjaxReq.start(options);
+		
+		window.cc = resultObject;
+		
+		// 지도 전체 렌더링 SuccessHandler
+		function fn_devisSuccessHanlder_ststMapInfo(result) {
+			var resultObject =JSON.parse(result.resultList);
+			workbookInfoResult.chartJson.geoVectorMapGraph.mapData = resultObject;
+
+			
+			if(workbookInfoResult.chartJson.geoVectorMapGraph.mapId == '47') { //경북
+				//workbookInfoResult.chartJson.geoVectorMapGraph.mapData.arcs[9058][0] = [60519, 62906];
+				//workbookInfoResult.chartJson.geoVectorMapGraph.mapData.arcs[9059][0] = [63472, 55532];
+			}
+			
+			
+			var geoMap = dvRequester.workbookBinding(workbookInfoResult, {
+				bindTo : 'areaMap',
+				height : 400,
+				color : ['rgb(204,241,140)', 'rgb(176, 233, 89)', 'rgb(6,208,176)', 'rgb(2,207,178)', 'rgb(1,187,215)'
+					, 'rgb(1,157,195)', 'rgb(1,108,213)', 'rgb(0,64,191)', 'rgb(3,51,128)', 'rgb(1,15,84)', 'rgb(1,1,1)']
+			});
+
+			cfn_maskClose(mask_map);
+
+			geoMap.setEvent('click', function(evgt) {
+				// 지도 클릭 이벤트 추가!
+				
+				var localName = evgt.properties.SIG_KOR_NM;
+				
+				//지역 리스트의 기존 지역 선택 해제
+				$('#rankBox > div > div > div > ul > li > a[value='+slctAreaName+']').removeClass('on');
+
+				$("#area-title").text(localName);
+				fn_todayCount(slctMtrAreaName+"/"+localName,usrInstName,"");
+				fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+localName,"DAILY");
+				
+				//지도에서 클릭한 지역으로 현재 지역 재설정
+				slctAreaName = localName;
+				
+				//지역 리스트의 선택지역을 지도에서 클릭한 지역으로 수정
+				$('#rankBox > div > div > div > ul > li > a[value='+localName+']').addClass('on');
+				
+				fn_Bigdata(slctMtrAreaName+"/"+slctAreaName);
+			});
+
+			$('#btnStstAreaImgDnd').off().on('click', function() {
+				// 이미지 다운로드 이벤트 추가
+				geoMap.downloadImage();
+			});
+
+			$('#btnStstAreaCSVDnd').off().on('click',function(){
+				if(mapDataObj!==null)
+				{
+					exportCSVFile(mapDataObj,$("#area-title").text())
+				}
+			});
+
+		}
+	}
+
+	// 그래프 탭
+	function fn_areaMapTab(id)
+	{
+		alert("통계청 API 연결 필요");
+	}
+	function fn_graphTab(id)
+	{
+	 	
+	 	
+		var slctAreaName = $("#area-title").text();
+		TAB_ID = "graphTab" + id;
+
+		// 일별
+		if(TAB_ID == "graphTab01"){
+			fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+slctAreaName,"DAILY");
+		}
+		// 월별
+		if(TAB_ID == "graphTab02") {
+			fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+slctAreaName, "MONTHLY");
+		}
+		// 연별
+		if(TAB_ID == "graphTab03") {
+			fn_vsd_ststAreaInfo(slctMtrAreaName+"/"+slctAreaName, "YEARLY");
+		}
+
+	}
+
+	
+	// CSV Download
+	function convertToCSV(objArray) {
+		var array = typeof objArray != 'object' ? JSON.parse(objArray) : objArray;
+		var str = '';
+
+		for (var i = 0; i < array.length; i++) {
+			var line = '';
+			for (var index in array[i]) {
+				if (line != '') line += ',';
+
+				if (typeof array[i][index] === 'string') {
+					line += '\"' + array[i][index].replace(/"/g, '`') + '\"';
+				} else if(array[i][index]==null){
+					line += "";
+				}else {
+					line += array[i][index];
+				}
+			}
+			str += line + '\r\n';
+		}
+		return str;
+	}
+
+	function exportCSVFile(nItem, fileTitle, headers) {
+		var items = JSON.parse(JSON.stringify(nItem));
+		if (headers) {
+			items.unshift(headers);
+		} else if (items.length > 0) {
+			if (typeof items[0] === 'object') {
+				var keys = Object.keys(items[0]);
+				hd = {};
+
+				for (var k in keys) {
+					hd[keys[k]] = keys[k];
+				}
+				items.unshift(hd);
+			}
+		}
+
+		var jsonObject = JSON.stringify(items);
+		var csv = this.convertToCSV(jsonObject);
+		var exportedFilename = fileTitle + '.csv' || 'export.csv';
+
+		var blob = new Blob(["\ufeff"+csv], {
+			type: 'text/csv;charset=utf-8;'
+		});
+		if (navigator.msSaveBlob) {
+			navigator.msSaveBlob(blob, exportedFilename);
+		} else {
+			var link = document.createElement("a");
+			if (link.download !== undefined) {
+				var url = URL.createObjectURL(blob);
+				link.setAttribute("href", url);
+				link.setAttribute("target","_blank")
+				link.setAttribute("download", exportedFilename);
+				link.style.visibility = 'hidden';
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+			}
+		}
+
+	}
+	// End CSV Download
+	
+	// 워드클라우드 생성
+	
+    function fn_vsd_keywordCloud(dt,areaName) {
+        var rq = {
+            "workbookId": 491,
+            "params": {
+                "target": "pttn,dfpt,saeol",
+                "period": "DAILY",
+                "brtcNameAKeyword":areaName,
+                "analysisTime": dt,
+                "maxResult": "30"
+            }
+        };
+
+        var url = "/bigdata/pot/api/devis/devisVsd.paid";
+        var options = $.sendAjaxJson.setOptions(url, "POST",
+            JSON.stringify({rqstStr: JSON.stringify(rq)}), true, fn_devisSuccessHandler_minwon_cloud,
+            cfn_submitErrorHandler);
+        
+        $.sendAjaxJson.start(options);
+        
+        cfn_maskOpen(mask_cloud,"st-cloud","content");
+        
+        // 민원 클라우드 Success 핸들러
+        function fn_devisSuccessHandler_minwon_cloud(result) {
+        	
+        	//개인정보 필터
+        	resultObject = JSON.parse(isPersonalInfo(JSON.parse(result.resultList)));
+        	//명예훼손 가능 정보 필터
+        	resultObject = JSON.parse(isDefamatory(resultObject));
+        	//불법정보 필터
+        	resultObject = JSON.parse(isIllegalInfo(resultObject));
+        	//비속어·부적절 표현 필터
+        	resultObject = JSON.parse(isProfanity(resultObject));
+        	
+//             resultObject = JSON.parse(result.resultList)
+
+            var minwonCloudChart = dvRequester.workbookBinding(resultObject, {
+                bindTo: 'cChart',
+                height: 200,
+                color : ['rgb(237,74,87)', 'rgb(251,110, 36)', 'rgb(38,125,217)', 'rgb(76,218,195)', 'rgb(43,212,255)']
+            });
+            
+            // 클릭시 연관어 분석 화면으로 이동
+            minwonCloudChart.setEvent('click', function (evt) {
+                var word = evt.text;
+                fn_forwardDetailKwrd(word);
+            });
+            cfn_maskClose(mask_cloud);
+        }
+    }
+    function fn_forwardDetailKwrd(kwrd) {
+        var $form = $("#minwonKwrdForm");
+        $("#mwkwrd", $form).val(kwrd);
+        $form.attr({ method : "post", action: "/bigdata/pot/stst/mwkwrd/forwardStstMwkwrdDetail.npaid " }).submit();
+    }
+		//Bigdata Layer 
+	function fn_Bigdata(area) {
+
+		/* $("#bigdataAnaly").html('<div class="atc_tit"><h3><strong>빅데이터</strong> 분석</h3></div><div style="padding:20px; text-align:center;">기능 점검중입니다.</div>');
+			
+		return; */
+		
+		var url = "/bigdata/pot/stst/cmmn/selectStstBigdataAnaly.paid";
+		var reqData = {pageType:'addr',brtcNameAKeyword:area};
+		var options = $.sendAjaxHtml.setOptions( url, "post", reqData, true, fn_BigdataSuccessHandler, cfn_submitErrorHandler);
+
+		$.sendAjaxHtml.start(options);
+		cfn_maskOpen(mask_bigdata,"bigdataAnaly","content");
+
+		function fn_BigdataSuccessHandler(result){
+
+			$("#bigdataAnaly").html("");
+			$("#bigdataAnaly").html(result);
+			rankList();	//순위 활성화
+			cfn_maskClose(mask_bigdata);
+
+		}
+	}
+
+</script>  
+	      	<!-- 우측 컨텐츠 영역 : e -->
+       
+            <!-- 푸터 영역 : s -->            
+			    
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+ 
+ 
+
+ <div id="footer_top">
+            <ul class="etc">
+                <li><a href="#" onclick="fn_guidePopup();">이용가이드</a></li>
+                <li><a href="#" onclick="fn_openApiPopup();">공공데이터 개방</a></li>
+                <li><a href="#" onclick="fn_openPbntPopup();">공지사항</a></li>
+                <li><a href="/bigdata/pot/stst/sitemap/forwardStstSitemap.npaid" >사이트맵</a></li>
+            </ul>
+</div>
+<div id="con_footer"> 
+	<div class="footer_addr">  
+	    
+	    <address>(우)30102 세종특별자치시 도움 5로 20 정부세종청사 국민권익위원회 <i>/</i></address> <span>국민콜 110(정부민원안내) <i>/</i></span> <span><a href="tel:070-4108-3625">070-4108-3625</a>(시스템관련 이용안내, 평일 09시~18시)</span>
+	</div>
+	<p class="copyright">Copyright (c) 국민권익위원회 All Rights Reserved.</p>
+	<div class="footer_logo">
+
+	    <a href="http://www.acrc.go.kr" target="ACRC_WIN" style="display:inline-block; width: 157px; height: 41px; background:url(/resource/images/paid/big/layout/main_img_sprites.png) -10px -192px;"><span style="display: none;">국민권익위원회 누리집 이동</span></a>
+	</div>  	 
+ </div>    
+            <!-- 푸터 영역 : e -->
+        </div>
+
+    </div>
+    <!-- 컨텐츠 영역 : e -->
+	
+</div>
+
+<!-- 2026-10-29 19:01:23 -->
+<!-- ebig11 -->
+
+</body>
+</html>

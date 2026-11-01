@@ -1,0 +1,31 @@
+{
+  "scope": "수원시 2020~2024년 소음·진동 민원 시군구별 연도 수치 독립 조사",
+  "result": "수원시 전체 소음·진동 연도별 민원 합계는 확보하지 못함. 환경부 보고서 5개년의 민원 집계표는 시도 단위이며 수원시 행이 없음.",
+  "official_reports": [
+    {"year": 2020, "local_file": "noise_vibration_policy_2020.pdf", "url": "https://www.mcee.go.kr/home/file/readDownloadFile.do?fileId=227422&fileSeq=1", "posting_url": "https://www.mcee.go.kr/home/web/policy_data/read.do?menuId=10276&seq=7787", "complaint_table_pdf_pages": [27, 28, 29], "complaint_table_printed_pages": [19, 20, 21], "granularity": "시도"},
+    {"year": 2021, "local_file": "noise_vibration_policy_2021.pdf", "url": "https://www.mcee.go.kr/home/file/readDownloadFile.do?fileId=246122&fileSeq=1", "posting_url": "https://www.mcee.go.kr/home/web/policy_data/read.do?menuId=10276&seq=7968", "complaint_table_pdf_pages": [25, 26, 27], "complaint_table_printed_pages": [19, 20, 21], "granularity": "시도"},
+    {"year": 2022, "local_file": "noise_vibration_policy_2022.pdf", "url": "https://www.mcee.go.kr/home/file/readDownloadFile.do?fileId=263866&fileSeq=1", "posting_url": "https://www.mcee.go.kr/home/web/policy_data/read.do?menuId=10276&seq=8139", "complaint_table_pdf_pages": [25, 26, 27], "complaint_table_printed_pages": [19, 20, 21], "granularity": "시도"},
+    {"year": 2023, "local_file": "noise_vibration_policy_2023.pdf", "url": "https://www.mcee.go.kr/home/file/readDownloadFile.do?fileId=285700&fileSeq=1", "posting_url": "https://www.mcee.go.kr/home/web/policy_data/read.do?menuId=10276&seq=8325", "complaint_table_pdf_pages": [29, 30, 31], "complaint_table_printed_pages": [21, 22, 23], "granularity": "시도"},
+    {"year": 2024, "local_file": "noise_vibration_policy_2024.pdf", "url": "https://www.mcee.go.kr/home/file/readDownloadFile.do?fileId=310490&fileSeq=1", "posting_url": "https://www.mcee.go.kr/home/web/policy_data/read.do?menuId=10276&seq=8519", "complaint_table_pdf_pages": [29, 30, 31], "complaint_table_printed_pages": [21, 22, 23], "granularity": "시도", "reference_date_statement": "원칙적으로 2024. 12월말 기준으로 지자체에서 제출한 자료"}
+  ],
+  "suwon_subtype_records_not_total": {
+    "year": 2021,
+    "table": "저주파 소음 민원 현황",
+    "pdf_page": 109,
+    "printed_page": 103,
+    "municipality": "수원시",
+    "observed_record_count": 2,
+    "records": [
+      {"date": "9월23일", "noise_source": "실외기", "measurement": "-", "exceedance": "미초과", "handling": "민원사항 전달 및 행정지도"},
+      {"date": "11월9일", "noise_source": "실외기", "measurement": "-", "exceedance": "미초과", "handling": "민원사항 전달 및 행정지도"}
+    ],
+    "caution": "표에서 직접 확인한 저주파 소음 접수 사례 2행이다. 수원시 전체 소음민원 합계 2건으로 사용하면 안 된다. 다른 연도 미확인 또는 미수록은 0건을 의미하지 않는다.",
+    "url": "https://www.mcee.go.kr/home/file/readDownloadFile.do?fileId=246122&fileSeq=1"
+  },
+  "additional_official_sources": [
+    {"title": "2025년도 경기도 소음·진동관리 시행계획", "posting_url": "https://www.gg.go.kr/bbs/boardView.do?bIdx=159739584&bcIdx=601&bsIdx=469&menuId=1547&page=1", "download_url": "https://www.gg.go.kr/cmmn/download.do?idx=860654", "local_file": "gyeonggi_noise_plan_2025.hwpx", "finding": "2024년 민원 총 25,664건, 2023년 29,532건은 경기도 전체. 시군별 민원 집계표 없음. 수원 행은 교통소음 관리지역 지정현황이며 민원건수가 아님."},
+    {"title": "2024 경기도 기후환경 백서", "url": "https://www.gg.go.kr/uploads/CONTENTS/site/gg/2024%20%EA%B2%BD%EA%B8%B0%EB%8F%84%20%EA%B8%B0%ED%9B%84%ED%99%98%EA%B2%BD_v20250428%EB%B0%B1%EC%84%9C.pdf", "local_file": "gyeonggi_environment_whitepaper_2024.pdf", "pdf_page": 177, "printed_page": 171, "finding": "소음·진동 발생 실태의 2020~2023 민원 수치는 경기도 전체. 수원시 민원 집계가 아님.", "caution": "백서의 경기도 2020년 수치는 37,844건이나 환경부 보고서는 37,840건으로 차이가 있으므로 혼용 금지."}
+  ],
+  "portal_search_limitation": "경기데이터드림·공공데이터포털 관련 검색에서 수원시 2020~2024 민원 시계열 원자료를 찾지 못함. 검색 미발견은 데이터 부재의 증명이 아님.",
+  "paid_api_calls": 0
+}

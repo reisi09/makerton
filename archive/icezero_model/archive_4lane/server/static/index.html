@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICE-ZERO 제설차 모형 — 사람 승인 대시보드</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --ink: #0f172a; --sub: #475569; --line: #d7dee9; --bg: #eef1f6; --card: #fff;
+    --blue: #2563eb; --green: #16a34a; --amber: #d97706; --red: #dc2626;
+    --r1: #dcfce7; --r2: #fef3c7; --r3: #fee2e2;
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif; font-size: 14px; }
+  header { background: #0f1b33; color: #fff; padding: 12px 20px; display: flex; gap: 16px;
+           align-items: center; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.2px; }
+  header h1 span { color: #7fb3ff; }
+  header .note { font-size: 12px; color: #b8c6e0; }
+  header .grow { flex: 1; }
+  header .links { display: flex; gap: 8px; font-size: 12px; }
+  .link-badge { padding: 3px 9px; border-radius: 999px; background: #22314f; color: #cbd5e1; white-space: nowrap; }
+  .link-badge.ok { background: #14532d; color: #bbf7d0; }
+  .link-badge.off { background: #4c1d24; color: #fecdd3; }
+  header input.token { width: 150px; padding: 5px 8px; border-radius: 8px; border: 1px solid #33476b;
+                       background: #16223b; color: #e2e8f0; font-size: 12px; }
+  main { padding: 14px 16px 40px; display: grid; gap: 14px;
+         grid-template-columns: minmax(0, 3fr) minmax(320px, 1.1fr); grid-template-areas:
+           "road road" "report sensors" "plan car" "events events"; }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: minmax(0, 1fr);
+           grid-template-areas: "road" "sensors" "report" "plan" "car" "events"; }
+  }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+           box-shadow: 0 2px 6px rgba(15, 23, 42, .05); overflow: hidden; }
+  .panel > h2 { margin: 0; padding: 10px 14px; font-size: 14px; font-weight: 800;
+                border-bottom: 1px solid #eef2f7; background: #fbfcfe; }
+  .panel > h2 em { font-style: normal; color: var(--blue); }
+  .panel > h2 small { font-weight: 600; color: var(--sub); margin-left: 6px; }
+  .body { padding: 10px 12px; }
+  #road { grid-area: road; } #report { grid-area: report; } #sensors { grid-area: sensors; }
+  #plan { grid-area: plan; } #car { grid-area: car; } #events { grid-area: events; }
+  svg.road { display: block; width: 100%; height: auto; background: #e9edf3; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 6px 12px 10px; font-size: 12px; color: var(--sub); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px;
+              vertical-align: -2px; border: 1px solid #cbd5e1; }
+  table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.kv th { text-align: left; color: var(--sub); font-weight: 600; width: 42%; padding: 4px 0; }
+  table.kv td { padding: 4px 0; font-weight: 700; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 8px; }
+  button { font: inherit; font-weight: 700; padding: 7px 12px; border-radius: 9px; border: 1px solid #c7d2e0;
+           background: #fff; color: var(--ink); cursor: pointer; }
+  button:hover:not(:disabled) { background: #f1f5f9; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--blue); border-color: #1d4ed8; color: #fff; }
+  button.primary:hover:not(:disabled) { background: #1d4ed8; }
+  button.danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  button.warning { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+  textarea { width: 100%; min-height: 58px; padding: 8px; border-radius: 9px; border: 1px solid #c7d2e0;
+             font: inherit; resize: vertical; }
+  input.num { width: 68px; padding: 6px 8px; border-radius: 8px; border: 1px solid #c7d2e0; font: inherit; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+  .box { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; background: #fbfcfe; }
+  .box h3 { margin: 0 0 6px; font-size: 12.5px; color: var(--sub); font-weight: 700; }
+  .box.engine-llm { border-color: #bfdbfe; background: #f0f7ff; }
+  .box.engine-rule { border-color: #e2e8f0; }
+  .box.bad { border-color: #fecaca; background: #fff7f7; }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #e2e8f0; color: #334155; font-weight: 700; }
+  .chip.cell { background: #dbeafe; color: #1e3a8a; }
+  .chip.salted { background: #e5e7eb; color: #4b5563; }
+  .chip.plan { background: #c7d2fe; color: #312e81; }
+  .chip.bad { background: #fee2e2; color: #991b1b; }
+  .question { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: #fffbeb;
+              border: 1.5px solid #fbbf24; color: #92400e; font-weight: 800; }
+  .qline { font-size: 12px; color: var(--sub); margin: 6px 0 4px; }
+  .cellpick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+  .cellpick label { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12.5px;
+                    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 7px; cursor: pointer; }
+  .cellpick label.salted { opacity: .5; text-decoration: line-through; }
+  .muted { color: var(--sub); font-weight: 500; }
+  .small { font-size: 12px; }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .pill { font-size: 12px; border-radius: 8px; padding: 3px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; font-weight: 700; }
+  .pill.plan { background: #e0e7ff; border-color: #c7d2fe; color: #312e81; }
+  .pill.ok { background: #dcfce7; border-color: #86efac; color: #14532d; }
+  .pill.warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+  .pill.bad { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  ol.events { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; font-size: 12.5px; }
+  ol.events li { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #eef2f7; }
+  ol.events time { color: #94a3b8; font-variant-numeric: tabular-nums; flex: none; }
+  ol.events .kind { flex: none; width: 62px; color: var(--blue); font-weight: 700; }
+  #toast { position: fixed; right: 16px; top: 14px; z-index: 40; display: flex; flex-direction: column; gap: 6px; }
+  #toast div { background: #7f1d1d; color: #fff; padding: 8px 12px; border-radius: 9px; font-weight: 700;
+               box-shadow: 0 4px 14px rgba(0,0,0,.22); font-size: 12.5px; max-width: 340px; }
+  .hint { font-size: 12px; color: var(--sub); line-height: 1.45; margin-top: 6px; }
+  .big { font-size: 16px; font-weight: 800; }
+  .state-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 800; font-size: 13px;
+                 background: #e2e8f0; }
+  .state-badge.run { background: #dcfce7; color: #14532d; }
+  .state-badge.hold { background: #fef3c7; color: #92400e; }
+  .state-badge.lost, .state-badge.bad { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ICE-ZERO <span>×</span> 제설차 모형</h1>
+  <div class="note">결빙을 확정하는 장치가 아닙니다 · 계획은 사람이 3단계로 승인한 뒤에만 실행됩니다</div>
+  <div class="grow"></div>
+  <div class="links" id="links"></div>
+  <input class="token" id="token" type="password" placeholder="X-Token(선택)" autocomplete="off">
+</header>
+<div id="toast"></div>
+
+<main>
+  <!-- 바닥 그림 -->
+  <section class="panel" id="road">
+    <h2>바닥 그림 <em>1800×600mm</em> <small>칸별 상대 우선순위(점수)·위험 단계·제안/승인/살포</small></h2>
+    <svg class="road" viewBox="-26 -76 1852 752" id="roadSvg" role="img"
+         aria-label="왕복 4차로 우드락 도로 모형 위 칸 8개 상태">
+      <g id="staticLayer"></g>
+      <g id="dynamicLayer"></g>
+    </svg>
+    <div class="legend">
+      <span><i style="background:var(--r1)"></i>risk1 초록(0점)</span>
+      <span><i style="background:var(--r2)"></i>risk2 노랑(&lt;2.5)</span>
+      <span><i style="background:var(--r3)"></i>risk3 빨강(≥2.5)</span>
+      <span><i style="background:#818cf8"></i>제안 포함</span>
+      <span><i style="background:#312e81"></i>승인 계획</span>
+      <span><i style="background:#9ca3af"></i>살포 완료</span>
+      <span>검은 실선: 유도선 · 막대 표식은 지면에서 자동 감지</span>
+    </div>
+  </section>
+
+  <!-- 제보 -->
+  <section class="panel" id="report">
+    <h2>제보 해석 <em>LLM vs 규칙</em> <small>사람이 확인해야 계획에 반영됩니다</small></h2>
+    <div class="body">
+      <div class="row">
+        <textarea id="reportText" placeholder="예) 교량 위가 얼음 같아요. 상행 방향이고 제설제는 3회분 남았습니다."></textarea>
+      </div>
+      <div class="row">
+        <button class="primary" id="btnReport">제보 해석</button>
+        <span class="hint" id="reportHint">자유 문장으로 적으면 LLM이 칸 후보·예산·모호함을 정리합니다. LLM이 실패하면 규칙 파서 결과를 씁니다.</span>
+      </div>
+      <div id="reportResult" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- 센서 -->
+  <section class="panel" id="sensors">
+    <h2>센서 <em>보드 Pico #1</em></h2>
+    <div class="body">
+      <table class="kv">
+        <tr><th>시험편 온도</th><td id="sPiece">—</td></tr>
+        <tr><th>공기 온도</th><td id="sAir">—</td></tr>
+        <tr><th>젖음(원값)</th><td id="sWet">—</td></tr>
+        <tr><th>관측 주의(보드)</th><td id="sWarn">—</td></tr>
+        <tr><th>마지막 수신</th><td id="sSeen">—</td></tr>
+        <tr><th>연결</th><td id="sMode">—</td></tr>
+      </table>
+      <div class="row" style="margin-top:10px">
+        <span class="small muted">수동 관측</span>
+        <button id="btnWatchOn">주의 켬</button>
+        <button id="btnWatchOff">주의 끔</button>
+        <button id="btnWatchAuto">자동(해제)</button>
+      </div>
+      <div class="hint">보드가 없을 때 사람이 '관측 주의'를 켜고 끕니다. 켜면 교량 칸(U2·D2) 점수에 +2.0이 붙어 상대 우선순위가 올라갑니다.</div>
+    </div>
+  </section>
+
+  <!-- 계획 -->
+  <section class="panel" id="plan">
+    <h2>계획 <em>제안 vs 승인</em> <small>승인은 3단계: 제보 확인 → 계획 승인 → 출동 승인</small></h2>
+    <div class="body">
+      <div class="two">
+        <div class="box">
+          <h3>제안(자동 계산)</h3>
+          <div id="proposalCells" class="chips"></div>
+          <div class="hint" id="proposalMeta"></div>
+        </div>
+        <div class="box">
+          <h3>승인된 계획</h3>
+          <div id="approvedCells" class="chips"></div>
+          <div class="hint" id="approvedMeta"></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="small muted">예산</span>
+        <input class="num" id="budgetInput" type="number" min="0" max="8" step="1" value="4">
+        <button id="btnBudget">예산 적용</button>
+        <span class="hint" id="budgetHint">1칸 = 1회분, 0~8</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="btnApprove">계획 승인</button>
+        <button class="primary" id="btnDispatch">출동 승인</button>
+        <button class="danger" id="btnEstop">비상 정지</button>
+        <button class="warning" id="btnResume">재개</button>
+        <button id="btnAbort">중단</button>
+        <button id="btnReset">초기화</button>
+      </div>
+      <div class="hint" id="dispatchHint"></div>
+      <div class="hint" id="scoreBoard"></div>
+    </div>
+  </section>
+
+  <!-- 차 -->
+  <section class="panel" id="car">
+    <h2>제설차 <em>Pico #2</em></h2>
+    <div class="body">
+      <div class="row"><span class="state-badge" id="carState">—</span>
+        <span class="small muted" id="carAge"></span></div>
+      <table class="kv" style="margin-top:8px">
+        <tr><th>계획</th><td id="carPlan">—</td></tr>
+        <tr><th>위치</th><td id="carPos">—</td></tr>
+        <tr><th>살포한 칸</th><td id="carSalted">—</td></tr>
+        <tr><th>장애물 거리</th><td id="carDist">—</td></tr>
+        <tr><th>마지막 수신</th><td id="carSeen">—</td></tr>
+      </table>
+      <div class="hint">차 안의 피코가 초음파·버튼·길 잃음을 스스로 판단해 먼저 멈춥니다. 서버는 계획과 승인만 맡습니다.</div>
+    </div>
+  </section>
+
+  <!-- 이벤트 -->
+  <section class="panel" id="events">
+    <h2>이벤트 로그 <small>최근 50개 · server/events.jsonl 에도 쌓입니다</small></h2>
+    <div class="body"><ol class="events" id="eventList"></ol></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var STEP = 285, X0 = 330, ROW_U = 490, ROW_D = 110;
+  var SECTIONS = [
+    {id: 'S1', name: 'S1 일반(서쪽)', fill: '#cdd5e1'},
+    {id: 'S2', name: 'S2 교량(은박)', fill: '#b9c2cd'},
+    {id: 'S3', name: 'S3 그늘(방음벽)', fill: '#a9b3c1'},
+    {id: 'S4', name: 'S4 일반(동쪽)', fill: '#cdd5e1'}
+  ];
+  var CELLS = [
+    {id: 'U1', sec: 0, row: 'U'}, {id: 'U2', sec: 1, row: 'U'},
+    {id: 'U3', sec: 2, row: 'U'}, {id: 'U4', sec: 3, row: 'U'},
+    {id: 'D4', sec: 3, row: 'D'}, {id: 'D3', sec: 2, row: 'D'},
+    {id: 'D2', sec: 1, row: 'D'}, {id: 'D1', sec: 0, row: 'D'}
+  ];
+  var RISK_FILL = {risk1: 'var(--r1)', risk2: 'var(--r2)', risk3: 'var(--r3)'};
+  var STATE_KR = {IDLE: '대기', RUN: '주행', HOLD_OBS: '장애물 정지', HOLD_CMD: '명령 정지',
+                  LOST: '길 잃음', DONE: '완료'};
+  var NS = 'http://www.w3.org/2000/svg';
+
+  var token = new URLSearchParams(location.search).get('token') ||
+              localStorage.getItem('icezero_token') || '';
+  var tokenInput = document.getElementById('token');
+  tokenInput.value = token;
+  tokenInput.addEventListener('change', function () {
+    token = tokenInput.value.trim();
+    localStorage.setItem('icezero_token', token);
+  });
+
+  var lastPendingKey = '__init__';
+  var editor = null;   // {cells:Set, budget:string}
+  var busy = false;
+
+  // ---------------------------------------------------------------- 유틸
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+    });
+  }
+  function toast(msg) {
+    var box = document.getElementById('toast');
+    var div = document.createElement('div');
+    div.textContent = msg;
+    box.appendChild(div);
+    setTimeout(function () { div.remove(); }, 4200);
+  }
+  function api(path, body, method) {
+    var opt = {headers: {}};
+    if (token) opt.headers['X-Token'] = token;
+    if (body !== undefined) {
+      opt.method = method || 'POST';
+      opt.headers['Content-Type'] = 'application/json';
+      opt.body = JSON.stringify(body);
+    }
+    return fetch(path, opt).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        if (!r.ok) throw new Error(data.error || ('오류 ' + r.status));
+        return data;
+      });
+    });
+  }
+  function act(path, body) {
+    if (busy) return;
+    busy = true;
+    api(path, body === undefined ? {} : body).then(function (data) {
+      if (data && data.state) render(data.state);
+      else refresh();
+    }).catch(function (e) { toast(e.message); })
+      .then(function () { busy = false; });
+  }
+  function fmt1(v) { return (v === null || v === undefined) ? '—' : (Math.round(v * 10) / 10).toFixed(1); }
+  function ageText(age) { return (age === null || age === undefined) ? '없음' : (age + '초 전'); }
+
+  // ------------------------------------------------------- 정적 바닥 그림
+  function buildStatic() {
+    var g = document.getElementById('staticLayer');
+    var out = [];
+    out.push('<rect x="0" y="0" width="1800" height="600" rx="10" fill="#dfe4ec" stroke="#b9c2cf" stroke-width="2"/>');
+    // 구간 배경 + 이름
+    SECTIONS.forEach(function (s, i) {
+      var x = X0 + STEP * i;
+      out.push('<rect x="' + x + '" y="0" width="' + STEP + '" height="600" fill="' + s.fill + '"/>');
+      out.push('<text x="' + (x + STEP / 2) + '" y="-44" font-size="20" font-weight="800" fill="#334155" text-anchor="middle">' +
+               esc(s.name) + '</text>');
+      if (s.id === 'S2') {
+        out.push('<line x1="' + x + '" y1="6" x2="' + (x + STEP) + '" y2="6" stroke="#6b7785" stroke-width="6"/>');
+        out.push('<line x1="' + x + '" y1="594" x2="' + (x + STEP) + '" y2="594" stroke="#6b7785" stroke-width="6"/>');
+      }
+      if (s.id === 'S3') {
+        out.push('<rect x="' + x + '" y="-24" width="' + STEP + '" height="20" fill="#94a3b8"/>');
+        out.push('<rect x="' + x + '" y="604" width="' + STEP + '" height="20" fill="#94a3b8"/>');
+        out.push('<text x="' + (x + STEP / 2) + '" y="628" font-size="13" fill="#334155" text-anchor="middle">방음벽</text>');
+      }
+    });
+    // 차선(왕복 4차로)
+    out.push('<g stroke="#ffffff" stroke-width="5" stroke-dasharray="28 22">' +
+             '<line x1="' + X0 + '" y1="150" x2="1470" y2="150"/>' +
+             '<line x1="' + X0 + '" y1="450" x2="1470" y2="450"/></g>');
+    out.push('<line x1="' + X0 + '" y1="296" x2="1470" y2="296" stroke="#f2c230" stroke-width="5"/>' +
+             '<line x1="' + X0 + '" y1="304" x2="1470" y2="304" stroke="#f2c230" stroke-width="5"/>');
+    // 유도선(검정 테이프) + 회차로
+    out.push('<path d="M' + X0 + ' ' + ROW_U + ' H1470 Q1660 ' + ROW_U + ' 1660 300 Q1660 ' + ROW_D + ' 1470 ' + ROW_D +
+             ' H' + X0 + ' Q140 ' + ROW_D + ' 140 300 Q140 ' + ROW_U + ' ' + X0 + ' ' + ROW_U + '" ' +
+             'fill="none" stroke="#111827" stroke-width="14" stroke-linejoin="round"/>');
+    // 진행 방향
+    out.push('<g fill="#1d4ed8" font-size="16" font-weight="800">' +
+             '<text x="600" y="576">상행(동쪽) →</text>' +
+             '<text x="1330" y="34" text-anchor="end">← 하행(서쪽)</text></g>');
+    out.push('<text x="76" y="300" font-size="15" font-weight="800" fill="#64748b" text-anchor="middle" transform="rotate(-90 76 300)">서쪽 회차</text>');
+    out.push('<text x="1724" y="300" font-size="15" font-weight="800" fill="#64748b" text-anchor="middle" transform="rotate(90 1724 300)">동쪽 회차</text>');
+    g.innerHTML = out.join('');
+  }
+
+  // ----------------------------------------------------- 동적(칸·차) 그림
+  function cellBox(cell, data) {
+    var x = X0 + STEP * cell.sec + 12;
+    var w = STEP - 24;
+    var y = cell.row === 'U' ? ROW_U - 84 : ROW_D - 44;
+    var h = 92;
+    var fill = RISK_FILL[data.risk] || 'var(--r1)';
+    var stroke = '#94a3b8', sw = 1.5, dash = '';
+    if (data.in_proposal) { stroke = '#6366f1'; sw = 3; dash = ' stroke-dasharray="8 5"'; }
+    if (data.in_approved) { stroke = '#312e81'; sw = 4; dash = ''; }
+    var out = [];
+    out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="' + fill +
+             '" fill-opacity="0.9" stroke="' + stroke + '" stroke-width="' + sw + '"' + dash + '/>');
+    if (data.salted) {
+      out.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="url(#hatch)" opacity="0.55"/>');
+    }
+    out.push('<text x="' + (x + 10) + '" y="' + (y + 22) + '" font-size="18" font-weight="800" fill="#0f172a">' +
+             esc(cell.id) + '</text>');
+    out.push('<text x="' + (x + w - 10) + '" y="' + (y + 22) + '" font-size="16" font-weight="800" fill="#1f2937" text-anchor="end">' +
+             data.score.toFixed(1) + '</text>');
+    out.push('<text x="' + (x + 10) + '" y="' + (y + 44) + '" font-size="12" fill="#334155">' +
+             esc(data.reasons.join(' · ') || '제보 없음') + '</text>');
+    var tags = [];
+    if (data.in_approved) tags.push('승인');
+    if (data.in_proposal) tags.push('제안');
+    if (data.salted) tags.push('살포');
+    if (tags.length) {
+      out.push('<text x="' + (x + 10) + '" y="' + (y + 66) + '" font-size="12.5" font-weight="800" fill="#1e3a8a">' +
+               esc(tags.join(' · ')) + '</text>');
+    }
+    return out.join('');
+  }
+
+  function carMarker(car) {
+    var x = 330, y = ROW_U;
+    var pos = car.pos || {};
+    var map = {U1: 0, U2: 1, U3: 2, U4: 3, D1: 0, D2: 1, D3: 2, D4: 3};
+    var leg = pos.leg || 0;
+    if (pos.cell && map[pos.cell] !== undefined) {
+      x = X0 + STEP * map[pos.cell] + STEP / 2;
+      y = String(pos.cell).charAt(0) === 'U' ? ROW_U : ROW_D;
+    } else if (leg === 2) {
+      x = 1660; y = 300;
+    } else if (leg === 4) {
+      x = 140; y = 300;
+    } else if (leg === 3) {
+      y = ROW_D;
+    }
+    var label = car.st ? (STATE_KR[car.st] || car.st) : '신호 없음';
+    return '<g transform="translate(' + x + ',' + (y - 34) + ')">' +
+      '<circle r="15" fill="#f97316" stroke="#9a3412" stroke-width="3"/>' +
+      '<circle r="6" fill="#fde047"/>' +
+      '<text y="-22" text-anchor="middle" font-size="13" font-weight="800" fill="#7c2d12">차 · ' + esc(label) + '</text>' +
+      '</g>';
+  }
+
+  function draw(state) {
+    var out = ['<defs><pattern id="hatch" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">' +
+               '<line x1="0" y1="0" x2="0" y2="10" stroke="#6b7280" stroke-width="4"/></pattern></defs>'];
+    CELLS.forEach(function (c) { out.push(cellBox(c, state.cells[c.id])); });
+    // 칸 상자를 덮어도 유도선 위치가 보이게 아주 옅게 한 번 더 그린다(칸 글자를 가리지 않게).
+    out.push('<path d="M' + X0 + ' ' + ROW_U + ' H1470 Q1660 ' + ROW_U + ' 1660 300 Q1660 ' + ROW_D + ' 1470 ' + ROW_D +
+             ' H' + X0 + ' Q140 ' + ROW_D + ' 140 300 Q140 ' + ROW_U + ' ' + X0 + ' ' + ROW_U + '" ' +
+             'fill="none" stroke="#111827" stroke-opacity="0.18" stroke-width="3" stroke-linejoin="round"/>');
+    out.push(carMarker(state.car || {}));
+    document.getElementById('dynamicLayer').innerHTML = out.join('');
+  }
+
+  // ------------------------------------------------------------------ 렌더
+  function chip(text, cls) { return '<span class="chip ' + (cls || '') + '">' + esc(text) + '</span>'; }
+
+  function renderLinks(st) {
+    var l = st.links || {};
+    var board = l.board || {}, car = l.car || {}, llm = l.llm || {};
+    var parts = [];
+    parts.push('<span class="link-badge ' + (board.ok ? 'ok' : 'off') + '">보드 ' +
+               (board.mode === 'none' ? '없음' : (board.ok ? '연결' : '끊김')) + '</span>');
+    parts.push('<span class="link-badge ' + (car.ok ? 'ok' : 'off') + '">차 ' + (car.ok ? '연결' : '없음') + '</span>');
+    parts.push('<span class="link-badge ' + (llm.enabled ? 'ok' : '') + '">LLM ' +
+               (llm.enabled ? '켜짐' : '규칙만') + '</span>');
+    document.getElementById('links').innerHTML = parts.join('');
+  }
+
+  function renderSensors(st) {
+    var s = st.sensors || {};
+    document.getElementById('sPiece').textContent =
+      (s.t_piece === null || s.t_piece === undefined) ? '—' : (fmt1(s.t_piece) + ' ℃');
+    document.getElementById('sAir').textContent =
+      (s.t_air === null || s.t_air === undefined) ? '—' : (fmt1(s.t_air) + ' ℃');
+    document.getElementById('sWet').textContent =
+      (s.wet === null || s.wet === undefined) ? '—' : ((s.wet ? '젖음' : '마름') +
+        (s.wet_raw === null || s.wet_raw === undefined ? '' : ' (' + s.wet_raw + ')'));
+    var warn = s.warn;
+    document.getElementById('sWarn').innerHTML = (warn === null || warn === undefined) ? '—' :
+      '<span class="pill ' + (warn ? 'bad' : 'ok') + '">' + (warn ? '관측 주의 켜짐' : '관측 주의 꺼짐') + '</span>';
+    document.getElementById('sSeen').textContent = ageText(s.age);
+    var mode = s.source === 'serial' ? 'USB 시리얼' : (s.source === 'wifi' ? 'Wi-Fi HTTP' : '없음');
+    var caution = s.caution;
+    document.getElementById('sMode').textContent =
+      mode + (caution === null || caution === undefined ? '' : (caution ? ' · 수동 켬' : ' · 수동 끔'));
+  }
+
+  function renderPlan(st) {
+    var props = st.proposal || {cells: []};
+    var appr = st.approved;
+    var pc = (props.cells || []).map(function (c) { return chip(c, 'plan'); }).join('') ||
+             '<span class="muted small">제안이 비어 있습니다</span>';
+    document.getElementById('proposalCells').innerHTML = pc;
+    var detail = [];
+    (props.cells || []).forEach(function (c) {
+      var row = st.cells[c];
+      detail.push(c + ' ' + row.score.toFixed(1) + ' (' + (row.reasons.join('·') || '—') + ')');
+    });
+    document.getElementById('proposalMeta').textContent =
+      '예산 ' + (props.budget === undefined ? st.budget : props.budget) + '회분' +
+      (detail.length ? ' · ' + detail.join(' / ') : '');
+
+    if (appr) {
+      document.getElementById('approvedCells').innerHTML =
+        appr.cells.map(function (c) { return chip(c, 'plan'); }).join('') +
+        ' <span class="chip">' + esc(appr.plan_id) + '</span>';
+      document.getElementById('approvedMeta').textContent =
+        '승인 시각 ' + (appr.time || '—') + ' · ' + appr.cells.length + '칸';
+    } else {
+      document.getElementById('approvedCells').innerHTML = '<span class="muted small">아직 승인된 계획이 없습니다</span>';
+      document.getElementById('approvedMeta').textContent = '계획을 승인하면 차에 UDP로 전송하고, 차가 ack하면 출동할 수 있습니다.';
+    }
+
+    var budgetBox = document.getElementById('budgetInput');
+    if (document.activeElement !== budgetBox) budgetBox.value = st.budget;
+    budgetBox.max = 8;
+    document.getElementById('btnDispatch').disabled = !appr;
+
+    var car = st.car || {};
+    var ack = st.plan_ack || null;
+    var hint;
+    if (!appr) hint = '① 제보 확인 → ② 계획 승인 → ③ 출동 승인 순서로 진행합니다.';
+    else if (!car.fresh) hint = '승인된 계획 ' + appr.plan_id + ' · 차 신호를 기다리는 중입니다.';
+    else if (car.st !== 'IDLE' && car.st !== 'DONE') hint = '승인된 계획 ' + appr.plan_id + ' · 차 상태가 ' + (STATE_KR[car.st] || car.st) + ' 이라 출동할 수 없습니다.';
+    else if (!ack || ack.plan_id !== appr.plan_id) hint = '승인된 계획 ' + appr.plan_id + ' · 차가 아직 같은 계획을 확인(ack)하지 않았습니다.';
+    else hint = '승인된 계획 ' + appr.plan_id + ' · 차가 계획을 확인했습니다. 출동 승인을 누르면 출발합니다.';
+    document.getElementById('dispatchHint').textContent = hint;
+
+    var scores = CELLS.map(function (c) {
+      var row = st.cells[c.id];
+      return c.id + ' ' + row.score.toFixed(1);
+    }).join(' · ');
+    document.getElementById('scoreBoard').textContent = '상대 우선순위: ' + scores;
+  }
+
+  function renderCar(st) {
+    var car = st.car || {};
+    var badge = document.getElementById('carState');
+    badge.textContent = car.st ? (STATE_KR[car.st] || car.st) : '신호 없음';
+    badge.className = 'state-badge ' + (
+      car.st === 'RUN' ? 'run' : (car.st === 'HOLD_CMD' || car.st === 'HOLD_OBS' ? 'hold' :
+      (car.st === 'LOST' ? 'lost' : (car.fresh ? '' : 'bad'))));
+    document.getElementById('carAge').textContent = car.fresh ? ('연결 · ' + ageText(car.age)) :
+      ('신호 없음 · ' + ageText(car.age));
+    document.getElementById('carPlan').textContent = car.plan || '—';
+    var pos = car.pos || {};
+    var posText = '—';
+    if (pos.cell) posText = pos.cell;
+    else if (pos.leg) {
+      posText = '회차/직선 이동 중 (leg ' + pos.leg + ', seg ' + (pos.seg === undefined ? '—' : pos.seg) + ')';
+    }
+    document.getElementById('carPos').textContent = posText;
+    document.getElementById('carSalted').textContent =
+      (car.salted && car.salted.length) ? car.salted.join(', ') : '없음';
+    document.getElementById('carDist').textContent =
+      (car.dist === null || car.dist === undefined) ? '—' : (car.dist + ' cm');
+    document.getElementById('carSeen').textContent = ageText(car.age);
+  }
+
+  function renderEvents(st) {
+    var list = (st.events || []).slice().reverse();
+    document.getElementById('eventList').innerHTML = list.map(function (e) {
+      return '<li><time>' + esc(e.time || '') + '</time><span class="kind">' + esc(e.kind || '') +
+             '</span><span>' + esc(e.text || '') + '</span></li>';
+    }).join('') || '<li class="muted">아직 이벤트가 없습니다.</li>';
+  }
+
+  // ------------------------------------------------------------ 제보 편집기
+  function resultBox(title, result, meta, cls) {
+    if (!result) return '<div class="box ' + cls + '"><h3>' + esc(title) + '</h3><span class="muted small">없음</span></div>';
+    var cells = (result.cells || []).map(function (c) { return chip(c, 'cell'); }).join('') ||
+                '<span class="muted small">칸 없음</span>';
+    var amb = result.ambiguous ?
+      '<div class="question">되물어야 합니다: ' + esc(result.question || '어느 칸인가요?') + '</div>' : '';
+    return '<div class="box ' + cls + '">' +
+      '<h3>' + esc(title) + '</h3>' +
+      '<div class="chips">' + cells + '</div>' +
+      '<div class="hint">' + esc(result.summary || '') +
+      ' · 조건 ' + esc(result.condition || '—') +
+      ' · 예산 ' + (result.budget === null || result.budget === undefined ? '없음' : (result.budget + '회분')) +
+      (result.lane1_closed && result.lane1_closed.length ? (' · 1차로 통제(표시용) ' + esc(result.lane1_closed.join(','))) : '') +
+      '</div>' + amb +
+      (meta ? '<div class="qline">' + esc(meta) + '</div>' : '') +
+      '</div>';
+  }
+
+  function renderPending(st) {
+    var pending = st.pending_report;
+    var host = document.getElementById('reportResult');
+    if (!pending) {
+      if (lastPendingKey !== null) {
+        host.innerHTML = '<div class="muted small">해석된 제보가 없습니다. 확인하지 않은 제보는 계획에 반영되지 않습니다.</div>';
+        lastPendingKey = null;
+        editor = null;
+      }
+      return;
+    }
+    var key = (pending.time || '') + '|' + (pending.text || '');
+    // 같은 제보를 다시 그리면 사람이 고치던 체크박스·예산이 날아간다. 새 제보일 때만 새로 만든다.
+    if (key === lastPendingKey && host.querySelector('#cellPick')) return;
+    lastPendingKey = key;
+    var base = (pending.result && pending.result.cells && pending.result.cells.length) ?
+      pending.result : (pending.rule || {});
+    editor = {cells: {}, budget: (base.budget === null || base.budget === undefined) ? '' : String(base.budget)};
+    (base.cells || []).forEach(function (c) { editor.cells[c] = true; });
+
+    var llmBox = resultBox('LLM 해석', pending.engine === 'llm' ? pending.result : null,
+      pending.engine === 'llm' ? ('지연 ' + pending.latency_ms + ' ms') : ('실패: ' + (pending.error || 'LLM 꺼짐')),
+      pending.engine === 'llm' ? 'engine-llm' : 'bad');
+    var ruleBox = resultBox('규칙 해석(기준선)', pending.rule,
+      pending.engine === 'rule' ? 'LLM 대신 이 결과를 씁니다' : '비교용', 'engine-rule');
+
+    var pick = CELLS.map(function (c) {
+      var row = st.cells[c.id];
+      var on = editor.cells[c.id] ? ' checked' : '';
+      var cls = row.salted ? ' class="salted"' : '';
+      return '<label' + cls + '><input type="checkbox" data-cell="' + c.id + '"' + on + '>' +
+             esc(c.id) + ' <span class="muted small">' + row.score.toFixed(1) + '</span></label>';
+    }).join('');
+
+    host.innerHTML =
+      '<div class="two">' + llmBox + ruleBox + '</div>' +
+      (pending.result && pending.result.ambiguous ?
+        '<div class="question">모호한 제보입니다. 사람이 확인하기 전에는 반영되지 않습니다: ' +
+        esc(pending.result.question || '어느 칸인가요?') + '</div>' : '') +
+      '<div class="qline">확인할 칸과 예산을 고친 뒤 확인을 누르세요. 제보 ' + esc(pending.text || '') + '</div>' +
+      '<div class="cellpick" id="cellPick">' + pick + '</div>' +
+      '<div class="row" style="margin-top:8px">' +
+        '<span class="small muted">예산</span>' +
+        '<input class="num" id="pendingBudget" type="number" min="0" max="8" step="1" value="' +
+          esc(editor.budget === '' ? st.budget : editor.budget) + '">' +
+        '<button class="primary" id="btnConfirm">확인</button>' +
+        '<button id="btnReject">버리기</button>' +
+      '</div>';
+
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-cell]'), function (box) {
+      box.addEventListener('change', function () {
+        if (box.checked) editor.cells[box.dataset.cell] = true;
+        else delete editor.cells[box.dataset.cell];
+      });
+    });
+    var budgetInput = host.querySelector('#pendingBudget');
+    if (budgetInput) budgetInput.addEventListener('change', function () {
+      editor.budget = budgetInput.value;
+    });
+    host.querySelector('#btnConfirm').addEventListener('click', function () {
+      var cells = Object.keys(editor.cells);
+      var b = budgetInput ? budgetInput.value : '';
+      var body = {cells: cells, budget: b === '' ? null : parseInt(b, 10), lane1_closed: []};
+      act('/api/report/confirm', body);
+    });
+    host.querySelector('#btnReject').addEventListener('click', function () {
+      act('/api/report/reject', {});
+    });
+  }
+
+  function render(st) {
+    draw(st);
+    renderLinks(st);
+    renderSensors(st);
+    renderPlan(st);
+    renderCar(st);
+    renderEvents(st);
+    renderPending(st);
+  }
+
+  function refresh() {
+    return api('/api/state').then(render).catch(function () {
+      document.getElementById('links').innerHTML = '<span class="link-badge off">서버 응답 없음</span>';
+    });
+  }
+
+  // ------------------------------------------------------------------ 이벤트
+  function emptyState() {
+    var cells = {};
+    CELLS.forEach(function (c) {
+      cells[c.id] = {score: 0, reasons: [], risk: 'risk1',
+                     in_proposal: false, in_approved: false, salted: false};
+    });
+    return {cells: cells, car: {}, proposal: {cells: [], budget: 4}, approved: null,
+            sensors: {}, events: [], links: {}, budget: 4, plan_ack: null, pending_report: null};
+  }
+  buildStatic();
+  render(emptyState());
+  refresh();
+  setInterval(refresh, 500);
+
+  document.getElementById('btnReport').addEventListener('click', function () {
+    var t = document.getElementById('reportText').value.trim();
+    if (!t) { toast('제보 문장을 입력하세요'); return; }
+    var btn = this;
+    btn.disabled = true;
+    document.getElementById('reportHint').textContent = '해석 중… (LLM은 최대 20초)';
+    api('/api/report', {text: t}).then(function () {
+      document.getElementById('reportHint').textContent = '자유 문장으로 적으면 LLM이 칸 후보·예산·모호함을 정리합니다.';
+      refresh();
+    }).catch(function (e) { toast(e.message); })
+      .then(function () { btn.disabled = false; });
+  });
+  document.getElementById('btnBudget').addEventListener('click', function () {
+    var v = parseInt(document.getElementById('budgetInput').value, 10);
+    if (isNaN(v)) { toast('예산은 0~8 정수입니다'); return; }
+    act('/api/budget', {budget: v});
+  });
+  document.getElementById('btnWatchOn').addEventListener('click', function () { act('/api/observe', {caution: true}); });
+  document.getElementById('btnWatchOff').addEventListener('click', function () { act('/api/observe', {caution: false}); });
+  document.getElementById('btnWatchAuto').addEventListener('click', function () { act('/api/observe', {caution: null}); });
+  document.getElementById('btnApprove').addEventListener('click', function () { act('/api/plan/approve', {}); });
+  document.getElementById('btnDispatch').addEventListener('click', function () { act('/api/dispatch', {}); });
+  document.getElementById('btnEstop').addEventListener('click', function () { act('/api/estop', {}); });
+  document.getElementById('btnResume').addEventListener('click', function () { act('/api/resume', {}); });
+  document.getElementById('btnAbort').addEventListener('click', function () { act('/api/abort', {}); });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    if (confirm('시연 초기화: 제보·살포·수동 관측·승인 계획을 모두 지웁니다. 계속할까요?')) act('/api/reset', {});
+  });
+})();
+</script>
+</body>
+</html>
