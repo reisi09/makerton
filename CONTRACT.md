@@ -17,6 +17,7 @@
     - 그 기기의 브라우저에 입력해 둔 Claude API 키가 있으면 브라우저가 Claude API를 직접 부른다(`web/lib/claudeBoxes.ts`, 서버·같은 Wi-Fi 불필요). 키는 그 브라우저의 localStorage에만 두고 코드·저장소·서버에는 두지 않는다. 브라우저를 쓰는 누구나 그 키를 쓸 수 있으니 여럿이 쓰는 기기에서는 '키 지우기'를 누른다. 지시문·스키마는 `server/claude_vision.py`와 같아야 하고 `web/lib/claudeBoxes.test.ts`가 확인한다.
     - 키가 없으면 `/api/vision/boxes`로 서버를 거친다(서버에 `ANTHROPIC_API_KEY` 필요).
   - Claude는 눈 상자와 함께 갈래별 눈 여부(`arms`)와 사진이 쓸 만한지(`usable`)도 돌려준다. 화면은 눈 있는 갈래를 도는 가장 빠른 순서와 경로를 지도에 그리기만 한다(출동하지 않음). 경로는 `tools/make_route_table.py`가 `server/route.py`의 `plan`으로 미리 만든 `web/lib/routeTable.json`(눈 갈래 조합 15가지 + 교차로만)에서 고른다. `usable`이 false면 네 갈래 모두(전체 청소 순서), 교차로에만 눈이 있으면 가장 빨리 다녀오는 갈래 하나다. 펌웨어 경로·시간 모형이 바뀌면 이 표를 다시 만들어야 하고 `tests/test_route_table.py`가 확인한다.
+  - 같은 경로를 사진 위에도 주황 선으로 그린다(차고에서 출발, 갈래 끝에 도는 순서). 사진 위 위치는 맥 서버의 `/api/vision/frame`이 규칙 영상 처리(`server/vision.py` `analyze`의 `frame`)로 찾은 도로 십자와 노란 코트로 맞춘다. 위에서 찍어 코트가 보인 사진에만 그리고, 서버가 없거나 방향을 모르면 사진 위 경로는 생략하고 지도에만 그린다.
   - 패드 화면에서 빠진 `/api/vision/detect`는 Claude를 규칙의 두 번째 의견으로 쓰고, 규칙과 다르면 전체 청소한다.
   - 출동 여부는 코드 규칙이 정한다. 패드 화면에서 출동시키는 버튼은 '전체 청소' 하나다.
 - 원칙
@@ -144,6 +145,7 @@ makerton/
   - `/api/auto {"on"}`
   - `/api/dispatch`(수동 1회)
   - `/api/vision/boxes {"image"}`(사진 → Claude가 찾은 눈 상자, 표시 전용. 아래)
+  - `/api/vision/frame {"image"}`(사진 → 보드 좌표를 사진 위로 옮기는 아핀, 표시 전용. 아래)
   - `/api/vision/detect {"image","go"}`(사진 → 규칙(+Claude) 판정·출동. 패드 화면에서는 빠졌고 API로만 남았다)
   - `/api/sweep`(전체 청소: 네 갈래를 최적 순서로 1회, 출동 중이면 409)
   - `/api/car/stop`(비상 정지 → 자동 끔)
@@ -162,6 +164,12 @@ makerton/
   - 400: 사진을 읽지 못함(JPEG·PNG·HEIC가 아니거나 HEIC를 `sips`로 바꾸지 못함)
   - 502: Claude 호출 실패
   - 오류 본문은 `{"error":"…"}`다.
+- `POST /api/vision/frame`(패드 '눈 위치 표시'의 사진 위 경로)
+  - 요청: `/api/vision/boxes`와 같은 `{"image"}`. Claude를 쓰지 않아 `ANTHROPIC_API_KEY`가 없어도 된다. 기록을 남기지 않는다.
+  - 200: `{"frame":[a,b,c,d,e,f]}`. 보드 좌표(mm, 동쪽·남쪽 +, 교차로 중심 `CENTER_X`·`CENTER_Y`)를 분석한 사진(EXIF 방향 적용)의 너비·높이 비율로 옮긴다. u = a·x + b·y + c, v = d·x + e·y + f.
+    - 손에 들고 비뚤게 찍은 각도를 먼저 세우고(도로 띠가 가장 몰리는 각도), 노란 코트로 90° 단위 방향을 정한 뒤, 사진 속 도로 십자의 가운데와 도로 폭(`ROAD_MM`)으로 축척 하나를 잡는다. 원근은 무시한다(2026-10-31 위에서 찍은 사진 25장, 보드 가장자리에서 사진 대각선의 중앙값 1.9% 어긋남).
+    - 도로가 없거나, 노란 코트가 15000mm² 넘게 보이지 않거나(가려짐, 공원의 작은 노란 점으로는 방향을 정하지 않는다), 세운 뒤에도 가로·세로 도로 폭이 1.25배 넘게 다르면(비스듬히 찍음) `{"frame":null}`이다. `analyze`의 `sure`와는 따로 판단한다.
+  - 400: 사진을 읽지 못함
 - 센서 융합
   - 갈래 k의 `dt = T_k − baseline_k`. baseline은 시작 후 30초 평균이거나 `/baseline` 시점의 값이다.
   - 젖음 센서는 `WET_ARM` 갈래(기본 W, 그늘이 가장 깊은 갈래)의 `wet`으로 넣는다.

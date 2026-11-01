@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { askClaudeBoxes, KeyError, type Arms } from "@/lib/claudeBoxes";
+import { armTip, onPhoto, type Frame, type PlannedRoute } from "@/lib/routes";
 import { boxStyle, type BoxStyle, type SnowBox } from "@/lib/snowBoxes";
 import styles from "./SnowBoxes.module.css";
 
@@ -9,7 +10,7 @@ const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 �
 const KEY_STORE = "makerton-claude-key";
 
 interface Reply { boxes?: SnowBox[]; note?: string; secs?: number; error?: string; photo?: string; usable?: boolean; arms?: Partial<Arms> }
-interface View { url: string; boxes: BoxStyle[]; note: string; secs: number | null }
+interface View { url: string; boxes: BoxStyle[]; note: string; secs: number | null; frame: Frame | null }
 // arms가 null이면 갈래 판단이 없는 응답(갈래를 모르는 예전 서버)이라 경로를 그리지 않는다.
 interface Found { boxes: SnowBox[]; note: string; secs: number | null; photo: string; usable: boolean; arms: Arms | null }
 const NO_SNOW: Arms = { C: false, N: false, E: false, S: false, W: false };
@@ -67,10 +68,44 @@ async function viaServer(image: string, jpeg: string | null): Promise<Found> {
            usable: data.usable !== false, arms: data.arms ? { ...NO_SNOW, ...data.arms } : null };
 }
 
+/** 사진 속 도로 십자로 보드 좌표를 사진 위로 옮기는 아핀을 맥 서버에 묻는다. 방향을 모르거나 서버가 없으면 null(사진 위 경로 생략).
+ *  키로 Claude를 바로 부른 결과가 꺼진 맥을 기다리지 않게 4초에서 끊는다(서버 계산은 0.1초 안팎). */
+async function photoFrame(image: string): Promise<Frame | null> {
+  try {
+    const r = await fetch("/api/vision/frame", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }),
+      signal: AbortSignal.timeout(4000) });
+    const data: { frame?: unknown } = await r.json();
+    return r.ok && Array.isArray(data.frame) && data.frame.length === 6 && data.frame.every(Number.isFinite) ? (data.frame as Frame) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 최적 경로를 사진 위에 주황 선으로 그린다. 차고(출발)에 표시, 갈래 끝에 도는 순서. 선 굵기는 화면 픽셀로 고정한다. */
+function RouteOnPhoto({ route, frame }: { route: PlannedRoute; frame: Frame }) {
+  const clamp = (v: number) => Math.min(97, Math.max(3, v * 100));       // 사진 밖이면 가장자리에 붙여 보인다
+  const at = (x: number, y: number) => { const [u, v] = onPhoto(frame, x, y); return { left: `${clamp(u)}%`, top: `${clamp(v)}%` }; };
+  const points = route.path.map(([x, y]) => onPhoto(frame, x, y).join(",")).join(" ");
+  return (
+    <>
+      <svg className={styles.route} viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden>
+        <polyline className={styles.routeEdge} points={points} vectorEffect="non-scaling-stroke" />
+        <polyline className={styles.routeLine} points={points} vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className={styles.garage} style={at(route.path[0][0], route.path[0][1])} role="img" aria-label="차고(출발)">차고</span>
+      {route.order.map((a, i) => (
+        <span key={a} className={styles.step} style={at(...armTip(route.path, a))} role="img" aria-label={`${i + 1}번째로 치울 ${a} 갈래`}>{i + 1}</span>
+      ))}
+    </>
+  );
+}
+
 /** 사진을 찍으면 AI가 눈이 있는 곳을 상자로 표시한다. 표시 전용이며 제설차를 움직이지 않는다.
  *  Claude API 키가 이 기기에 있으면 브라우저가 Claude를 바로 부르고, 없으면 맥 서버(enabled)를 거친다. */
-/** onFound: 찾은 갈래별 눈. 조작 화면이 이것으로 최적 경로를 지도에 그린다(출동은 하지 않는다). */
-export default function SnowBoxes({ enabled, onFound }: { enabled: boolean; onFound?: (f: { arms: Arms; usable: boolean }) => void }) {
+/** onFound: 찾은 갈래별 눈(새 사진을 보내기 시작하면 null). 조작 화면이 최적 경로를 골라 route로 돌려주면 사진 위에도 그린다. 출동은 하지 않는다. */
+export default function SnowBoxes({ enabled, onFound, route }: {
+  enabled: boolean; onFound?: (f: { arms: Arms; usable: boolean } | null) => void; route?: PlannedRoute | null;
+}) {
   const [apiKey, setApiKey] = useState("");
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -97,20 +132,23 @@ export default function SnowBoxes({ enabled, onFound }: { enabled: boolean; onFo
     if (!file || busy || (!apiKey && !enabled)) return;
     setBusy(true);
     setError("");
-    setView(null);                             // 이전 상자를 새 결과로 오해하지 않게 지운다
+    setView(null);                             // 이전 상자·경로를 새 결과로 오해하지 않게 지운다
+    onFound?.(null);
     try {
       const jpeg = await shrink(file).catch(() => null);      // 맥 Chrome은 HEIC를 못 연다
+      const image = jpeg ?? (enabled ? await rawDataUrl(file) : null);
+      const framing = enabled && image ? photoFrame(image) : Promise.resolve(null);   // Claude를 기다리는 동안 함께 계산
       let found: Found;
       if (jpeg && apiKey) {
         found = { ...(await askClaudeBoxes(apiKey, jpeg)), photo: jpeg };
-      } else if (enabled) {
-        found = await viaServer(jpeg ?? await rawDataUrl(file), jpeg);
+      } else if (enabled && image) {
+        found = await viaServer(image, jpeg);
       } else {
         throw new Error("이 브라우저는 이 사진 형식(HEIC)을 열지 못합니다. Safari를 쓰거나 맥 서버에 접속한 화면에서 보내세요.");
       }
       const boxes = found.boxes.map(boxStyle).filter((b): b is BoxStyle => b !== null);
       if (boxes.length !== found.boxes.length) throw new Error("상자 위치가 올바르지 않습니다.");
-      setView({ url: jpegUrl(found.photo), boxes, note: found.note, secs: found.secs });
+      setView({ url: jpegUrl(found.photo), boxes, note: found.note, secs: found.secs, frame: await framing });
       if (found.arms) onFound?.({ arms: found.arms, usable: found.usable });
     } catch (e) {
       if (e instanceof KeyError) { writeKey(""); setApiKey(""); }
@@ -176,7 +214,11 @@ export default function SnowBoxes({ enabled, onFound }: { enabled: boolean; onFo
               <span className={styles.tag} aria-hidden>{i + 1}</span>
             </span>
           ))}
+          {route && view.frame && <RouteOnPhoto route={route} frame={view.frame} />}
         </div>
+      )}
+      {view && route && !view.frame && (
+        <p className="vhint">사진 위 경로는 노란 코트가 보이게 위에서 찍은 사진에만 그립니다(맥 서버 필요). 경로는 결과 지도에서 보세요.</p>
       )}
     </section>
   );

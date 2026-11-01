@@ -31,6 +31,7 @@ STREAK = 3.0           # 이 비율 넘게 길쭉하고 10mm 넘게 긴 흰 덩�
 PAINT_MM = 8           # 노란 페인트에서 이 거리 안의 흰 점은 그 위 테이프 반사로 본다
 SQUARE = 1.25          # 위에서 찍으면 가로·세로 도로 폭이 같다. 이 배 넘게 다르면 비스듬히 찍은 사진
 ARMS = ("C", "N", "S", "E", "W")
+COURT_MIN_MM2 = 15000  # 노란 코트(340×146mm)가 이만큼 넘게 보여야 사진 위 경로의 방향을 믿는다(공원의 작은 노란 점은 1/3도 안 된다)
 
 
 HEIF_BRANDS = (b"heic", b"heix", b"hevc", b"heim", b"heis", b"mif1", b"msf1")   # 아이폰 사진(ftyp 상자의 브랜드)
@@ -141,13 +142,72 @@ def _drop_streaks(snow, px_mm):
     return snow & keep[lab]
 
 
+def _unrotate(u, v, k, shape):
+    """np.rot90(사진, k) 안의 점 (x, y) → 원래 사진의 (x, y). shape는 원래 사진의 (높이, 너비)."""
+    for i in reversed(range(k)):
+        width = shape[1] if i % 2 == 0 else shape[0]      # i번 돌린 사진의 너비
+        u, v = width - 1 - v, u
+    return u, v
+
+
+def _tilt(road):
+    """도로 십자가 사진 축에서 돌아간 각도(도, 약 -45..45). ndi.rotate로 이만큼 돌리면 십자가 사진 축에 선다.
+    도로 픽셀이 가장 적은 행·열에 몰리는(행·열 합의 제곱합이 가장 큰) 각도를 300px로 줄인 마스크에서 찾는다.
+    행·열 합의 최댓값으로 고르면 도로가 길고 좁아 ±8° 안에서는 값이 같아 각도가 정해지지 않는다."""
+    step = max(1, max(road.shape) // 300)
+    small = road[::step, ::step].astype(np.uint8)
+    def fill(a):
+        r = ndi.rotate(small, a, reshape=False, order=0).astype(float)
+        return (r.sum(0) ** 2).sum() + (r.sum(1) ** 2).sum()
+    coarse = max(range(-45, 45), key=fill)
+    return float(max(np.arange(coarse - 1, coarse + 1.01, 0.25), key=fill))
+
+
+def _untilt(x, y, tilt, shape):
+    """ndi.rotate(사진, tilt)로 세운 사진의 점 → 원래 사진의 점. 돌린 중심은 배열 가운데다."""
+    cx, cy = (shape[1] - 1) / 2.0, (shape[0] - 1) / 2.0
+    t = np.radians(tilt)
+    dx, dy = x - cx, y - cy
+    return cx + dx * np.cos(t) - dy * np.sin(t), cy + dx * np.sin(t) + dy * np.cos(t)
+
+
+def _frame(road, court, road_mm):
+    """교차로 중심에서 잰 보드 좌표(mm, 동쪽·남쪽 +) → 원래 사진의 너비·높이 비율(0..1)로 옮기는 아핀 [a, b, c, d, e, f].
+    u = a·dx + b·dy + c, v = d·dx + e·dy + f. 화면이 최적 경로를 사진 위에 그린다.
+    손에 들고 비뚤게 찍은 각도(tilt)를 먼저 세우고, 90° 단위 방향은 노란 코트로 정한다. 위에서 찍은 사진을 축척 하나로 본다(원근 무시).
+    코트가 COURT_MIN_MM2보다 작게 보이거나(가려짐) 세운 뒤에도 가로·세로 도로 폭이 크게 다르면(비스듬히 찍음) None."""
+    shape = road.shape
+    tilt = _tilt(road)
+    road_l = ndi.rotate(road.astype(np.uint8), tilt, reshape=False, order=0) > 0
+    court_l = ndi.rotate(court.astype(np.uint8), tilt, reshape=False, order=0) > 0
+    lab, n = ndi.label(court_l)
+    if n == 0:
+        return None
+    k = _turns(road_l, court_l)
+    x0, x1, y0, y1 = _cross(np.rot90(road_l, k))
+    wide, tall = x1 - x0 + 1, y1 - y0 + 1
+    if not 1 / SQUARE <= wide / tall <= SQUARE:
+        return None
+    px_mm = (wide + tall) / 2.0 / road_mm
+    if max(ndi.sum(court_l, lab, range(1, n + 1))) / px_mm ** 2 < COURT_MIN_MM2:
+        return None
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    def to_photo(dx, dy):
+        x, y = _untilt(*_unrotate(cx + dx * px_mm, cy + dy * px_mm, k, shape), tilt, shape)
+        return x / shape[1], y / shape[0]
+    (u0, v0), (u1, v1), (u2, v2) = to_photo(0, 0), to_photo(1, 0), to_photo(0, 1)
+    return [u1 - u0, u2 - u0, u0, v1 - v0, v2 - v0, v0]
+
+
 def analyze(img, road_mm):
-    """사진 → {"arms": {갈래: {area_mm2, far_mm}}, "turns", "sure", "view"} 또는 도로가 없으면 None.
-    sure가 False면 갈래 이름이나 면적을 믿을 수 없다(코트가 안 보여 방향을 모르거나 비스듬히 찍음)."""
+    """사진 → {"arms": {갈래: {area_mm2, far_mm}}, "turns", "sure", "frame", "view"} 또는 도로가 없으면 None.
+    sure가 False면 갈래 이름이나 면적을 믿을 수 없다(코트가 안 보여 방향을 모르거나 비스듬히 찍음).
+    frame은 보드 좌표를 사진 위로 옮기는 아핀(_frame)이고, 방향을 믿을 수 없으면 None이다(sure와 따로 판단)."""
     m = _masks(img)
     if m is None:
         return None
     road, snow, court, paint = m
+    frame = _frame(road, court, road_mm)
     k = _turns(road, court)
     img, road, snow, paint = (np.rot90(a, k) for a in (img, road, snow, paint))
     cross = _cross(road)
@@ -170,7 +230,8 @@ def analyze(img, road_mm):
         sel = arm == name
         arms[name] = {"area_mm2": int(round(sel.sum() / px_mm ** 2)),
                       "far_mm": int(round(dist[sel].max())) if sel.any() else 0}
-    return {"arms": arms, "turns": k, "sure": sure, "view": _overlay(img, road, snow, (cx, cy), (x0, x1, y0, y1))}
+    return {"arms": arms, "turns": k, "sure": sure, "frame": frame,
+            "view": _overlay(img, road, snow, (cx, cy), (x0, x1, y0, y1))}
 
 
 def _overlay(img, road, snow, center, cross):

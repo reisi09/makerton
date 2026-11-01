@@ -23,9 +23,10 @@ N_SNOW = [(560, 100), (610, 160), (545, 230), (625, 300), (548, 60), (560, 350)]
 E_SNOW = [(720, 440), (800, 520), (860, 470)]
 
 
-def board(snow=(), glare=False, lane=580, tape=False):
+def board(snow=(), glare=False, lane=580, tape=False, court=True):
     """실측 모형(925×910mm, 1px=1mm): 십자 도로·노란 중앙선·왼쪽 아래 노란 코트·축구장.
-    lane은 세로 도로 중앙선의 x(실물은 손으로 붙여 가운데에서 비켜 있다), tape는 점선마다 옆에 생기는 짧은 테이프 반사."""
+    lane은 세로 도로 중앙선의 x(실물은 손으로 붙여 가운데에서 비켜 있다), tape는 점선마다 옆에 생기는 짧은 테이프 반사.
+    court=False는 코트가 가려진 사진: 공원에 있는 작은 노란 점 두 개만 남는다."""
     img = Image.new("RGB", (925, 910), (226, 231, 237))
     d = ImageDraw.Draw(img)
     d.rectangle([515, 0, 650, 910], fill=(38, 40, 42))
@@ -35,7 +36,11 @@ def board(snow=(), glare=False, lane=580, tape=False):
         d.rectangle([v, 476, v + 20, 481], fill=(235, 200, 60))
         if tape and v < 380:
             d.rectangle([lane + 7, v + 4, lane + 10, v + 14], fill=(240, 238, 232))
-    d.rectangle([0, 560, 360, 711], fill=(250, 210, 60))
+    if court:
+        d.rectangle([0, 560, 360, 711], fill=(250, 210, 60))
+    else:
+        for x, y in ((380, 200), (430, 260)):
+            d.ellipse([x - 12, y - 12, x + 12, y + 12], fill=(250, 210, 60))
     d.rectangle([383, 560, 508, 752], fill=(60, 150, 70))
     if glare:
         d.rectangle([578, 20, 587, 380], fill=(245, 245, 245))      # 중앙선 투명 테이프 반사
@@ -101,6 +106,43 @@ class VisionTest(unittest.TestCase):
         found = vision.analyze(np.ascontiguousarray(np.rot90(photo(board(snow=N_SNOW)), -1)), 135.0)
         self.assertEqual(found["turns"], 1)
         self.assertGreater(found["arms"]["N"]["area_mm2"], 250, found["arms"])
+
+    def test_frame_puts_board_points_where_the_photo_shows_them(self):
+        # 화면이 최적 경로를 사진 위에 그리는 아핀. 합성 사진의 실제 원근 변환과 비교한다. 이 합성 사진은 실제 위에서 찍은 사진보다
+        # 원근이 세고 가로 도로가 148mm라 축척 하나로는 먼 갈래 끝에서 6%쯤 어긋난다(실제 사진 25장은 보드 가장자리에서 대각선의 중앙값 1.9%).
+        # 90° 단위로 잘못 돌리거나 비뚠 각도를 반대로 세우면 갈래 끝이 다른 갈래로 가서 20% 넘게 어긋나므로, 먼 점의 느슨한 허용치로도 걸린다
+        g = coeffs([(0, 0), (925, 0), (925, 910), (0, 910)], CORNERS)      # 보드 mm → 사진 px
+        def on_shot(x, y):
+            w = g[6] * x + g[7] * y + 1
+            return (g[0] * x + g[1] * y + g[2]) / w, (g[3] * x + g[4] * y + g[5]) / w
+        def quarter(k):                                                       # np.rot90(사진, k): 점 (x, y) → (y, 너비-1-x)
+            def move(x, y, w, h):
+                for _ in range(k):
+                    x, y, w, h = y, w - 1 - x, h, w
+                return x / w, y / h
+            return lambda img: np.ascontiguousarray(np.rot90(img, k)), move
+        def tilted(a):                                                        # PIL rotate: 가운데를 축으로 반시계 a°
+            def move(x, y, w, h):
+                t, cx, cy = np.radians(a), w / 2.0, h / 2.0
+                return ((cx + (x - cx) * np.cos(t) + (y - cy) * np.sin(t)) / w, (cy - (x - cx) * np.sin(t) + (y - cy) * np.cos(t)) / h)
+            return lambda img: np.asarray(Image.fromarray(img).rotate(a, fillcolor=(172, 172, 172))), move
+        center = (582.5, 478.0)                                             # 합성 보드의 도로 십자 가운데
+        near = [((0, 0), 0.02), ((0, -150), 0.03), ((150, 0), 0.03)]
+        far = [((0, -375), 0.08), ((238, 0), 0.08), ((0, 325), 0.08), ((-477, 0), 0.08), ((182, -230), 0.08)]   # 갈래 끝 넷, 차고 앞
+        shot = photo(board())
+        cases = [("rot%d" % k, quarter(k)) for k in range(4)] + [("tilt%+d" % a, tilted(a)) for a in (12, -12, 30, -30)]
+        for name, (turn, move) in cases:
+            a, b, c, d, e, f = vision.analyze(turn(shot), 135.0)["frame"]
+            for (dx, dy), tol in near + far:
+                got = (a * dx + b * dy + c, d * dx + e * dy + f)
+                want = move(*on_shot(center[0] + dx, center[1] + dy), PHOTO[0], PHOTO[1])
+                self.assertLess(max(abs(got[0] - want[0]), abs(got[1] - want[1])), tol, (name, dx, dy, got, want))
+
+    def test_frame_is_withheld_when_the_direction_is_unknown(self):
+        squashed = np.asarray(Image.fromarray(photo(board())).resize((PHOTO[0], int(PHOTO[1] * 0.6))))
+        self.assertIsNone(vision.analyze(squashed, 135.0)["frame"], "비스듬한 사진에 경로를 그리면 엉뚱한 곳에 그린다")
+        hidden = vision.analyze(photo(board(court=False)), 135.0)
+        self.assertIsNone(hidden["frame"], "코트가 가려지면 공원의 작은 노란 점으로 방향을 정하지 않는다")
 
     def test_photo_without_roads_is_rejected(self):
         self.assertIsNone(vision.analyze(floor(), 135.0))

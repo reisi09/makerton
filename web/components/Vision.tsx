@@ -88,7 +88,9 @@ export default function Vision() {
 
   const running = state.execution?.state === "running";
   const shown = result ?? state.vision ?? null;       // 새로고침해도 서버가 기억하는 마지막 판정을 보여 준다
-  const onFound = ({ arms, usable }: { arms: Arms; usable: boolean }) => {
+  const onFound = (found: { arms: Arms; usable: boolean } | null) => {
+    if (!found) { setAiPlan(null); return; }
+    const { arms, usable } = found;
     const key = routeKey(arms, usable);
     const snow = Object.fromEntries(Object.entries(arms).map(([a, on]) => [a, { area_mm2: on || !usable ? 300 : 0, far_mm: 0 }]));
     setAiPlan({ plan: key ? ROUTES[key] ?? null : null, arms: snow, usable });
@@ -121,7 +123,7 @@ export default function Vision() {
 
         <div className="vgrid">
           <section>
-            <SnowBoxes enabled={api === "ok"} onFound={onFound} />
+            <SnowBoxes enabled={api === "ok"} onFound={onFound} route={aiPlan?.plan ?? null} />
 
             {onMac ? <PicoPad /> : (
               <p className="vhint">Pico 수동 조작은 맥에서 <b>http://localhost:8000/app/</b>을 Chrome·Edge로 열었을 때만 쓸 수 있습니다.</p>

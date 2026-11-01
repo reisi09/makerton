@@ -110,9 +110,12 @@ export default function BoardMap({ arms, min = 100, path, upto, order, car }: {
 
       {arms && <Snow arms={arms} min={min} />}
 
-      {/* 최적 경로: 전체는 흐리게, 지나온 길은 진하게 */}
-      {path && <polyline points={line(path)} fill="none" stroke={CAR} strokeWidth="6" strokeDasharray="14 10" opacity=".7" />}
-      {done.length > 1 && <polyline points={line(done)} fill="none" stroke={CAR} strokeWidth="8" />}
+      {/* 최적 경로: 차고에서 나가 갈래를 돌고 돌아오는 길. 어두운 도로·노란 중앙선 위에서도 보이게 흰 테두리 위 주황 실선, 지나온 길은 더 진하게 */}
+      {path && <>
+        <polyline points={line(path)} fill="none" stroke={WHITE} strokeWidth="18" strokeLinejoin="round" strokeLinecap="round" />
+        <polyline points={line(path)} fill="none" stroke={CAR} strokeWidth="10" strokeLinejoin="round" strokeLinecap="round" />
+      </>}
+      {done.length > 1 && <polyline points={line(done)} fill="none" stroke={CAR_D} strokeWidth="10" strokeLinejoin="round" strokeLinecap="round" />}
       {order?.map((a, i) => {
         const [x, y] = ARM_END[a];
         return (

@@ -1450,6 +1450,20 @@ class Model(object):
                 "width": int(img.shape[1]), "height": int(img.shape[0]), "time": time.strftime("%H:%M:%S"),
                 "photo": vision.to_data_url(img)}
 
+    def vision_frame(self, body):
+        """사진 한 장 → 보드 좌표(mm)를 그 사진의 너비·높이 비율(0..1)로 옮기는 아핀. 화면이 최적 경로를 사진 위에 그린다.
+        규칙 영상 처리(vision.analyze)의 도로 십자·노란 코트로 맞추고 Claude는 쓰지 않는다. 방향을 모르면 frame은 None."""
+        try:
+            img = vision.decode_image(body.get("image"))
+        except Exception:
+            raise HttpError(400, "사진을 읽지 못했습니다. JPEG base64가 필요합니다.")
+        found = vision.analyze(img, float(self.board.get("ROAD_MM", 135)))
+        if not found or not found["frame"]:
+            return {"frame": None}
+        a, b, c, d, e, f = found["frame"]                 # 교차로 중심에서 잰 mm 기준 → 보드 절대 좌표 기준으로 옮긴다
+        cx, cy = float(self.board.get("CENTER_X", 582)), float(self.board.get("CENTER_Y", 480))
+        return {"frame": [a, b, c - a * cx - b * cy, d, e, f - d * cx - e * cy]}
+
     def _ask_claude(self, img, turns):
         """Claude 판정. 사고 요약은 오는 대로 vision_live에 두어 화면이 폴링으로 보게 한다. 실패하면 {"error"}."""
         def show(text):
@@ -1923,6 +1937,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/reset": self._reset,
             "/api/vision/detect": self._vision_detect,
             "/api/vision/boxes": lambda body: (200, self.model.vision_boxes(body)),
+            "/api/vision/frame": lambda body: (200, self.model.vision_frame(body)),
             "/api/sweep": lambda body: (200, self.model.sweep_all(body)),
         }.get(path)
         if route is None:

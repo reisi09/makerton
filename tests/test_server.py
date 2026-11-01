@@ -553,6 +553,22 @@ class HttpTest(ServerBase):
         self.assertIn("overloaded", body["error"])
         self.assertEqual([e for e in model.events if e["kind"] == "vision"], [], "실패는 눈 상자 기록을 남기지 않는다")
 
+    def test_frame_maps_board_coordinates_onto_the_photo(self):
+        from tests.test_vision import board, floor, photo
+        model, port, _ = self.boxes_setup()                                         # Claude 키가 없어도 된다
+        shot = photo(board())
+        status, body = self.post(port, "/api/vision/frame", {"image": srv.vision.to_data_url(shot)})
+        self.assertEqual(status, 200, body)
+        a, b, c, d, e, f = body["frame"]
+        rel = srv.vision.analyze(srv.vision.decode_image(srv.vision.to_data_url(shot)), 135.0)["frame"]
+        self.assertAlmostEqual(a * 582 + b * 480 + c, rel[2], places=6)            # 보드 절대 좌표의 교차로 중심 = 사진 속 교차로 중심
+        self.assertAlmostEqual(d * 582 + e * 480 + f, rel[5], places=6)
+        status, body = self.post(port, "/api/vision/frame", {"image": srv.vision.to_data_url(floor())})
+        self.assertEqual((status, body), (200, {"frame": None}), "도로가 없으면 경로를 그리지 않는다")
+        status, body = self.post(port, "/api/vision/frame", {"image": "not an image"})
+        self.assertEqual(status, 400)
+        self.assertEqual(model.events, [], "프레임 계산은 기록을 남기지 않는다")
+
     def test_sweep_all_dispatches_every_arm_in_the_best_order(self):
         model = self.make_model(night=NIGHT)
         self.attach_fake_car(model, arm_s=0.3)
