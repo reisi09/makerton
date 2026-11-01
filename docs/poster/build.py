@@ -95,9 +95,9 @@ def system_svg():
     W, H, NW, NH = 885, 532, 224, 140
     cols, rows = (9, 331, 653), (21, 281)
     nodes = {
-        "app": (0, 0, "웹 화면 /app", ["맥 브라우저", "사진 고르기 · Claude 직접 호출", "전체 청소 · 정지 버튼", "수동 조작 패드"], False),
+        "app": (0, 0, "웹 화면 /app", ["사진 → Claude 직접 호출", "눈 갈래 최적 경로 표시", "전체 청소 · 정지 버튼", "수동 조작 패드"], False),
         "srv": (1, 0, "맥 서버 (Python)", [":8000 · /app · /monitor", "최적 경로: 순서 24가지 비교", "펌웨어 경로 계획 그대로", "HEIC 변환 · Claude 호출"], True),
-        "ai": (2, 0, "Claude API", ["claude-opus-5-5", "사진 → 도로 위 눈 상자", "화면 표시만 (차는 그대로)", "키는 저장소에 두지 않음"], False),
+        "ai": (2, 0, "Claude API", ["claude-opus-5-5", "사진 → 눈 상자 · 눈 갈래", "화면 표시만 (차는 그대로)", "키는 저장소에 두지 않음"], False),
         "mon": (0, 1, "모니터 /monitor", ["1920×1080 흑백 화면", "지도 · 경로 · 차 위치", "1초마다 갱신", "조작 버튼 없음"], False),
         "car": (1, 1, "제설차 Pico 2 W", ["MicroPython 1.29", "28BYJ-48 ×2 + ULN2003 ×2", "기지 → 갈래 밀기 → 후진", "전원: 맥 USB"], True),
         "man": (2, 1, "수동 조작 (Web Serial)", ["맥의 Chrome · Edge", "USB로 Pico에 직접 연결", "화살표 버튼 · 키", "떼면 바로 정지"], False),
@@ -118,13 +118,14 @@ def system_svg():
     o.append(t(gap(L1, R1), 30, "사진", 12, MID, 700, "middle"))
     o.append(t(gap(L1, R1), 46, "전체 청소·정지", 12, MID, 700, "middle"))
     o.append(arrow([(R1 - 4, 112), (L1 + 4, 112)]))
-    o.append(t(gap(L1, R1), 86, "눈 상자·지도", 12, LINE, 600, "middle"))
+    o.append(t(gap(L1, R1), 86, "눈 상자·경로", 12, LINE, 600, "middle"))
     o.append(t(gap(L1, R1), 102, "차 위치", 12, LINE, 600, "middle"))
     # 서버 ⇄ Claude
     o.append(arrow([(L2 + 4, 58), (R2 - 4, 58)]))
     o.append(t(gap(L2, R2), 46, "사진", 12, MID, 700, "middle"))
     o.append(arrow([(R2 - 4, 112), (L2 + 4, 112)]))
-    o.append(t(gap(L2, R2), 132, "눈 상자(JSON)", 12, LINE, 600, "middle"))
+    o.append(t(gap(L2, R2), 132, "눈 상자·갈래", 12, LINE, 600, "middle"))
+    o.append(t(gap(L2, R2), 148, "(JSON)", 12, LINE, 600, "middle"))
     # 서버 → 모니터(꺾은선)
     o.append(arrow([(R1, 150), (290, 150), (290, rows[1] + 40), (L1 + 4, rows[1] + 40)]))
     o.append(t(282, 205, "같은 핫스팟", 12, MID, 700, "end"))
@@ -146,9 +147,9 @@ def system_svg():
     order = route.plan(route.ALL)
     o.append(rect(9, 445, 868, 78, PALE, BRIGHT, 2))
     notes = [
-        "‘전체 청소’를 누르면 서버가 갈래 순서 %d가지를 펌웨어 경로 계획으로 비교해 가장 빠른 계획을 차에 보낸다." % order["tried"],
-        "네 갈래 %s 약 %d초(계산값). Claude의 눈 상자는 화면 표시용이고 출동에 쓰지 않는다." % ("→".join(order["order"]), order["seconds"]),
-        "정지 버튼이 언제나 우선하고, 서버 신호가 %d초 끊기면 차가 일시 정지한다." % (CFG["LINK_TIMEOUT_MS"] // 1000),
+        "출동 버튼은 ‘전체 청소’ 하나. 누르면 서버가 갈래 순서 %d가지를 펌웨어 경로 계획으로 비교해 가장 빠른 계획을 차에 보낸다." % order["tried"],
+        "네 갈래 %s 약 %d초(계산값). Claude가 알려 준 눈 갈래의 최적 순서·경로는 화면 표시만 하고 차는 그대로다." % ("→".join(order["order"]), order["seconds"]),
+        "키를 넣은 기기는 Claude를 직접 부르고, 없으면 서버를 거친다. 정지가 언제나 우선, 신호가 %d초 끊기면 일시 정지." % (CFG["LINK_TIMEOUT_MS"] // 1000),
     ]
     for i, s in enumerate(notes):
         o.append(t(22, 470 + i * 21, s, 14, INK, 500))
@@ -252,6 +253,8 @@ def board_svg():
         ("전체 청소 %s" % "→".join(plan["order"]), ORANGE),
         ("약 %d초 · 가장 긴 순서 %d초" % (plan["seconds"], plan["worst_seconds"]), INK),
         ("(%d가지 비교, 계산값)" % plan["tried"], MID),
+        ("사진 속 눈 갈래의 최적 순서는", MID),
+        ("지도에 표시만 (차는 그대로)", MID),
     ]
     for i, (s, c) in enumerate(specs):
         o.append(t(452, 262 + i * 22, s, 13, c, 700 if c == ORANGE else 600))
@@ -457,6 +460,12 @@ if __name__ == "__main__":
         with open(os.path.join(HERE, name), "w", encoding="utf-8") as f:
             f.write(make())
     photo()
+    full = route.plan(route.ALL)
+    quote = "%s 약 %d초" % ("→".join(full["order"]), full["seconds"])
+    print("전체 청소:", quote, "(%d가지 중, 가장 긴 순서 %d초)" % (full["tried"], full["worst_seconds"]))
+    with open(os.path.join(HERE, "poster.html"), encoding="utf-8") as f:
+        if quote not in f.read():
+            print("경고: poster.html에 '%s'가 없다. 글의 순서·시간을 고칠 것" % quote)
     if "--no-render" not in sys.argv:
         render()
     print("완료:", HERE)

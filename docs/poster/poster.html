@@ -73,8 +73,8 @@ ol.steps b { font-weight: 700; }
 <section class="col" style="left:76px;width:464px">
   <div class="h">프로젝트 개요</div>
   <p class="txt">가상의 사거리를 92.5×91cm 모형으로 만들고, 라즈베리파이 Pico 2 W 제설차가 북동쪽 제설 기지에서 나와
-    네 갈래를 가장 빠른 순서로 치우게 했다. 맥 서버가 경로를 계산하고, Claude는 사진 속 눈 위치를 표시하며,
-    웹 화면에서 차를 직접 몰 수도 있다.</p>
+    네 갈래를 가장 빠른 순서로 치우게 했다. 맥 서버가 경로를 계산하고, Claude가 사진 속 눈을 찾으면
+    화면이 눈 덮인 갈래의 최적 경로를 지도에 보여 준다. 웹 화면에서 차를 직접 몰 수도 있다.</p>
   <div class="gap"></div>
   <div class="h">주제 선정 동기</div>
   <div class="quote">
@@ -91,9 +91,10 @@ ol.steps b { font-weight: 700; }
   <div class="h">전체 동작 과정</div>
   <ol class="steps">
     <li data-n="1"><b>연결</b> — 맥 서버와 제설차가 아이폰 핫스팟(2.4GHz)에서 Wi-Fi UDP로 이어진다.</li>
-    <li data-n="2"><b>눈 표시</b> — 웹에서 사진을 고르면 Claude가 도로 위 눈을 상자로 그린다. 차는 움직이지 않는다.</li>
-    <li data-n="3"><b>경로 계산</b> — ‘전체 청소’를 누르면 순서 24가지를 펌웨어 경로 계획으로 비교해 가장 빠른 것을 고른다.</li>
-    <li data-n="4"><b>출동</b> — 기지에서 나와 갈래 끝까지 눈을 밀고 후진하며 네 갈래를 돈 뒤 차고로 돌아온다(약 142초, 계산값).</li>
+    <li data-n="2"><b>눈 표시</b> — 웹에서 사진을 고르면(HEIC는 맥 서버가 변환) Claude가 도로 위 눈을 상자로 그리고 눈 덮인 갈래를 알려 준다.
+      화면은 그 갈래를 도는 최적 순서와 경로를 지도에 보여 줄 뿐, 차는 움직이지 않는다.</li>
+    <li data-n="3"><b>경로 계산</b> — 출동 버튼은 ‘전체 청소’ 하나다. 누르면 순서 24가지를 펌웨어 경로 계획으로 비교해 가장 빠른 것을 고른다.</li>
+    <li data-n="4"><b>출동</b> — 기지에서 나와 S→E→W→N 순서로 갈래 끝까지 눈을 밀고 후진한 뒤 차고로 돌아온다(약 140초, 계산값).</li>
     <li data-n="5"><b>감시·정지</b> — 0.5초마다 오는 차 위치가 /monitor 지도에 뜨고, 정지 버튼이 언제나 우선한다.</li>
   </ol>
   <p class="note"><b>수동 조작</b> — 맥의 Chrome·Edge가 USB(Web Serial)로 Pico를 직접 움직인다.
@@ -145,8 +146,8 @@ ol.steps b { font-weight: 700; }
       지도에 그린 길이 곧 차가 달리는 길이다.</li>
     <li data-n="2"><b>천천히 출발, 빠르게 주행</b> — 1.2ms/스텝으로 출발해 2500스텝 동안 0.6ms까지 가속한다(초당 약 19→38mm).
       처음부터 0.6ms로 출발하면 보드 위에서 멈춰 떨기만 했다(11월 1일 시험).</li>
-    <li data-n="3"><b>AI는 보조, 출동은 코드</b> — Claude는 눈 위치를 상자로 보여 줄 뿐 차를 움직이지 않는다.
-      Claude API 키는 서버 환경변수나 그 기기의 브라우저에만 두고 저장소에는 두지 않는다.</li>
+    <li data-n="3"><b>AI는 보조, 출동은 코드</b> — Claude는 눈 상자와 눈 덮인 갈래를 알려 주고, 화면은 그 갈래의 최적 경로를 보여 줄 뿐 차를 움직이지 않는다.
+      Claude API 키를 그 기기 브라우저에 한 번 넣으면 페이지가 직접 부르고, 없으면 맥 서버를 거친다. 키는 저장소에 두지 않는다.</li>
     <li data-n="4"><b>사진 시험</b> — 모형 사진 42장 중 눈이 있는 19장에서 Claude가 모두 눈을 찾았다.
       어둡게·노란 조명·흐리게 바꾼 사본에서도 찾았고, 규칙 검출기는 최대 3장을 놓쳤다(표본이 작은 시험).</li>
   </ol>
@@ -158,7 +159,7 @@ ol.steps b { font-weight: 700; }
 <div class="fig" style="left:977px;width:665px"><img src="board.svg" alt="보드 실측과 출동 경로"></div>
 <div class="fig" style="left:1658px;width:826px"><img src="wiring.svg" alt="제설차 배선도"></div>
 <p class="cap" style="left:76px">① 시스템 구성도 — 맥 서버 · 웹(/app · /monitor) · Claude · 제설차 Pico 2 W(Wi-Fi UDP · USB)</p>
-<p class="cap" style="left:977px">② 보드 실측과 출동 경로 — 925×910mm · 북동쪽 제설 기지 · 차체 치수</p>
+<p class="cap" style="left:977px">② 보드 실측과 전체 청소 경로 — 925×910mm · S→E→W→N 약 140초 · 차체 치수</p>
 <p class="cap" style="left:1658px">③ Raspberry Pi Pico 2 W 제설차 배선 — 스텝모터 ×2 장착 · 서보·초음파·버튼·LED·부저는 선택</p>
 
 <div class="foot">고색고등학교 사천쟁반짜장팀 [최용빈,최우석,허승범,정희망]</div>
