@@ -66,12 +66,14 @@ snapshot()
 print(json.dumps(snaps))
 `;
 
-const HALF = [[1, 0, 0, 0], [1, 1, 0, 0], [0, 1, 0, 0], [0, 1, 1, 0], [0, 0, 1, 0], [0, 0, 1, 1], [0, 0, 0, 1], [1, 0, 0, 1]];
+const FULL = [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 1, 1], [1, 0, 0, 1]];     // 2상 풀스텝: 코일 두 개가 늘 켜져 있다
 const idx = (bits: number[]) => {
-  const i = HALF.findIndex((row) => row.join() === bits.join());
-  assert.ok(i >= 0, `하프스텝 표에 없는 코일 상태: ${bits}`);
+  const i = FULL.findIndex((row) => row.join() === bits.join());
+  assert.ok(i >= 0, `2상 풀스텝 표에 없는 코일 상태: ${bits}`);
   return i;
 };
+const SLOW = Number(/SLOW_US = (\d+)/.exec(JOG_PROGRAM)![1]);
+const FAST = Number(/FAST_US = (\d+)/.exec(JOG_PROGRAM)![1]);
 
 interface Step { t: number; left: number; right: number }
 /** 조작 글자를 [시각 us, 글자] 목록으로 넣어 돌리고, 걸음 목록과 코일이 꺼진 시각을 돌려준다. */
@@ -93,10 +95,10 @@ const held = (letter: string, fromMs: number, toMs: number): [number, string][] 
   for (let ms = fromMs; ms <= toMs; ms += JOG_REPEAT_MS) out.push([ms * 1000, letter]);
   return out;
 };
-// 걸음마다 (왼쪽, 오른쪽) 바늘이 얼마나 움직였는지. 첫 걸음은 꺼진 상태(인덱스 0)에서 시작한 것으로 본다.
+// 걸음마다 (왼쪽, 오른쪽) 바늘이 얼마나 움직였는지. 첫 걸음은 바늘 0(표의 첫 줄)에서 시작한 것으로 본다.
 const deltas = (steps: Step[]) => steps.map((s, i) => {
   const p = i ? steps[i - 1] : { left: 0, right: 0 };
-  const d = (a: number, b: number) => { const x = (a - b + 8) % 8; return x === 1 ? 1 : x === 7 ? -1 : NaN; };
+  const d = (a: number, b: number) => { const x = (a - b + 4) % 4; return x === 1 ? 1 : x === 3 ? -1 : NaN; };
   return [d(s.left, p.left), d(s.right, p.right)];
 });
 
@@ -129,18 +131,19 @@ test("글자마다 두 바퀴가 맞는 방향으로 한 걸음씩 돈다(오른
   assert.equal(steps.length, 0);
 });
 
-test("출발 간격은 1200us에서 줄어들고, 조작 글자가 끊기면 데드맨 시간 뒤 코일이 꺼진다", () => {
+test("출발 간격은 SLOW_US에서 FAST_US 쪽으로 줄어들고, 조작 글자가 끊기면 데드맨 시간 뒤 코일이 꺼진다", () => {
   const { steps, offAt } = simulate(held(JOG.forward, 0, 900), 2_500_000);
   const gaps = steps.slice(1).map((s, i) => s.t - steps[i].t);
-  assert.ok(Math.abs(gaps[0] - 1200) <= 50, `첫 간격 ${gaps[0]}`);
-  assert.ok(gaps.every((g) => g >= 550), "600us보다 빨리 걸으면 안 된다");
+  assert.ok(FAST > 1500 && SLOW > FAST, "힘을 위해 느리게 민다");
+  assert.ok(Math.abs(gaps[0] - SLOW) <= 50, `첫 간격 ${gaps[0]}`);
+  assert.ok(gaps.every((g) => g >= FAST - 50), "FAST_US보다 빨리 걸으면 안 된다");
   assert.ok(gaps[gaps.length - 1] < gaps[0] - 150, `간격이 줄어야 한다 ${gaps[0]} -> ${gaps[gaps.length - 1]}`);
   const lastLetterUs = 900_000;
   assert.ok(offAt !== null && offAt >= lastLetterUs + DEAD_MAN_MS * 1000 - 20_000 && offAt <= lastLetterUs + DEAD_MAN_MS * 1000 + 100_000, `꺼진 시각 ${offAt}`);
   assert.ok(steps[steps.length - 1].t < offAt!, "꺼진 뒤에는 걸음이 없다");
 });
 
-test("S는 즉시 서고, 방향이 바뀌면 간격이 다시 1200us에서 시작한다", () => {
+test("S는 즉시 서고, 방향이 바뀌면 간격이 다시 SLOW_US에서 시작한다", () => {
   const stopped = simulate([...held(JOG.forward, 0, 200), [300_000, JOG.stop]], 1_500_000);
   assert.ok(stopped.offAt !== null && stopped.offAt < 330_000, `S 뒤 꺼진 시각 ${stopped.offAt}`);
 
@@ -148,8 +151,8 @@ test("S는 즉시 서고, 방향이 바뀌면 간격이 다시 1200us에서 시�
   const d = deltas(steps);
   const k = d.findIndex((x) => x[0] === -1);                    // 후진 첫 걸음
   assert.ok(k > 0);
-  assert.ok(steps[k - 1].t - steps[k - 2].t < 1000, "전진이 충분히 빨라진 뒤여야 시험이 의미 있다");
-  assert.ok(Math.abs(steps[k + 1].t - steps[k].t - 1200) <= 50, "방향이 바뀐 뒤 첫 간격");
+  assert.ok(steps[k - 1].t - steps[k - 2].t < SLOW - 300, "전진이 충분히 빨라진 뒤여야 시험이 의미 있다");
+  assert.ok(Math.abs(steps[k + 1].t - steps[k].t - SLOW) <= 50, "방향이 바뀐 뒤 첫 간격");
 });
 
 test("lastErrorLine은 마지막 Traceback의 오류 줄만 뽑는다", () => {

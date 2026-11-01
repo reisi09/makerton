@@ -29,7 +29,9 @@ export const WRITE_CHUNK_GAP_MS = 10;
  * Pico에서 도는 수동 조작 프로그램.
  * - 현재 배선: 왼쪽 6,7,8,9번은 그대로, 오른쪽 2,3,4,5번은 마주 보게 달려 뒤집는다(Pico에 올라간 config는 옛 값이라 쓰지 않는다).
  * - F·B·L·R이 오면 그 방향으로 가고, S가 오거나 DEAD_MS 동안 조작 글자가 없으면 서며 코일을 모두 끈다.
- * - 출발하거나 방향이 바뀌면 간격을 SLOW_US에서 시작해 RAMP_STEPS 걸음 동안 FAST_US까지 줄인다(부하가 걸린 채 600us로 출발하면 탈조한다).
+ * - 2상 풀스텝으로 민다: 걸음마다 코일 두 개가 늘 켜져 있어 하프스텝보다 힘이 세다(모터당 약 200mA, 맥 USB로 충분하다).
+ *   2026-11-01 사용자 요청 '좀 느려도 되니 힘을 세게': 초당 약 23mm(하프스텝 0.6ms의 초당 38mm보다 느리다).
+ * - 출발하거나 방향이 바뀌면 간격을 SLOW_US에서 시작해 RAMP_STEPS 걸음 동안 FAST_US까지 줄인다(부하가 걸린 채 빠르게 출발하면 탈조한다).
  * - Ctrl-C(KeyboardInterrupt)로 코일을 끄고 조용히 끝난다.
  */
 export const JOG_PROGRAM = `import sys, time, select
@@ -39,19 +41,18 @@ LEFT = [Pin(n, Pin.OUT, value=0) for n in (6, 7, 8, 9)]
 RIGHT = [Pin(n, Pin.OUT, value=0) for n in (2, 3, 4, 5)]
 LEFT_SIGN = 1
 RIGHT_SIGN = -1
-HALF = ((1, 0, 0, 0), (1, 1, 0, 0), (0, 1, 0, 0), (0, 1, 1, 0),
-        (0, 0, 1, 0), (0, 0, 1, 1), (0, 0, 0, 1), (1, 0, 0, 1))
+FULL = ((1, 1, 0, 0), (0, 1, 1, 0), (0, 0, 1, 1), (1, 0, 0, 1))
 MOVES = {"F": (1, 1), "B": (-1, -1), "L": (-1, 1), "R": (1, -1)}
 DEAD_MS = 300
-SLOW_US = 1200
-FAST_US = 600
-RAMP_STEPS = 2500
+SLOW_US = 3200
+FAST_US = 2000
+RAMP_STEPS = 600
 
 poll = select.poll()
 poll.register(sys.stdin, select.POLLIN)
 
 def coils(pins, i):
-    row = HALF[i % 8]
+    row = FULL[i % 4]
     for k in range(4):
         pins[k].value(row[k])
 
