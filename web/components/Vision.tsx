@@ -41,6 +41,7 @@ export default function Vision() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [qr, setQr] = useState("");
+  const [onMac, setOnMac] = useState(false);       // Pico USB 조작은 맥에서 localhost로 열었을 때만 보인다
 
   useEffect(() => {
     let alive = true;
@@ -59,6 +60,7 @@ export default function Vision() {
   useEffect(() => {
     if (pad && onLaptop) QRCode.toDataURL(pad, { margin: 1, width: 180 }).then(setQr);
   }, [pad, onLaptop]);
+  useEffect(() => setOnMac(onLaptop), [onLaptop]);   // 정적 HTML과 첫 렌더를 맞추려고 마운트 뒤에 정한다
 
   async function run(label: string, job: () => Promise<Result>) {
     setBusy(label);
@@ -100,7 +102,7 @@ export default function Vision() {
             <h2>AI 눈 찾기와 자동 출동은 맥 서버에 접속해야 쓸 수 있습니다.</h2>
             <p>GitHub 페이지(https)에서는 브라우저가 같은 핫스팟에 연결된 맥으로 사진을 보내는 것을 차단합니다.
               맥에서 서버를 켠 뒤 <b>http://localhost:8000/app/</b>(맥) 또는 <b>http://&lt;맥 IP&gt;:8000/app/</b>(아이패드)에 접속하면 됩니다.
-              USB 수동 조작은 이 페이지에서도 맥의 Chrome·Edge로 쓸 수 있습니다.</p>
+              Pico 수동 조작은 맥에서 <b>http://localhost:8000/app/</b>으로 열었을 때만 보입니다.</p>
           </section>
         )}
 
@@ -108,7 +110,9 @@ export default function Vision() {
           <section>
             <SnowBoxes />
 
-            <PicoPad />
+            {onMac ? <PicoPad /> : (
+              <p className="vhint">Pico 수동 조작은 맥에서 <b>http://localhost:8000/app/</b>을 Chrome·Edge로 열었을 때만 쓸 수 있습니다.</p>
+            )}
 
             <div className="sec-h"><h2>자동 출동</h2><small>‘전체 청소’를 누르면 기지에서 나와 네 갈래를 모두 제설합니다(Wi-Fi 연결 필요).</small></div>
             <div className="vbtns">
