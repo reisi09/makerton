@@ -28,7 +28,8 @@ ARMS = ("C", "N", "E", "S", "W")
 BOARD = """The board is about 925 x 910 mm. Black roads 135 mm wide form one plus-shaped intersection. The roads have yellow dashed centerlines and the intersection square has a yellow outline. Clear tape covers the paint.
 
 Snow is small white styrofoam beads, a few millimetres across, lying on the black road surface. Count it even when there are only a few beads.
-Not snow: bright glare streaks from the tape over the yellow paint (thin, long, along a centerline or the intersection outline), white buildings and roofs, signs, the floor or table outside the board, and anything off the black road."""
+Not snow: bright glare streaks from the tape over the yellow paint (thin, long, along a centerline or the intersection outline), white buildings and roofs, signs, the floor or table outside the board, and anything off the black road.
+Also not snow, even when it sits on a road: the snow-plow robot car itself (a white styrofoam body about 230 x 150 mm with a breadboard, colored wires, small circuit boards, bottle-cap wheels, purple dowels and a white blade at one end), and a MacBook or other laptop, phone, cable or hand on or next to the board. Only small loose beads are snow; a large white object is never snow, and beads lying on the car are not road snow."""
 
 SYSTEM = """You judge photos of a tabletop model city used in a snow-removal robot demo.
 
