@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """server/vision.py 시험: 점박이 바닥 위 보드를 비스듬히 찍은 합성 '사진'에서 도로 위 눈을 갈래별로 센다."""
+import io
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 import numpy as np
@@ -100,6 +104,35 @@ class VisionTest(unittest.TestCase):
 
     def test_photo_without_roads_is_rejected(self):
         self.assertIsNone(vision.analyze(floor(), 135.0))
+
+
+class DecodeTest(unittest.TestCase):
+    """맥 Chrome은 아이폰 HEIC를 못 열어 원본 그대로 올린다. 서버가 읽고, 사진 방향(EXIF)대로 세워야 상자가 맞는다."""
+
+    def b64(self, data):
+        import base64
+        return base64.b64encode(data).decode("ascii")
+
+    @unittest.skipUnless(shutil.which("sips"), "HEIC 변환은 맥의 sips가 있어야 한다")
+    def test_iphone_heic_is_decoded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            png, heic = os.path.join(tmp, "a.png"), os.path.join(tmp, "a.heic")
+            Image.new("RGB", (1600, 1200), (20, 20, 20)).save(png)
+            subprocess.run(["sips", "-s", "format", "heic", png, "--out", heic], check=True, capture_output=True)
+            with open(heic, "rb") as f:
+                img = vision.decode_image("data:image/heic;base64," + self.b64(f.read()))
+        self.assertEqual(img.shape, (900, 1200, 3))
+
+    def test_photo_is_turned_upright_by_its_exif_orientation(self):
+        buf = io.BytesIO()
+        exif = Image.Exif()
+        exif[0x0112] = 6                                     # 세로로 든 폰: 90도 돌려 보여 줘야 한다
+        Image.new("RGB", (800, 600), (20, 20, 20)).save(buf, "JPEG", exif=exif)
+        self.assertEqual(vision.decode_image(self.b64(buf.getvalue())).shape, (800, 600, 3))
+
+    def test_broken_heic_is_a_readable_error(self):
+        with self.assertRaises(ValueError):
+            vision.decode_image(self.b64(b"\x00\x00\x00\x18ftypheic" + b"\x00" * 64))
 
 
 if __name__ == "__main__":

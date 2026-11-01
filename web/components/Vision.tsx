@@ -175,7 +175,7 @@ export default function Vision() {
         </div>
       </main>
       <footer>
-        사진은 보안키를 넣은 뒤 맥 서버를 거쳐 Claude가 보고, 도로 위 눈을 상자로 표시합니다(차는 움직이지 않음).
+        사진은 맥 서버를 거쳐 Claude가 보고, 도로 위 눈을 상자로 표시합니다(차는 움직이지 않음).
         수동 조작은 맥의 Chrome·Edge가 USB로 꽂힌 Pico에 직접 명령을 보냅니다. ‘전체 청소’는 북동쪽 제설 기지에서 나와
         네 갈래를 가장 빠른 순서로 도는 자동 출동입니다.
         {" · "}<a href="https://reisi09.github.io/makerton/designs.html">설계도</a>{" · "}<a href="https://github.com/reisi09/makerton">GitHub</a>

@@ -9,6 +9,7 @@
     "test": "node --test lib/*.test.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "next": "15.5.28",
     "qrcode": "1.5.4",
     "react": "19.1.1",

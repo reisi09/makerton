@@ -10,14 +10,12 @@
 - 센서 Pico(#1, USB 시리얼)의 @@TEL 을 받아 갈래별 현장 보정(local_dt)을 만든다.
 - 제설차 Pico(#2, Wi-Fi UDP)와 plan·stop·home·ping 을 주고받는다.
 - 예측 동결확률이 기준을 넘으면 auto 조건에서 저절로 출동한다.
-- 패드 사진은 규칙(vision.py)과, ANTHROPIC_API_KEY 와 MAKERTON_KEY 가 둘 다 있으면 Claude(claude_vision.py)가 함께 본다. 둘이 다르면 전체 청소.
-- Claude를 부르는 요청(/api/vision/detect, /api/vision/boxes)은 X-Makerton-Key 헤더가 MAKERTON_KEY 와 같아야 한다.
+- 패드 사진은 규칙(vision.py)과, ANTHROPIC_API_KEY 가 있으면 Claude(claude_vision.py)가 함께 본다. 둘이 다르면 전체 청소.
 """
 
 import argparse
 import datetime
 import glob
-import hmac
 import json
 import mimetypes
 import os
@@ -710,7 +708,7 @@ class Model(object):
     def __init__(self, engine=None, station=None, engine_error=None, events_path=None,
                  night=None, budget=DEFAULT_BUDGET, auto=True, mode="replay",
                  car_link=None, sensor_link=None, monitor_url=None,
-                 board=None, wet_arm=None, claude=False, access_key=None,
+                 board=None, wet_arm=None, claude=False,
                  mock_arm_s=MOCK_ARM_S, baseline_s=BASELINE_S, sensor_fresh_s=SENSOR_FRESH_S,
                  car_fresh_s=CAR_FRESH_S, tick_s=TICK_S, auto_cooldown_s=AUTO_COOLDOWN_S):
         self.lock = threading.RLock()
@@ -727,7 +725,6 @@ class Model(object):
         self.vision_last = None
         self.claude = bool(claude)      # 패드 사진을 Claude에게도 보인다(키가 환경변수에 있을 때)
         self.vision_live = None         # Claude가 보는 중이면 {"thinking": 지금까지의 사고 요약}
-        self._access_key = access_key or ""   # Claude 요청을 여는 보안키(MAKERTON_KEY). 파일·로그·스냅숏에 두지 않는다
 
         self.car_link = car_link
         self.sensor_link = sensor_link
@@ -1435,19 +1432,8 @@ class Model(object):
         self.event("vision", decision["text"])
         return dict(result, view=found["view"])
 
-    def require_key(self, given):
-        """Claude를 부르는 요청의 보안키 확인. 서버에 키가 없으면 어떤 값도 통과시키지 않는다."""
-        key = self._access_key.encode("utf-8")
-        # 헤더는 latin-1로 풀려 오므로 같은 방식으로 되돌려 바이트를 맞춘다
-        if not key or not hmac.compare_digest((given or "").encode("latin-1", "replace"), key):
-            raise HttpError(401, "보안키가 맞지 않습니다")
-
-    def vision_boxes(self, body, given_key):
+    def vision_boxes(self, body):
         """사진 한 장 → Claude가 찾은 눈 자리 상자(0..1 비율). 규칙·출동·vision_last와 무관한 화면 표시용."""
-        if not self._access_key:
-            also = "" if claude_vision.enabled() else " (ANTHROPIC_API_KEY도 없습니다)"
-            raise HttpError(503, "서버에 MAKERTON_KEY 환경변수가 없어 AI 눈 상자를 쓸 수 없습니다" + also)
-        self.require_key(given_key)
         if not self.claude:
             raise HttpError(503, "서버에 ANTHROPIC_API_KEY 환경변수가 없어 AI 눈 상자를 쓸 수 없습니다")
         try:
@@ -1459,8 +1445,10 @@ class Model(object):
         except Exception as e:
             raise HttpError(502, "Claude 호출에 실패했습니다: %s" % str(e)[:120])
         self.event("vision", "AI 눈 상자 %d곳" % len(found["boxes"]))
+        # photo: 분석한 그 사진(JPEG). 브라우저가 원본을 못 띄우는 경우(맥 Chrome의 HEIC)에도 상자를 얹을 수 있다
         return {"boxes": found["boxes"], "note": found["note"], "secs": found["secs"],
-                "width": int(img.shape[1]), "height": int(img.shape[0]), "time": time.strftime("%H:%M:%S")}
+                "width": int(img.shape[1]), "height": int(img.shape[0]), "time": time.strftime("%H:%M:%S"),
+                "photo": vision.to_data_url(img)}
 
     def _ask_claude(self, img, turns):
         """Claude 판정. 사고 요약은 오는 대로 vision_live에 두어 화면이 폴링으로 보게 한다. 실패하면 {"error"}."""
@@ -1934,7 +1922,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/sensors/baseline": self._baseline,
             "/api/reset": self._reset,
             "/api/vision/detect": self._vision_detect,
-            "/api/vision/boxes": lambda body: (200, self.model.vision_boxes(body, self.headers.get("X-Makerton-Key"))),
+            "/api/vision/boxes": lambda body: (200, self.model.vision_boxes(body)),
             "/api/sweep": lambda body: (200, self.model.sweep_all(body)),
         }.get(path)
         if route is None:
@@ -1950,8 +1938,6 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- 라우트 ------------------------------------------------------------
     def _vision_detect(self, body):
-        if self.model.claude:       # Claude를 부르는 요청만 보안키가 필요하다(규칙만 쓸 때는 열려 있다)
-            self.model.require_key(self.headers.get("X-Makerton-Key"))
         return 200, self.model.vision_detect(body)
 
     def _replay(self, body):
@@ -2044,11 +2030,10 @@ def main(argv=None):
     else:
         print("[엔진] 지점 %s 준비 완료" % station["id"])
     board = load_board(args.board)
-    access_key = os.environ.get("MAKERTON_KEY", "")
     model = Model(engine=engine, station=station, engine_error=error,
                   events_path=args.events, night=args.night, budget=DEFAULT_BUDGET,
                   auto=args.auto, mode=args.mode, board=board, wet_arm=args.wet_arm,
-                  claude=claude_vision.enabled() and bool(access_key), access_key=access_key)
+                  claude=claude_vision.enabled())
 
     car_link = None
     if args.car == "fake":
@@ -2100,9 +2085,8 @@ def main(argv=None):
     print("  차 링크: %s" % ("가짜 제설차" if args.car == "fake"
                              else ("UDP %d" % args.udp_port if args.car == "udp" else "없음(모의 실행)")))
     print("  자동 출동: %s / 예산 %d갈래" % ("켜짐" if model.auto else "꺼짐", model.budget))
-    missing = [n for n, ok in (("ANTHROPIC_API_KEY", claude_vision.enabled()), ("MAKERTON_KEY", access_key)) if not ok]
-    print("  사진 판정: 규칙%s" % (" + Claude(%s), 요청마다 X-Makerton-Key 필요" % claude_vision.MODEL if model.claude
-                                 else " 만(%s 없음)" % ", ".join(missing)))
+    print("  사진 판정: 규칙%s" % (" + Claude(%s)" % claude_vision.MODEL if model.claude
+                                 else " 만(ANTHROPIC_API_KEY 없음)"))
     print("  이벤트 기록: %s" % model.events_path)
     print("=" * 66)
     try:

@@ -467,9 +467,8 @@ class HttpTest(ServerBase):
 
     def test_claude_thinking_shows_live_and_disagreement_sweeps_every_arm(self):
         from tests.test_vision import N_SNOW, board, photo
-        model = self.make_model(night=NIGHT, claude=True, access_key="k-test")
+        model = self.make_model(night=NIGHT, claude=True)
         port = self.start_http(model)
-        key = {"X-Makerton-Key": "k-test"}
         live = []
         def judge(img, turns, on_thinking):
             on_thinking("N 도로와 E 도로에 흰 알갱이가 보인다.")
@@ -478,7 +477,7 @@ class HttpTest(ServerBase):
                     "note": "N·E 도로에 눈", "thinking": "N 도로와 E 도로에 흰 알갱이가 보인다.", "secs": 6.0}
         snowy = srv.vision.to_data_url(photo(board(snow=N_SNOW)))
         with mock.patch.object(srv.claude_vision, "judge", judge):
-            status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False}, key)
+            status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False})
         self.assertEqual(status, 200, body)
         self.assertEqual(live, [{"thinking": "N 도로와 E 도로에 흰 알갱이가 보인다."}])
         self.assertIsNone(model.snapshot()["vision_live"], "판정이 끝나면 실시간 사고 요약을 지운다")
@@ -489,32 +488,10 @@ class HttpTest(ServerBase):
         def fail(img, turns, on_thinking):
             raise RuntimeError("HTTP 529 overloaded")
         with mock.patch.object(srv.claude_vision, "judge", fail):
-            status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False}, key)
+            status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False})
         self.assertEqual(body["route"]["order"], ["N"], "Claude가 실패하면 규칙만으로 판단한다")
         self.assertIn("Claude 판정 실패", body["decision"]["text"])
         self.assertEqual(model.snapshot()["vision"]["route"]["order"], ["N"])
-
-    def test_detect_needs_the_key_whenever_claude_would_be_called(self):
-        from tests.test_vision import N_SNOW, board, photo
-        model = self.make_model(night=NIGHT, claude=True, access_key="k-test")
-        port = self.start_http(model)
-        snowy = srv.vision.to_data_url(photo(board(snow=N_SNOW)))
-        judge = mock.Mock(side_effect=AssertionError("키 없이 Claude를 불렀습니다"))
-        with mock.patch.object(srv.claude_vision, "judge", judge):
-            for headers in (None, {"X-Makerton-Key": "wrong"}, {"X-Makerton-Key": ""}):
-                status, body = self.post(port, "/api/vision/detect", {"image": snowy, "go": False}, headers)
-                self.assertEqual((status, body), (401, {"error": "보안키가 맞지 않습니다"}))
-        judge.assert_not_called()
-        self.assertIsNone(model.snapshot()["vision"], "거절한 요청은 판정 기록을 남기지 않는다")
-
-    def test_claude_without_a_configured_key_rejects_every_detect(self):
-        from tests.test_vision import N_SNOW, board, photo
-        model = self.make_model(night=NIGHT, claude=True)       # 설정이 어긋나도 열리지 않는다
-        port = self.start_http(model)
-        snowy = srv.vision.to_data_url(photo(board(snow=N_SNOW)))
-        for headers in (None, {"X-Makerton-Key": ""}):
-            status, _ = self.post(port, "/api/vision/detect", {"image": snowy, "go": False}, headers)
-            self.assertEqual(status, 401)
 
     def boxes_setup(self, **kw):
         import numpy as np
@@ -523,47 +500,20 @@ class HttpTest(ServerBase):
         image = srv.vision.to_data_url(np.zeros((60, 80, 3), np.uint8))
         return model, port, image
 
-    def test_boxes_is_unavailable_until_both_keys_are_configured(self):
-        boxes = mock.Mock(side_effect=AssertionError("설정 없이 Claude를 불렀습니다"))
-        key = {"X-Makerton-Key": "k-test"}
-        with mock.patch.object(srv.claude_vision, "boxes", boxes), \
-                mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
-            _, port, image = self.boxes_setup()                                    # 둘 다 없음
-            status, body = self.post(port, "/api/vision/boxes", {"image": image}, key)
-            self.assertEqual(status, 503)
-            self.assertIn("MAKERTON_KEY", body["error"])
-            self.assertIn("ANTHROPIC_API_KEY", body["error"])
-            _, port, image = self.boxes_setup(access_key="k-test")                 # MAKERTON_KEY만 있음
-            status, body = self.post(port, "/api/vision/boxes", {"image": image}, {"X-Makerton-Key": "wrong"})
-            self.assertEqual(status, 401, "틀린 키는 설정 상태를 알려 주지 않는다")
-            status, body = self.post(port, "/api/vision/boxes", {"image": image}, key)
-            self.assertEqual(status, 503)
-            self.assertIn("ANTHROPIC_API_KEY", body["error"])
-            self.assertNotIn("MAKERTON_KEY", body["error"])
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
-            _, port, image = self.boxes_setup()                                    # ANTHROPIC만 있음
-            status, body = self.post(port, "/api/vision/boxes", {"image": image}, key)
-            self.assertEqual(status, 503)
-            self.assertIn("MAKERTON_KEY", body["error"])
-            self.assertNotIn("ANTHROPIC_API_KEY", body["error"])
-        boxes.assert_not_called()
-
-    def test_boxes_needs_the_exact_key_header(self):
-        model, port, image = self.boxes_setup(claude=True, access_key="k-test")
-        boxes = mock.Mock(side_effect=AssertionError("틀린 키로 Claude를 불렀습니다"))
+    def test_boxes_is_unavailable_without_the_claude_key(self):
+        boxes = mock.Mock(side_effect=AssertionError("키 없이 Claude를 불렀습니다"))
         with mock.patch.object(srv.claude_vision, "boxes", boxes):
-            for headers in (None, {"X-Makerton-Key": ""}, {"X-Makerton-Key": "wrong"},
-                            {"X-Makerton-Key": "k-tes"}, {"X-Makerton-Key": "k-test "},
-                            {"X-Makerton-Key": "K-TEST"}, {"Authorization": "k-test"}):
-                status, body = self.post(port, "/api/vision/boxes", {"image": image}, headers)
-                self.assertEqual((status, body), (401, {"error": "보안키가 맞지 않습니다"}), headers)
+            _, port, image = self.boxes_setup()                                    # claude=False: ANTHROPIC_API_KEY 없음
+            status, body = self.post(port, "/api/vision/boxes", {"image": image})
+        self.assertEqual(status, 503)
+        self.assertIn("ANTHROPIC_API_KEY", body["error"])
         boxes.assert_not_called()
 
     def test_boxes_returns_claudes_boxes_for_the_decoded_photo(self):
         import base64
         import io
         from PIL import Image
-        model, port, _ = self.boxes_setup(claude=True, access_key="k-test")
+        model, port, _ = self.boxes_setup(claude=True)
         buf = io.BytesIO()
         Image.new("RGB", (2400, 1200), (10, 10, 10)).save(buf, "JPEG")
         big = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
@@ -573,32 +523,30 @@ class HttpTest(ServerBase):
             return {"boxes": [{"x0": 0.1, "y0": 0.2, "x1": 0.3, "y1": 0.4}, {"x0": 0.5, "y0": 0.5, "x1": 0.6, "y1": 0.9}],
                     "note": "N 도로 끝에 눈", "thinking": "비공개 사고 요약", "secs": 4.2}
         with mock.patch.object(srv.claude_vision, "boxes", boxes):
-            status, body = self.post(port, "/api/vision/boxes", {"image": big}, {"X-Makerton-Key": "k-test"})
+            status, body = self.post(port, "/api/vision/boxes", {"image": big})
         self.assertEqual(status, 200, body)
         self.assertEqual(got, [(600, 1200, 3)], "Claude에는 1200px로 줄인 사진이 간다")
-        self.assertEqual(sorted(body), ["boxes", "height", "note", "secs", "time", "width"])
+        self.assertEqual(sorted(body), ["boxes", "height", "note", "photo", "secs", "time", "width"])
+        shown = Image.open(io.BytesIO(base64.b64decode(body["photo"].split(",", 1)[1])))
+        self.assertEqual(shown.size, (1200, 600), "화면에 띄울 사진은 분석한 그 사진이다(상자 좌표가 맞는다)")
         self.assertEqual((body["width"], body["height"]), (1200, 600))
         self.assertEqual(body["boxes"][1], {"x0": 0.5, "y0": 0.5, "x1": 0.6, "y1": 0.9})
         self.assertEqual((body["note"], body["secs"]), ("N 도로 끝에 눈", 4.2))
         self.assertRegex(body["time"], r"^\d\d:\d\d:\d\d$")
         self.assertEqual(model.events[-1]["text"], "AI 눈 상자 2곳")
         self.assertIsNone(model.snapshot()["vision"], "상자는 규칙 판정·출동 기록과 섞이지 않는다")
-        with open(model.events_path, encoding="utf-8") as f:
-            self.assertNotIn("k-test", f.read(), "보안키는 이벤트 기록에 남지 않는다")
-        self.assertNotIn("k-test", json.dumps(model.snapshot()))
 
     def test_boxes_rejects_unreadable_photos_and_reports_claude_failures(self):
-        model, port, image = self.boxes_setup(claude=True, access_key="k-test")
-        key = {"X-Makerton-Key": "k-test"}
+        model, port, image = self.boxes_setup(claude=True)
         boxes = mock.Mock(side_effect=AssertionError("읽지 못한 사진으로 Claude를 불렀습니다"))
         with mock.patch.object(srv.claude_vision, "boxes", boxes):
             for payload in ({}, {"image": ""}, {"image": "not an image"}, {"image": 5}):
-                status, body = self.post(port, "/api/vision/boxes", payload, key)
+                status, body = self.post(port, "/api/vision/boxes", payload)
                 self.assertEqual(status, 400, payload)
                 self.assertIn("사진", body["error"])
         boxes.assert_not_called()
         with mock.patch.object(srv.claude_vision, "boxes", mock.Mock(side_effect=RuntimeError("HTTP 529 overloaded"))):
-            status, body = self.post(port, "/api/vision/boxes", {"image": image}, key)
+            status, body = self.post(port, "/api/vision/boxes", {"image": image})
         self.assertEqual(status, 502)
         self.assertIn("overloaded", body["error"])
         self.assertEqual([e for e in model.events if e["kind"] == "vision"], [], "실패는 눈 상자 기록을 남기지 않는다")

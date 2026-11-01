@@ -14,9 +14,12 @@
 
 import base64
 import io
+import os
+import subprocess
+import tempfile
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 from scipy import ndimage as ndi
 
 MAX_SIDE = 1200        # 이보다 크면 줄여서 본다(알갱이가 2px 아래로 작아지지 않는 선)
@@ -30,11 +33,33 @@ SQUARE = 1.25          # 위에서 찍으면 가로·세로 도로 폭이 같다
 ARMS = ("C", "N", "S", "E", "W")
 
 
+HEIF_BRANDS = (b"heic", b"heix", b"hevc", b"heim", b"heis", b"mif1", b"msf1")   # 아이폰 사진(ftyp 상자의 브랜드)
+
+
+def _heif_to_jpeg(raw):
+    """HEIC → JPEG. PIL은 HEIC를 못 읽고 맥 Chrome은 화면에 못 띄우므로, 서버가 도는 맥의 sips로 바꾼다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        src, dst = os.path.join(tmp, "in.heic"), os.path.join(tmp, "out.jpg")
+        with open(src, "wb") as f:
+            f.write(raw)
+        try:
+            subprocess.run(["sips", "-s", "format", "jpeg", src, "--out", dst],
+                           check=True, capture_output=True, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            raise ValueError("HEIC 사진을 JPEG로 바꾸지 못했습니다(맥의 sips 필요)")
+        with open(dst, "rb") as f:
+            return f.read()
+
+
 def decode_image(data_url):
-    """'data:image/jpeg;base64,...' 또는 base64 문자열 → RGB 배열(긴 변 MAX_SIDE 이하)."""
+    """'data:image/jpeg;base64,...' 또는 base64 문자열(JPEG·PNG·HEIC) → RGB 배열(긴 변 MAX_SIDE 이하).
+    사진 방향(EXIF)대로 돌려 둔다. 화면에 다시 보여 줄 사진과 분석한 사진의 좌표가 같아야 상자가 맞는다."""
     if not isinstance(data_url, str) or not data_url:
         raise ValueError("image 는 base64 JPEG 문자열이어야 합니다")
-    img = Image.open(io.BytesIO(base64.b64decode(data_url.split(",", 1)[-1]))).convert("RGB")
+    raw = base64.b64decode(data_url.split(",", 1)[-1])
+    if raw[4:8] == b"ftyp" and raw[8:12] in HEIF_BRANDS:
+        raw = _heif_to_jpeg(raw)
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw))).convert("RGB")
     img.thumbnail((MAX_SIDE, MAX_SIDE))
     return np.asarray(img)
 

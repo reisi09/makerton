@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { askClaudeBoxes, KeyError } from "@/lib/claudeBoxes";
 import { boxStyle, type BoxStyle, type SnowBox } from "@/lib/snowBoxes";
 import styles from "./SnowBoxes.module.css";
 
 const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 보내지 않는다)
-const KEY_STORE = "makerton-key";
+const KEY_STORE = "makerton-claude-key";
 
-interface Reply { boxes?: SnowBox[]; note?: string; secs?: number; error?: string }
+interface Reply { boxes?: SnowBox[]; note?: string; secs?: number; error?: string; photo?: string }
 interface View { url: string; boxes: BoxStyle[]; note: string; secs: number | null }
+interface Found { boxes: SnowBox[]; note: string; secs: number | null; photo: string }
 
-// 저장소가 막힌 브라우저(사생활 보호 창 등)에서는 새로고침 전까지만 키를 기억한다.
-const readKey = () => { try { return sessionStorage.getItem(KEY_STORE) ?? ""; } catch { return ""; } };
-const writeKey = (k: string) => { try { if (k) sessionStorage.setItem(KEY_STORE, k); else sessionStorage.removeItem(KEY_STORE); } catch { /* 무시 */ } };
+// Claude API 키는 이 기기의 브라우저에만 둔다(코드·저장소·서버에는 두지 않는다). 저장소가 막힌 브라우저에서는 새로고침 전까지만 쓴다.
+const readKey = () => { try { return localStorage.getItem(KEY_STORE) ?? ""; } catch { return ""; } };
+const writeKey = (k: string) => { try { if (k) localStorage.setItem(KEY_STORE, k); else localStorage.removeItem(KEY_STORE); } catch { /* 무시 */ } };
 
 // Vision.tsx의 shrink()와 같은 방식. 화면에 보여 줄 사진이 서버가 본 사진과 같도록 줄인 결과를 그대로 쓴다.
 function shrink(file: File): Promise<string> {
@@ -32,75 +34,81 @@ function shrink(file: File): Promise<string> {
   });
 }
 
+// 브라우저가 열지 못하는 사진(맥 Chrome의 HEIC 등)은 원본 그대로 보내고, 맥 서버가 JPEG로 바꿔 분석한 사진을 돌려받아 보여 준다.
+function rawDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("사진 파일을 읽지 못했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
 const jpegUrl = (dataUrl: string) =>
   URL.createObjectURL(new Blob([Uint8Array.from(atob(dataUrl.split(",")[1]), (c) => c.charCodeAt(0))], { type: "image/jpeg" }));
 
+/** 맥 서버를 거쳐 Claude에 보낸다. 서버는 HEIC도 JPEG로 바꿔 분석하고, 분석한 사진을 돌려준다. */
+async function viaServer(image: string, jpeg: string | null): Promise<Found> {
+  let r: Response;
+  try {
+    r = await fetch("/api/vision/boxes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }) });
+  } catch {
+    throw new Error("맥의 서버에 연결하지 못했습니다. Claude API 키를 넣으면 서버 없이 바로 보낼 수 있습니다.");
+  }
+  const data: Reply | null = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(data?.error ?? `서버 오류 ${r.status}`);
+  // 응답을 읽지 못했는데 '눈이 보이지 않습니다'로 보이면 안 된다.
+  if (!Array.isArray(data?.boxes)) throw new Error("서버 응답을 읽지 못했습니다.");
+  const photo = typeof data.photo === "string" && data.photo.startsWith("data:image/jpeg") ? data.photo : jpeg;
+  if (!photo) throw new Error("서버가 분석한 사진을 돌려주지 않았습니다.");
+  return { boxes: data.boxes, note: data.note ?? "", secs: typeof data.secs === "number" ? data.secs : null, photo };
+}
+
 /** 사진을 찍으면 AI가 눈이 있는 곳을 상자로 표시한다. 표시 전용이며 제설차를 움직이지 않는다.
- *  enabled가 false면(맥 서버가 없는 GitHub 페이지 등) 보안키를 받지도, 사진을 보내지도 않는다. 키가 엉뚱한 곳으로 가지 않게 한다. */
+ *  Claude API 키가 이 기기에 있으면 브라우저가 Claude를 바로 부르고, 없으면 맥 서버(enabled)를 거친다. */
 export default function SnowBoxes({ enabled }: { enabled: boolean }) {
-  const [key, setKey] = useState("");          // "" = 아직 입력 전
+  const [apiKey, setApiKey] = useState("");
   const [draft, setDraft] = useState("");
-  const [keyMsg, setKeyMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<View | null>(null);
-  const keyInput = useRef<HTMLInputElement>(null);
-  const focusKey = useRef(false);
   const camera = useRef<HTMLInputElement>(null);
   const album = useRef<HTMLInputElement>(null);
-  const id = useId();
 
-  useEffect(() => setKey(readKey()), []);      // 정적 내보내기라 서버 렌더에는 저장소가 없다
-  useEffect(() => {                            // 키를 다시 받아야 할 때 입력칸으로 커서를 옮긴다
-    if (!key && focusKey.current) { focusKey.current = false; keyInput.current?.focus(); }
-  }, [key]);
+  useEffect(() => setApiKey(readKey()), []);   // 정적 내보내기라 서버 렌더에는 저장소가 없다
   useEffect(() => () => { if (view) URL.revokeObjectURL(view.url); }, [view]);
-
-  function askKeyAgain(msg: string) {
-    writeKey("");
-    focusKey.current = true;
-    setKey("");
-    setKeyMsg(msg);
-  }
 
   function saveKey(e: React.FormEvent) {
     e.preventDefault();
     const k = draft.trim();
     if (!k) return;
-    // 헤더에는 영문·숫자·기호만 실을 수 있다. 한글 입력기가 켜진 채로 입력한 경우를 알려 준다.
-    if (/[^\x20-\x7e]/.test(k)) { setKeyMsg("보안키에 쓸 수 없는 글자가 있습니다. 키보드를 영문으로 바꿔 다시 입력하세요."); return; }
+    if (/[^\x21-\x7e]/.test(k)) { setError("API 키에 쓸 수 없는 글자가 있습니다. 키보드를 영문으로 바꿔 다시 붙여 넣으세요."); return; }
     writeKey(k);
-    setKey(k);
+    setApiKey(k);
     setDraft("");
-    setKeyMsg("");
+    setError("");
   }
 
   async function analyze(file: File | undefined) {
-    if (!enabled || !file || !key || busy) return;
+    if (!file || busy || (!apiKey && !enabled)) return;
     setBusy(true);
     setError("");
     setView(null);                             // 이전 상자를 새 결과로 오해하지 않게 지운다
     try {
-      const image = await shrink(file);
-      let r: Response;
-      try {
-        r = await fetch("/api/vision/boxes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Makerton-Key": key },
-          body: JSON.stringify({ image }),
-        });
-      } catch {
-        throw new Error("서버에 연결하지 못했습니다. 같은 핫스팟에 연결돼 있는지, 맥에서 서버가 켜져 있는지 확인하세요.");
+      const jpeg = await shrink(file).catch(() => null);      // 맥 Chrome은 HEIC를 못 연다
+      let found: Found;
+      if (jpeg && apiKey) {
+        found = { ...(await askClaudeBoxes(apiKey, jpeg)), photo: jpeg };
+      } else if (enabled) {
+        found = await viaServer(jpeg ?? await rawDataUrl(file), jpeg);
+      } else {
+        throw new Error("이 브라우저는 이 사진 형식(HEIC)을 열지 못합니다. Safari를 쓰거나 맥 서버에 접속한 화면에서 보내세요.");
       }
-      const data: Reply | null = await r.json().catch(() => null);
-      if (r.status === 401) { askKeyAgain("보안키가 맞지 않습니다"); return; }
-      if (!r.ok) throw new Error(data?.error ?? `서버 오류 ${r.status}`);
-      // 응답을 읽지 못했는데 '눈이 보이지 않습니다'로 보이면 안 된다.
-      if (!Array.isArray(data?.boxes)) throw new Error("서버 응답을 읽지 못했습니다.");
-      const boxes = data.boxes.map(boxStyle).filter((b): b is BoxStyle => b !== null);
-      if (boxes.length !== data.boxes.length) throw new Error("서버가 보낸 상자 위치가 올바르지 않습니다.");
-      setView({ url: jpegUrl(image), boxes, note: data.note ?? "", secs: typeof data.secs === "number" ? data.secs : null });
+      const boxes = found.boxes.map(boxStyle).filter((b): b is BoxStyle => b !== null);
+      if (boxes.length !== found.boxes.length) throw new Error("상자 위치가 올바르지 않습니다.");
+      setView({ url: jpegUrl(found.photo), boxes, note: found.note, secs: found.secs });
     } catch (e) {
+      if (e instanceof KeyError) { writeKey(""); setApiKey(""); }
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -112,30 +120,30 @@ export default function SnowBoxes({ enabled }: { enabled: boolean }) {
       onChange={(e) => { analyze(e.target.files?.[0]); e.target.value = ""; }} />
   );
   const n = view?.boxes.length ?? 0;
-  const locked = !enabled || !key || busy;
+  const locked = busy || (!apiKey && !enabled);
 
   return (
     <section>
       <div className="sec-h"><h2>눈 위치 표시</h2><small>사진에서 눈이 있는 곳을 AI가 상자로 표시합니다. 표시만 하고 제설차는 움직이지 않습니다.</small></div>
 
-      {!enabled ? (
-        <p className="vhint">맥 서버에 접속한 화면에서만 쓸 수 있습니다. 보안키도 그때 입력합니다.</p>
-      ) : key ? (
+      {apiKey ? (
         <div className={styles.keyRow}>
-          <span className="st on">보안키 입력됨</span>
-          <button className="btn" type="button" onClick={() => askKeyAgain("")}>다시 입력</button>
+          <span className="st on">Claude API 키 저장됨 · 바로 보냄</span>
+          <button className="btn" type="button" onClick={() => { writeKey(""); setApiKey(""); }}>키 지우기</button>
         </div>
       ) : (
         <form className={styles.keyForm} onSubmit={saveKey}>
-          <label htmlFor={`${id}-key`} className={styles.keyLabel}>보안키</label>
-          <input id={`${id}-key`} ref={keyInput} className={styles.keyInput} type="password" value={draft}
-            onChange={(e) => setDraft(e.target.value)} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false}
-            aria-invalid={!!keyMsg} aria-describedby={keyMsg ? `${id}-msg` : undefined} />
-          <button className="btn dark" type="submit">확인</button>
+          <label htmlFor="claude-key" className={styles.keyLabel}>Claude API 키</label>
+          <input id="claude-key" className={styles.keyInput} type="password" value={draft} onChange={(e) => setDraft(e.target.value)}
+            autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="sk-ant-…" />
+          <button className="btn dark" type="submit">저장</button>
         </form>
       )}
-      {enabled && keyMsg && <p id={`${id}-msg`} className="verr" role="alert">{keyMsg}</p>}
-      {enabled && !key && <p className="vhint">보안키를 입력해야 사진을 보낼 수 있습니다.</p>}
+      <p className="vhint">
+        {apiKey ? "키는 이 기기의 브라우저에만 있고, 사진을 Claude에 바로 보냅니다. 다른 사람과 쓰는 기기라면 끝나고 키를 지우세요."
+          : enabled ? "키가 없으면 맥 서버를 거쳐 보냅니다. 키를 넣으면 맥 서버나 같은 Wi-Fi 없이 바로 보냅니다."
+          : "맥 서버에 닿지 않습니다. Claude API 키를 넣으면 바로 보낼 수 있습니다."}
+      </p>
 
       <div className="vbtns">
         <button className="btn dark xl" type="button" disabled={locked} onClick={() => camera.current?.click()}>눈 사진 찍기</button>
