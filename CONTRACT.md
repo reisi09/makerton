@@ -16,6 +16,7 @@
   - 패드 화면의 '눈 위치 표시'는 Claude가 찾은 눈 자리를 상자로 보여 주기만 한다. 차는 움직이지 않는다.
     - 그 기기의 브라우저에 입력해 둔 Claude API 키가 있으면 브라우저가 Claude API를 직접 부른다(`web/lib/claudeBoxes.ts`, 서버·같은 Wi-Fi 불필요). 키는 그 브라우저의 localStorage에만 두고 코드·저장소·서버에는 두지 않는다. 브라우저를 쓰는 누구나 그 키를 쓸 수 있으니 여럿이 쓰는 기기에서는 '키 지우기'를 누른다. 지시문·스키마는 `server/claude_vision.py`와 같아야 하고 `web/lib/claudeBoxes.test.ts`가 확인한다.
     - 키가 없으면 `/api/vision/boxes`로 서버를 거친다(서버에 `ANTHROPIC_API_KEY` 필요).
+  - Claude는 눈 상자와 함께 갈래별 눈 여부(`arms`)와 사진이 쓸 만한지(`usable`)도 돌려준다. 화면은 눈 있는 갈래를 도는 가장 빠른 순서와 경로를 지도에 그리기만 한다(출동하지 않음). 경로는 `tools/make_route_table.py`가 `server/route.py`의 `plan`으로 미리 만든 `web/lib/routeTable.json`(눈 갈래 조합 15가지 + 교차로만)에서 고른다. `usable`이 false면 네 갈래 모두(전체 청소 순서), 교차로에만 눈이 있으면 가장 빨리 다녀오는 갈래 하나다. 펌웨어 경로·시간 모형이 바뀌면 이 표를 다시 만들어야 하고 `tests/test_route_table.py`가 확인한다.
   - 패드 화면에서 빠진 `/api/vision/detect`는 Claude를 규칙의 두 번째 의견으로 쓰고, 규칙과 다르면 전체 청소한다.
   - 출동 여부는 코드 규칙이 정한다. 패드 화면에서 출동시키는 버튼은 '전체 청소' 하나다.
 - 원칙
@@ -152,8 +153,9 @@ makerton/
   - `/api/reset`
 - `POST /api/vision/boxes`(패드 '눈 위치 표시')
   - 요청: 헤더 요구 없음, 본문 `{"image":"data:image/jpeg;base64,…"}`(JPEG·PNG·HEIC). 화면은 긴 변 1600px로 줄여 보낸다. 브라우저가 사진을 열지 못하면(맥 Chrome의 HEIC) 원본 파일을 그대로 보내고, 서버가 macOS `sips`로 JPEG로 바꾼다. 읽을 때 EXIF 방향을 적용한다.
-  - 200: `{"boxes":[{"x0":0.12,"y0":0.40,"x1":0.31,"y1":0.52}],"note":"…","secs":6.5,"width":1200,"height":900,"time":"HH:MM:SS","photo":"data:image/jpeg;base64,…"}`
+  - 200: `{"boxes":[{"x0":0.12,"y0":0.40,"x1":0.31,"y1":0.52}],"usable":true,"arms":{"C":false,"N":false,"E":true,"S":false,"W":false},"note":"…","secs":6.5,"width":1200,"height":900,"time":"HH:MM:SS","photo":"data:image/jpeg;base64,…"}`
     - 좌표는 사진 너비·높이에 대한 0~1 비율이고 x0≤x1, y0≤y1이다. 눈이 없으면 빈 목록, 최대 30개.
+    - `arms`는 갈래별 눈 여부(노란 코트가 교차로 왼쪽 아래에 오게 놓고 본 방위), `usable`은 사진으로 판단할 수 있는지다. 화면이 최적 경로를 고르는 데만 쓴다. `arms`가 없는 응답이면 경로를 그리지 않는다.
     - 규칙 판정·출동·`vision_last`와 무관하다. 차는 움직이지 않는다.
     - `photo`는 분석한 사진이다(EXIF 방향 적용, 긴 변 1200px 이하 JPEG data URL). `width`·`height`는 이 사진의 크기이고, 화면은 이 사진 위에 상자를 그린다.
   - 503: 서버에 `ANTHROPIC_API_KEY`가 없음

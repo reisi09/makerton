@@ -1446,7 +1446,7 @@ class Model(object):
             raise HttpError(502, "Claude 호출에 실패했습니다: %s" % str(e)[:120])
         self.event("vision", "AI 눈 상자 %d곳" % len(found["boxes"]))
         # photo: 분석한 그 사진(JPEG). 브라우저가 원본을 못 띄우는 경우(맥 Chrome의 HEIC)에도 상자를 얹을 수 있다
-        return {"boxes": found["boxes"], "note": found["note"], "secs": found["secs"],
+        return {"boxes": found["boxes"], "usable": found["usable"], "arms": found["arms"], "note": found["note"], "secs": found["secs"],
                 "width": int(img.shape[1]), "height": int(img.shape[0]), "time": time.strftime("%H:%M:%S"),
                 "photo": vision.to_data_url(img)}
 

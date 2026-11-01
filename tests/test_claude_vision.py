@@ -80,8 +80,9 @@ class ClaudeVisionTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "401 invalid x-api-key"):
                 claude_vision.judge(self.img)
 
-    def boxes_stream(self, boxes, note="N 도로에 눈", stop="end_turn"):
-        text = json.dumps({"boxes": boxes, "note": note}, ensure_ascii=False)
+    def boxes_stream(self, boxes, note="N 도로에 눈", stop="end_turn", arms=None, usable=True):
+        arms = arms or {"C": False, "N": True, "E": False, "S": False, "W": False}
+        text = json.dumps({"boxes": boxes, "usable": usable, "arms": arms, "note": note}, ensure_ascii=False)
         return FakeResponse(sse({"type": "content_block_delta", "index": 0, "delta": {"type": "thinking_delta", "thinking": "도로 위 알갱이."}},
                                 {"type": "content_block_delta", "index": 1, "delta": {"type": "text_delta", "text": text[:20]}},
                                 {"type": "content_block_delta", "index": 1, "delta": {"type": "text_delta", "text": text[20:]}},
@@ -107,7 +108,9 @@ class ClaudeVisionTest(unittest.TestCase):
         self.assertEqual(sent[0].get_header("X-api-key"), "test-key")
         self.assertTrue(body["stream"])
         schema = body["output_config"]["format"]["schema"]
-        self.assertEqual(schema["required"], ["boxes", "note"])
+        self.assertEqual(schema["required"], ["boxes", "usable", "arms", "note"])
+        self.assertEqual((out["usable"], out["arms"]), (True, {"C": False, "N": True, "E": False, "S": False, "W": False}),
+                         "최적 경로를 고르도록 갈래별 눈 여부도 돌려준다")
         image = body["messages"][0]["content"][0]["source"]["data"]
         self.assertEqual(Image.open(io.BytesIO(base64.b64decode(image))).size, (120, 90), "사진을 돌리지 않고 원본 방향으로 보낸다")
 

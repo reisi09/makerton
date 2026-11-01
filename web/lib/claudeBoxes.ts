@@ -6,7 +6,7 @@ import type { SnowBox } from "./snowBoxes.ts";
 export const MODEL = "claude-opus-5-5";
 export const MAX_BOXES = 30;
 export const ASK = "눈이 있는 곳을 상자로 표시해 주세요. 생각은 한국어로 해 주세요.";
-export const BOXES_SYSTEM = "You mark where the snow is on photos of a tabletop model city used in a snow-removal robot demo.\n\nThe board is about 925 x 910 mm. Black roads 135 mm wide form one plus-shaped intersection. The roads have yellow dashed centerlines and the intersection square has a yellow outline. Clear tape covers the paint.\n\nSnow is small white styrofoam beads, a few millimetres across, lying on the black road surface. Count it even when there are only a few beads.\nNot snow: bright glare streaks from the tape over the yellow paint (thin, long, along a centerline or the intersection outline), white buildings and roofs, signs, the floor or table outside the board, and anything off the black road.\nAlso not snow, even when it sits on a road: the snow-plow robot car itself (a white styrofoam body about 230 x 150 mm with a breadboard, colored wires, small circuit boards, bottle-cap wheels, purple dowels and a white blade at one end), and a MacBook or other laptop, phone, cable or hand on or next to the board. Only small loose beads are snow; a large white object is never snow, and beads lying on the car are not road snow.\n\nTask: draw bounding boxes around the snow, one box per cluster of beads. Merge beads that lie within about 20 mm of each other (roughly a seventh of the road width) into one box. Put boxes only around beads on the black road, never around glare, buildings, signs or the floor. At most 30 boxes; when there is more snow than that, merge the nearest clusters. When there is no snow, return an empty list.\nCoordinates are fractions of the photo exactly as you see it, without rotating it: x is 0 at the left edge and 1 at the right edge, y is 0 at the top edge and 1 at the bottom edge. x0,y0 is the top-left corner and x1,y1 the bottom-right corner. Fit each box tightly around its beads with a small margin.\nThink in Korean. note: one or two short Korean sentences on where you found snow, for display to the operator.";
+export const BOXES_SYSTEM = "You mark where the snow is on photos of a tabletop model city used in a snow-removal robot demo.\n\nThe board is about 925 x 910 mm. Black roads 135 mm wide form one plus-shaped intersection. The roads have yellow dashed centerlines and the intersection square has a yellow outline. Clear tape covers the paint.\n\nSnow is small white styrofoam beads, a few millimetres across, lying on the black road surface. Count it even when there are only a few beads.\nNot snow: bright glare streaks from the tape over the yellow paint (thin, long, along a centerline or the intersection outline), white buildings and roofs, signs, the floor or table outside the board, and anything off the black road.\nAlso not snow, even when it sits on a road: the snow-plow robot car itself (a white styrofoam body about 230 x 150 mm with a breadboard, colored wires, small circuit boards, bottle-cap wheels, purple dowels and a white blade at one end), and a MacBook or other laptop, phone, cable or hand on or next to the board. Only small loose beads are snow; a large white object is never snow, and beads lying on the car are not road snow.\n\nTask: draw bounding boxes around the snow, one box per cluster of beads. Merge beads that lie within about 20 mm of each other (roughly a seventh of the road width) into one box. Put boxes only around beads on the black road, never around glare, buildings, signs or the floor. At most 30 boxes; when there is more snow than that, merge the nearest clusters. When there is no snow, return an empty list.\nCoordinates are fractions of the photo exactly as you see it, without rotating it: x is 0 at the left edge and 1 at the right edge, y is 0 at the top edge and 1 at the bottom edge. x0,y0 is the top-left corner and x1,y1 the bottom-right corner. Fit each box tightly around its beads with a small margin.\nAlso say which road parts have snow (arms), for planning the sweep. Road parts: mentally orient the board so the yellow sports court (yellow rectangle with two small goals) is at the lower left of the intersection; the photo itself may be turned any way. Then N is the road going up from the intersection, toward the park and the four towers with blue windows. S goes down, E goes right, W goes left, and C is the intersection square itself. A road part has snow when any of your boxes lies on it.\nusable is false when the photo does not show the roads clearly enough to judge (not the board, roads cut off, very oblique, too blurry or dark).\nThink in Korean. note: one or two short Korean sentences on where you found snow, for display to the operator.";
 export const BOXES_SCHEMA = {
   type: "object",
   properties: {
@@ -19,9 +19,16 @@ export const BOXES_SCHEMA = {
         additionalProperties: false,
       },
     },
+    usable: { type: "boolean" },
+    arms: {
+      type: "object",
+      properties: { C: { type: "boolean" }, N: { type: "boolean" }, E: { type: "boolean" }, S: { type: "boolean" }, W: { type: "boolean" } },
+      required: ["C", "N", "E", "S", "W"],
+      additionalProperties: false,
+    },
     note: { type: "string" },
   },
-  required: ["boxes", "note"],
+  required: ["boxes", "usable", "arms", "note"],
   additionalProperties: false,
 };
 
@@ -41,7 +48,9 @@ export function tidyBoxes(raw: unknown): SnowBox[] {
 }
 
 /** JPEG data URL 한 장 → Claude가 찾은 눈 상자. 브라우저에서 바로 부르므로 키는 이 기기에 있는 것만 쓴다. */
-export async function askClaudeBoxes(apiKey: string, jpegDataUrl: string): Promise<{ boxes: SnowBox[]; note: string; secs: number }> {
+export type Arms = Record<"C" | "N" | "E" | "S" | "W", boolean>;
+
+export async function askClaudeBoxes(apiKey: string, jpegDataUrl: string): Promise<{ boxes: SnowBox[]; usable: boolean; arms: Arms; note: string; secs: number }> {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 1, timeout: 90_000 });
   const t0 = performance.now();
   let r: Anthropic.Message;
@@ -69,5 +78,6 @@ export async function askClaudeBoxes(apiKey: string, jpegDataUrl: string): Promi
   if (r.stop_reason !== "end_turn") throw new Error(`Claude 응답이 끝나지 않았습니다(${r.stop_reason}).`);
   const text = r.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   const out = JSON.parse(text);
-  return { boxes: tidyBoxes(out.boxes), note: String(out.note ?? ""), secs: Math.round((performance.now() - t0) / 100) / 10 };
+  const arms = Object.fromEntries((["C", "N", "E", "S", "W"] as const).map((a) => [a, Boolean(out.arms?.[a])])) as Arms;
+  return { boxes: tidyBoxes(out.boxes), usable: out.usable !== false, arms, note: String(out.note ?? ""), secs: Math.round((performance.now() - t0) / 100) / 10 };
 }

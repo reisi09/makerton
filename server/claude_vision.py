@@ -59,6 +59,8 @@ BOXES_SYSTEM = """You mark where the snow is on photos of a tabletop model city 
 
 Task: draw bounding boxes around the snow, one box per cluster of beads. Merge beads that lie within about 20 mm of each other (roughly a seventh of the road width) into one box. Put boxes only around beads on the black road, never around glare, buildings, signs or the floor. At most 30 boxes; when there is more snow than that, merge the nearest clusters. When there is no snow, return an empty list.
 Coordinates are fractions of the photo exactly as you see it, without rotating it: x is 0 at the left edge and 1 at the right edge, y is 0 at the top edge and 1 at the bottom edge. x0,y0 is the top-left corner and x1,y1 the bottom-right corner. Fit each box tightly around its beads with a small margin.
+Also say which road parts have snow (arms), for planning the sweep. Road parts: mentally orient the board so the yellow sports court (yellow rectangle with two small goals) is at the lower left of the intersection; the photo itself may be turned any way. Then N is the road going up from the intersection, toward the park and the four towers with blue windows. S goes down, E goes right, W goes left, and C is the intersection square itself. A road part has snow when any of your boxes lies on it.
+usable is false when the photo does not show the roads clearly enough to judge (not the board, roads cut off, very oblique, too blurry or dark).
 Think in Korean. note: one or two short Korean sentences on where you found snow, for display to the operator."""
 
 BOXES_SCHEMA = {
@@ -67,9 +69,12 @@ BOXES_SCHEMA = {
         "boxes": {"type": "array", "items": {
             "type": "object", "properties": {k: {"type": "number"} for k in ("x0", "y0", "x1", "y1")},
             "required": ["x0", "y0", "x1", "y1"], "additionalProperties": False}},
+        "usable": {"type": "boolean"},
+        "arms": {"type": "object", "properties": {a: {"type": "boolean"} for a in ARMS},
+                 "required": list(ARMS), "additionalProperties": False},
         "note": {"type": "string"},
     },
-    "required": ["boxes", "note"],
+    "required": ["boxes", "usable", "arms", "note"],
     "additionalProperties": False,
 }
 
@@ -163,7 +168,7 @@ def _frac(v):
 
 
 def boxes(img, on_thinking=lambda text: None):
-    """RGB 배열(돌리지 않은 원본 방향) → {"boxes": [{"x0","y0","x1","y1"}], "note", "thinking", "secs"}.
+    """RGB 배열(돌리지 않은 원본 방향) → {"boxes": [{"x0","y0","x1","y1"}], "usable", "arms": {갈래: 눈 있음}, "note", "thinking", "secs"}.
 
     좌표는 사진 너비·높이에 대한 0..1 비율이고 x0<=x1, y0<=y1이다. 눈이 없으면 boxes는 빈 목록. 실패하면 예외."""
     ask = "눈이 있는 곳을 상자로 표시해 주세요. 생각은 한국어로 해 주세요."
@@ -173,4 +178,5 @@ def boxes(img, on_thinking=lambda text: None):
         x0, x1 = sorted((_frac(b["x0"]), _frac(b["x1"])))
         y0, y1 = sorted((_frac(b["y0"]), _frac(b["y1"])))
         found.append({"x0": x0, "y0": y0, "x1": x1, "y1": y1})
-    return {"boxes": found, "note": out["note"], "thinking": thinking, "secs": secs}
+    arms = {a: bool(out["arms"].get(a)) for a in ARMS}
+    return {"boxes": found, "usable": bool(out["usable"]), "arms": arms, "note": out["note"], "thinking": thinking, "secs": secs}

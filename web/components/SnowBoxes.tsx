@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { askClaudeBoxes, KeyError } from "@/lib/claudeBoxes";
+import { askClaudeBoxes, KeyError, type Arms } from "@/lib/claudeBoxes";
 import { boxStyle, type BoxStyle, type SnowBox } from "@/lib/snowBoxes";
 import styles from "./SnowBoxes.module.css";
 
 const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 보내지 않는다)
 const KEY_STORE = "makerton-claude-key";
 
-interface Reply { boxes?: SnowBox[]; note?: string; secs?: number; error?: string; photo?: string }
+interface Reply { boxes?: SnowBox[]; note?: string; secs?: number; error?: string; photo?: string; usable?: boolean; arms?: Partial<Arms> }
 interface View { url: string; boxes: BoxStyle[]; note: string; secs: number | null }
-interface Found { boxes: SnowBox[]; note: string; secs: number | null; photo: string }
+// arms가 null이면 갈래 판단이 없는 응답(갈래를 모르는 예전 서버)이라 경로를 그리지 않는다.
+interface Found { boxes: SnowBox[]; note: string; secs: number | null; photo: string; usable: boolean; arms: Arms | null }
+const NO_SNOW: Arms = { C: false, N: false, E: false, S: false, W: false };
 
 // Claude API 키는 이 기기의 브라우저에만 둔다(코드·저장소·서버에는 두지 않는다). 저장소가 막힌 브라우저에서는 새로고침 전까지만 쓴다.
 const readKey = () => { try { return localStorage.getItem(KEY_STORE) ?? ""; } catch { return ""; } };
@@ -61,12 +63,14 @@ async function viaServer(image: string, jpeg: string | null): Promise<Found> {
   if (!Array.isArray(data?.boxes)) throw new Error("서버 응답을 읽지 못했습니다.");
   const photo = typeof data.photo === "string" && data.photo.startsWith("data:image/jpeg") ? data.photo : jpeg;
   if (!photo) throw new Error("서버가 분석한 사진을 돌려주지 않았습니다.");
-  return { boxes: data.boxes, note: data.note ?? "", secs: typeof data.secs === "number" ? data.secs : null, photo };
+  return { boxes: data.boxes, note: data.note ?? "", secs: typeof data.secs === "number" ? data.secs : null, photo,
+           usable: data.usable !== false, arms: data.arms ? { ...NO_SNOW, ...data.arms } : null };
 }
 
 /** 사진을 찍으면 AI가 눈이 있는 곳을 상자로 표시한다. 표시 전용이며 제설차를 움직이지 않는다.
  *  Claude API 키가 이 기기에 있으면 브라우저가 Claude를 바로 부르고, 없으면 맥 서버(enabled)를 거친다. */
-export default function SnowBoxes({ enabled }: { enabled: boolean }) {
+/** onFound: 찾은 갈래별 눈. 조작 화면이 이것으로 최적 경로를 지도에 그린다(출동은 하지 않는다). */
+export default function SnowBoxes({ enabled, onFound }: { enabled: boolean; onFound?: (f: { arms: Arms; usable: boolean }) => void }) {
   const [apiKey, setApiKey] = useState("");
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,6 +111,7 @@ export default function SnowBoxes({ enabled }: { enabled: boolean }) {
       const boxes = found.boxes.map(boxStyle).filter((b): b is BoxStyle => b !== null);
       if (boxes.length !== found.boxes.length) throw new Error("상자 위치가 올바르지 않습니다.");
       setView({ url: jpegUrl(found.photo), boxes, note: found.note, secs: found.secs });
+      if (found.arms) onFound?.({ arms: found.arms, usable: found.usable });
     } catch (e) {
       if (e instanceof KeyError) { writeKey(""); setApiKey(""); }
       setError((e as Error).message);

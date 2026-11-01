@@ -521,12 +521,14 @@ class HttpTest(ServerBase):
         def boxes(img):
             got.append(img.shape)
             return {"boxes": [{"x0": 0.1, "y0": 0.2, "x1": 0.3, "y1": 0.4}, {"x0": 0.5, "y0": 0.5, "x1": 0.6, "y1": 0.9}],
+                    "usable": True, "arms": {"C": False, "N": True, "E": False, "S": False, "W": False},
                     "note": "N 도로 끝에 눈", "thinking": "비공개 사고 요약", "secs": 4.2}
         with mock.patch.object(srv.claude_vision, "boxes", boxes):
             status, body = self.post(port, "/api/vision/boxes", {"image": big})
         self.assertEqual(status, 200, body)
         self.assertEqual(got, [(600, 1200, 3)], "Claude에는 1200px로 줄인 사진이 간다")
-        self.assertEqual(sorted(body), ["boxes", "height", "note", "photo", "secs", "time", "width"])
+        self.assertEqual(sorted(body), ["arms", "boxes", "height", "note", "photo", "secs", "time", "usable", "width"])
+        self.assertEqual(body["arms"]["N"], True)
         shown = Image.open(io.BytesIO(base64.b64decode(body["photo"].split(",", 1)[1])))
         self.assertEqual(shown.size, (1200, 600), "화면에 띄울 사진은 분석한 그 사진이다(상자 좌표가 맞는다)")
         self.assertEqual((body["width"], body["height"]), (1200, 600))

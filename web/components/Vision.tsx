@@ -5,9 +5,16 @@ import { useEffect, useState } from "react";
 import BoardMap, { type Arm, type Pose } from "@/components/BoardMap";
 import PicoPad from "@/components/PicoPad";
 import SnowBoxes from "@/components/SnowBoxes";
+import type { Arms } from "@/lib/claudeBoxes";
+import routeTable from "@/lib/routeTable.json";
+import { routeKey, type PlannedRoute } from "@/lib/routes";
 import { ARM_NAMES, padUrl } from "@/lib/vision";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const ROUTES = routeTable as unknown as Record<string, PlannedRoute>;
+
+// AI 눈 표시 결과로 그리는 최적 경로(표시만 하고 출동하지 않는다). plan이 null이면 치울 눈이 없다.
+interface AiPlan { plan: PlannedRoute | null; arms: Record<string, Arm>; usable: boolean }
 const PHASE: Record<string, string> = { depart: "기지에서 나가는 중", turn: "방향 바꾸는 중", out: "눈 미는 중", back: "교차로로 후진 중", home: "기지로 돌아가는 중" };
 
 interface Eye { usable?: boolean; arms?: Record<string, boolean>; note?: string; thinking?: string; secs?: number; error?: string }
@@ -40,6 +47,7 @@ export default function Vision() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
+  const [aiPlan, setAiPlan] = useState<AiPlan | null>(null);
   const [qr, setQr] = useState("");
   const [onMac, setOnMac] = useState(false);       // Pico USB 조작은 맥에서 localhost로 열었을 때만 보인다
 
@@ -66,6 +74,7 @@ export default function Vision() {
     setBusy(label);
     setError("");
     setResult(null);                 // 이전 판정을 새 결과로 오해하지 않게 지운다
+    setAiPlan(null);
     try {
       setResult(await job());
     } catch (e) {
@@ -79,6 +88,11 @@ export default function Vision() {
 
   const running = state.execution?.state === "running";
   const shown = result ?? state.vision ?? null;       // 새로고침해도 서버가 기억하는 마지막 판정을 보여 준다
+  const onFound = ({ arms, usable }: { arms: Arms; usable: boolean }) => {
+    const key = routeKey(arms, usable);
+    const snow = Object.fromEntries(Object.entries(arms).map(([a, on]) => [a, { area_mm2: on || !usable ? 300 : 0, far_mm: 0 }]));
+    setAiPlan({ plan: key ? ROUTES[key] ?? null : null, arms: snow, usable });
+  };
   const tel = state.car?.ok ? state.car.tel : undefined;
   const live: Pose | undefined = tel && tel.x != null && tel.y != null ? [tel.x, tel.y, tel.h ?? 270] : undefined;
   const moving = tel && (tel.state === "run" || tel.state === "pause") && tel.phase ? PHASE[tel.phase] : undefined;
@@ -107,7 +121,7 @@ export default function Vision() {
 
         <div className="vgrid">
           <section>
-            <SnowBoxes enabled={api === "ok"} />
+            <SnowBoxes enabled={api === "ok"} onFound={onFound} />
 
             {onMac ? <PicoPad /> : (
               <p className="vhint">Pico 수동 조작은 맥에서 <b>http://localhost:8000/app/</b>을 Chrome·Edge로 열었을 때만 쓸 수 있습니다.</p>
@@ -134,6 +148,14 @@ export default function Vision() {
               </>
             ) : error ? (
               <p className="verr" role="alert">{error}</p>
+            ) : aiPlan ? (
+              <p className="vdecide" role="status">
+                {aiPlan.plan
+                  ? `${aiPlan.usable ? "AI가 찾은 눈" : "사진 판단이 어려워 네 갈래 모두"} → 최적 순서 ${aiPlan.plan.order.join("→")}, 약 ${aiPlan.plan.seconds}초`
+                    + (aiPlan.plan.tried > 1 ? ` (${aiPlan.plan.tried}가지 순서 중 가장 빠름, 계산값)` : " (계산값)")
+                  : "AI가 본 사진에는 치울 눈이 없습니다"}
+                {" · 표시만 하고 출동하지 않습니다. 출동은 '전체 청소'로 합니다."}
+              </p>
             ) : shown ? (
               <p className={`vdecide ${shown.decision.go ? "go" : ""}`} role="status">
                 {shown.decision.text}
@@ -144,7 +166,7 @@ export default function Vision() {
             ) : running ? null : (
               <p className="empty">제설차는 북동쪽 제설 기지에서 기다리고 있습니다.</p>
             )}
-            {!busy && !state.vision_live && shown?.eye && (
+            {!busy && !state.vision_live && !aiPlan && shown?.eye && (
               <div className="vcard">
                 <h2>Claude의 판단{shown.eye.secs ? ` · ${shown.eye.secs}초` : ""}</h2>
                 {shown.eye.error ? <p>판정 실패: {shown.eye.error}</p> : <>
@@ -154,8 +176,12 @@ export default function Vision() {
               </div>
             )}
             {moving && <p className="sub" role="status">제설차 {tel?.arm ? `${ARM_NAMES[tel.arm] ?? tel.arm} ` : ""}{moving}{tel?.state === "pause" ? " (일시 정지)" : ""}</p>}
-            <BoardMap arms={shown?.arms ?? undefined} path={shown?.route?.path} order={shown?.route?.order} car={live} />
-            {shown?.arms && (
+            {aiPlan ? (
+              <BoardMap arms={aiPlan.arms} path={aiPlan.plan?.path} order={aiPlan.plan?.order} car={live} />
+            ) : (
+              <BoardMap arms={shown?.arms ?? undefined} path={shown?.route?.path} order={shown?.route?.order} car={live} />
+            )}
+            {!aiPlan && shown?.arms && (
               <table>
                 <tbody>
                   {Object.entries(shown.arms).map(([name, a]) => (
