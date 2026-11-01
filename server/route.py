@@ -14,7 +14,7 @@ import sys
 CAR_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pico", "car")
 ARM_MIN_MM2 = 100      # 갈래 눈이 이 이상이면 치우러 간다
 ARM_VAGUE_MM2 = 30     # 이 이상 ARM_MIN_MM2 미만은 눈인지 반사인지 애매하다 → 전체 청소(위에서 찍은 눈 없는 사진은 갈래당 14 이하)
-REAL_FACTOR = 1.14     # 실기는 루프 지연으로 계산보다 느리다(2026-10-31 모터 시험 스텝 1.37ms / 설정 1.2ms)
+REAL_FACTOR = 1.05     # 실기는 루프 지연으로 계산보다 느리다. 2026-11-01 N 드라이런이 계산 101.8초에 104.2초(스텝마다 약 0.03ms)라 0.6ms 간격에서 약 5%
 PATH_POINTS = 240      # 화면 애니메이션용으로 남기는 자세 수
 NAMES = {"C": "교차로", "N": "N 갈래", "E": "E 갈래", "S": "S 갈래", "W": "W 갈래"}
 ALL = {a: {"area_mm2": ARM_MIN_MM2} for a in NAMES}    # 전체 청소: 네 갈래 모두
@@ -47,8 +47,8 @@ def steps(order):
     return car_core.plan_steps(car_core.plan_for_order(list(order)))
 
 
-def seconds(n_steps):
-    return n_steps * car_core.config.STEP_US / 1000000.0 * REAL_FACTOR
+def seconds(order):
+    return car_core.estimate_seconds(list(order)) * REAL_FACTOR
 
 
 def path(order):
@@ -77,8 +77,8 @@ def plan(arms):
     ranked = sorted(itertools.permutations(need),
                     key=lambda o: (steps(o), [-arms[a]["area_mm2"] for a in o]))
     best, worst = ranked[0], ranked[-1]
-    return {"order": list(best), "seconds": round(seconds(steps(best))),
-            "worst_order": list(worst), "worst_seconds": round(seconds(steps(worst))),
+    return {"order": list(best), "seconds": round(seconds(best)),
+            "worst_order": list(worst), "worst_seconds": round(seconds(worst)),
             "tried": len(ranked), "path": path(best)}
 
 

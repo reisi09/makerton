@@ -1,12 +1,13 @@
 "use client";
 
 import QRCode from "qrcode";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import BoardMap, { type Arm, type Pose } from "@/components/BoardMap";
+import PicoPad from "@/components/PicoPad";
+import SnowBoxes from "@/components/SnowBoxes";
 import { ARM_NAMES, padUrl } from "@/lib/vision";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const MAX_SIDE = 1600; // 올리기 전에 줄인다(12MP 사진을 그대로 보내지 않는다)
 const PHASE: Record<string, string> = { depart: "기지에서 나가는 중", turn: "방향 바꾸는 중", out: "눈 미는 중", back: "교차로로 후진 중", home: "기지로 돌아가는 중" };
 
 interface Eye { usable?: boolean; arms?: Record<string, boolean>; note?: string; thinking?: string; secs?: number; error?: string }
@@ -26,23 +27,6 @@ interface ServerState {
   execution?: { state?: string; plan_id?: string };
 }
 
-function shrink(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.naturalWidth * k);
-      canvas.height = Math.round(img.naturalHeight * k);
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(img.src);
-      resolve(canvas.toDataURL("image/jpeg", 0.85));
-    };
-    img.onerror = () => reject(new Error("사진을 열지 못했습니다."));
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 async function post(path: string, body: object): Promise<Result> {
   const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await r.json();
@@ -53,13 +37,10 @@ async function post(path: string, body: object): Promise<Result> {
 export default function Vision() {
   const [api, setApi] = useState<"checking" | "ok" | "missing">("checking");
   const [state, setState] = useState<ServerState>({});
-  const [go, setGo] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [qr, setQr] = useState("");
-  const camera = useRef<HTMLInputElement>(null);
-  const album = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -91,9 +72,6 @@ export default function Vision() {
       setBusy("");
     }
   }
-  const onFile = (file: File | undefined) =>
-    file && run(state.claude ? "맥이 도로와 눈을 찾고, Claude가 사진을 보는 중…" : "맥이 사진에서 도로와 눈을 찾는 중…",
-      async () => post("/api/vision/detect", { image: await shrink(file), go }));
   const sweep = () => run("전체 청소 경로를 계산하는 중…", () => post("/api/sweep", {}));
   const stop = () => fetch("/api/car/stop", { method: "POST" }).catch(() => setError("정지 명령을 보내지 못했습니다."));
 
@@ -102,10 +80,6 @@ export default function Vision() {
   const tel = state.car?.ok ? state.car.tel : undefined;
   const live: Pose | undefined = tel && tel.x != null && tel.y != null ? [tel.x, tel.y, tel.h ?? 270] : undefined;
   const moving = tel && (tel.state === "run" || tel.state === "pause") && tel.phase ? PHASE[tel.phase] : undefined;
-  const picker = (ref: React.RefObject<HTMLInputElement | null>, capture: boolean) => (
-    <input ref={ref} type="file" accept="image/*" hidden {...(capture ? { capture: "environment" as const } : {})}
-      onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
-  );
 
   return (
     <>
@@ -123,26 +97,23 @@ export default function Vision() {
 
         {api === "missing" && (
           <section className="vcard">
-            <h2>이 화면은 맥에서 실행 중인 서버에 접속해 열어야 합니다.</h2>
+            <h2>AI 눈 찾기와 자동 출동은 맥 서버에 접속해야 쓸 수 있습니다.</h2>
             <p>GitHub 페이지(https)에서는 브라우저가 같은 핫스팟에 연결된 맥으로 사진을 보내는 것을 차단합니다.
-              맥에서 서버를 켠 뒤 아이패드의 Safari에서 <b>http://&lt;맥 IP&gt;:8000/app/</b>에 접속하면 됩니다.</p>
+              맥에서 서버를 켠 뒤 <b>http://localhost:8000/app/</b>(맥) 또는 <b>http://&lt;맥 IP&gt;:8000/app/</b>(아이패드)에 접속하면 됩니다.
+              USB 수동 조작은 이 페이지에서도 맥의 Chrome·Edge로 쓸 수 있습니다.</p>
           </section>
         )}
 
         <div className="vgrid">
           <section>
-            <div className="sec-h"><h2>출동</h2><small>사진을 찍으면 눈이 있는 갈래만, ‘전체 청소’를 누르면 네 갈래 모두 제설합니다.</small></div>
+            <SnowBoxes />
+
+            <PicoPad />
+
+            <div className="sec-h"><h2>자동 출동</h2><small>‘전체 청소’를 누르면 기지에서 나와 네 갈래를 모두 제설합니다(Wi-Fi 연결 필요).</small></div>
             <div className="vbtns">
-              <button className="btn dark xl" type="button" disabled={!!busy || api !== "ok"} onClick={() => camera.current?.click()}>
-                눈 사진 찍기</button>
               <button className="btn xl" type="button" disabled={!!busy || running || api !== "ok"} onClick={sweep}>전체 청소</button>
-              <button className="btn" type="button" disabled={!!busy || api !== "ok"} onClick={() => album.current?.click()}>앨범에서 고르기</button>
             </div>
-            {picker(camera, true)}
-            {picker(album, false)}
-            <label className="vopt"><input type="checkbox" checked={go} onChange={(e) => setGo(e.target.checked)} /> 사진에서 눈이 보이면 바로 출동</label>
-            <p className="vhint">보드 전체가 보이도록 위에서 찍으면 됩니다. 촬영 방향은 상관없습니다. 맥이 사진을 돌려 노란 코트가 교차로 왼쪽 아래에 오도록 맞춥니다.
-              제설차는 북동쪽 제설 기지에서 나와 갈래 끝까지 눈을 밀고 돌아옵니다.</p>
             {qr && (
               <div className="qr">
                 <img src={qr} alt="아이패드 접속용 QR" width={120} height={120} />
@@ -201,9 +172,9 @@ export default function Vision() {
         </div>
       </main>
       <footer>
-        맥이 사진에서 검은 도로만 찾고 도로 위 흰 알갱이를 갈래별로 셉니다(기준 사진·학습 없음). 서버에 Claude 키가 있으면 Claude도
-        같은 사진을 보고, 둘의 판단이 다르면 네 갈래를 모두 치웁니다. 북동쪽 제설 기지에서 출발해
-        눈의 면적이 100 mm²를 넘는 갈래를 도는 모든 순서를 비교하고 가장 빠른 순서로 제설차를 출동시킵니다.
+        사진은 보안키를 넣은 뒤 맥 서버를 거쳐 Claude가 보고, 도로 위 눈을 상자로 표시합니다(차는 움직이지 않음).
+        수동 조작은 맥의 Chrome·Edge가 USB로 꽂힌 Pico에 직접 명령을 보냅니다. ‘전체 청소’는 북동쪽 제설 기지에서 나와
+        네 갈래를 가장 빠른 순서로 도는 자동 출동입니다.
         {" · "}<a href="https://reisi09.github.io/makerton/designs.html">설계도</a>{" · "}<a href="https://github.com/reisi09/makerton">GitHub</a>
       </footer>
     </>

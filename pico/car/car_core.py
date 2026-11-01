@@ -149,6 +149,7 @@ def _drive_seg(mm, phase, arm, spray=False, window=None, mode="dist", reverse=Fa
             "spray": bool(spray), "window": window, "mode": mode}
 
 
+
 def _depart_leg(heading):
     """1. 출발: 차고에서 서쪽으로 나와 N 도로 가운데에서 남쪽으로 돌아 교차로 중심까지."""
     return [_turn_seg(shortest_delta(DOCK_H, heading), PHASE_TURN, None),
@@ -223,16 +224,36 @@ def plan_steps(segs):
     return total
 
 
-def plan_seconds(segs, step_us=None):
-    """구간 목록을 STEP_US 간격으로 밀 때 걸리는 시간(초)."""
-    if step_us is None:
-        step_us = config.STEP_US
-    return plan_steps(segs) * step_us / 1000000.0
+def ramp_us(done, left):
+    """스텝 간격(µs). 정지에서 START_US로 출발해 RAMP_STEPS에 걸쳐 STEP_US까지 빨라지고 구간 끝에서 같은 길이로 느려진다.
+    done = 이 구간(또는 다시 출발한 뒤) 이미 민 스텝, left = 이 스텝을 포함해 남은 스텝.
+    2026-11-01 실차: 보드 위에서 0.6ms로 바로 출발하면 제자리에서 떨기만 하고, 1.2ms에서 가속하면 움직였다."""
+    k = min(done, left - 1, config.RAMP_STEPS)
+    return config.START_US - (config.START_US - config.STEP_US) * k // config.RAMP_STEPS
 
 
-def estimate_seconds(order, step_us=None):
+def _ramp_sum(n):
+    """n스텝 구간에서 min(i, n-1-i, RAMP_STEPS)의 합(가감속으로 늘어나는 시간 계산용)."""
+    r = config.RAMP_STEPS
+    if (n - 1) // 2 <= r:
+        p = n // 2
+        return p * (p - 1) if n % 2 == 0 else p * p
+    return r * (r - 1) + r * (n - 2 * r)
+
+
+def plan_seconds(segs):
+    """구간 목록을 가감속하며 밀 때 걸리는 시간(초). 구간마다 정지에서 출발해 정지로 끝난다."""
+    slow = config.START_US - config.STEP_US
+    total = 0.0
+    for seg in segs:
+        n = seg["steps"]
+        total += n * config.START_US - slow * _ramp_sum(n) / float(config.RAMP_STEPS)
+    return total / 1000000.0
+
+
+def estimate_seconds(order):
     """도킹 위치에서 출발해 order를 돌고 기지로 돌아오는 예상 시간(초)."""
-    return plan_seconds(plan_for_order(order, Pose()), step_us)
+    return plan_seconds(plan_for_order(order, Pose()))
 
 
 # ── 주행 계획 실행 ───────────────────────────────────────────────────
@@ -257,6 +278,12 @@ class Mission(object):
         if self.done or self.arm is None:
             return []
         return [(EV_ARM_START, self.arm)]
+
+    def ramp_pos(self):
+        """다음 스텝의 (이 구간에서 이미 민 스텝, 이 스텝을 포함해 남은 스텝). ramp_us에 넘긴다."""
+        if self.done:
+            return 0, 1
+        return self.segs[self.i]["steps"] - self.left, self.left
 
     def reversing(self):
         """지금 후진 중인가(귀환). 이때는 앞쪽 초음파를 무시한다."""

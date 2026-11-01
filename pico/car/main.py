@@ -314,6 +314,7 @@ class CarDevice(object):
         self.online = False
         self.server_seen = False
         self.next_step_us = 0
+        self.run_steps = 0               # 마지막으로 선 뒤 민 스텝(가속 위치)
         self.next_tel_ms = 0
         self.next_sonar_ms = 0
         self.next_hello_ms = 0
@@ -388,20 +389,26 @@ class CarDevice(object):
             self.servo.set(self.cfg.SERVO_CLOSED_DEG)
             # 놀거나 멈춘 동안 쌓인 시간은 물려받지 않는다
             self.next_step_us = now_us
+            self.run_steps = 0
             return
         if car_core.ticks_diff(now_us, self.next_step_us) < 0:
             return
         late = car_core.ticks_diff(now_us, self.next_step_us)
+        if late > self.cfg.LATE_RAMP_US:
+            self.run_steps = 0                       # 오래 밀렸다. 선 모터를 빠른 간격으로 밀면 떨기만 한다
+        done, left = self.core.mission.ramp_pos()
+        gap = car_core.ramp_us(min(done, self.run_steps), left)
         act = self.core.step()
         if not act["step"]:
             return
+        self.run_steps += 1
         self.motors.step(act["left"], act["right"])
         self.servo.set(self.cfg.SERVO_OPEN_DEG if act["spray"] else self.cfg.SERVO_CLOSED_DEG)
-        if late > self.cfg.STEP_US * 2:
+        if late > gap * 2:
             # 초음파·소켓 때문에 밀렸다. 몰아서 돌리지 않고 지금부터 다시 센다
-            self.next_step_us = car_core.ticks_add(now_us, self.cfg.STEP_US)
+            self.next_step_us = car_core.ticks_add(now_us, gap)
         else:
-            self.next_step_us = car_core.ticks_add(self.next_step_us, self.cfg.STEP_US)
+            self.next_step_us = car_core.ticks_add(self.next_step_us, gap)
         if self.core.state != car_core.STATE_RUN:      # 마지막 스텝이었다
             self.motors.off()
             self.servo.set(self.cfg.SERVO_CLOSED_DEG)

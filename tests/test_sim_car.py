@@ -100,8 +100,9 @@ class SimCarTest(unittest.TestCase):
                          ["arm_done"] * 4 + ["plan_done"])
         self.assertNotIn("resumed", self.car.events, "링크 타임아웃으로 멈춘 적이 없다")
         self.assert_home_on_roads()
-        tel = self.state()["car"]["tel"]
-        self.assertEqual((tel["state"], tel["x"], tel["y"], tel["h"]), ("idle", 775.0, 250.0, 270.0))
+        # plan_done 이벤트가 텔레메트리(500ms 주기)보다 먼저 올 수 있어 다음 텔레메트리를 기다린다
+        docked = lambda: (lambda t: (t["state"], t["x"], t["y"], t["h"]))(self.state()["car"]["tel"])
+        self.assertTrue(wait_for(lambda: docked() == ("idle", 764.0, 250.0, 270.0), 3), docked())
 
     def test_b_stop_mid_arm_then_home(self):
         self.assertTrue(wait_for(lambda: self.state()["car"]["ok"], 10))

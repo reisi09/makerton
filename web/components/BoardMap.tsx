@@ -50,7 +50,7 @@ export default function BoardMap({ arms, min = 100, path, upto, order, car }: {
   arms?: Record<string, Arm>; min?: number; path?: Pose[]; upto?: number; order?: string[]; car?: Pose;
 }) {
   // car는 제설차가 보내는 실제 위치다. 없으면(차 연결 끊김) 경로의 upto번째 자세, 그것도 없으면 차고에 둔다.
-  const pose: Pose = car ?? (path && path.length ? path[Math.min(path.length - 1, Math.max(0, upto ?? 0))] : [775, 250, 270]);
+  const pose: Pose = car ?? (path && path.length ? path[Math.min(path.length - 1, Math.max(0, upto ?? 0))] : [764, 250, 270]);
   const done = path && upto != null ? path.slice(0, upto + 1) : [];
   const line = (pts: Pose[]) => pts.map(([x, y]) => `${x},${y}`).join(" ");
   return (

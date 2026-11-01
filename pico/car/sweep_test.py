@@ -18,14 +18,13 @@ from main import Motors, sleep_ms, sleep_us
 MODE = "run"          # "calib" 또는 "run"
 RUNS = 1              # run: 왕복 횟수. 사이에 5초 쉰다
 CALIB_REVS = 2        # calib: 바퀴 회전 수. 많을수록 지름 오차가 작아진다
-STEP_US = config.STEP_US
-                      # 스텝 간격(µs). 눈 조각을 밀다 바퀴가 헛돌면 1500~2000으로 올려 본다
+                      # 속도는 config.START_US에서 STEP_US까지 가감속한다. 눈 조각을 밀다 헛돌면 config.STEP_US를 올린다
 
 
 def push(motors, left, right, steps):
-    for _ in range(steps):
+    for i in range(steps):
         motors.step(left, right)
-        sleep_us(STEP_US)
+        sleep_us(car_core.ramp_us(i, steps - i))
     motors.off()
 
 
@@ -37,18 +36,19 @@ def sweep(motors):
             print(" - 회전 %.0f도 (%d스텝)" % (seg["deg"], seg["steps"]))
         else:
             print(" - %s %.0fmm (%d스텝)" % ("전진" if seg["dir"] > 0 else "후진", seg["mm"], seg["steps"]))
-    print("   예상 %.1f초" % car_core.plan_seconds(segs, STEP_US))
+    print("   예상 %.1f초" % car_core.plan_seconds(segs))
     mission = car_core.Mission(segs, car_core.Pose())
     fwd = back = 0
     try:
         while not mission.done:
+            gap = car_core.ramp_us(*mission.ramp_pos())
             left, right, _, _ = mission.step()
             motors.step(left, right)
             if left > 0 and right > 0:
                 fwd += 1
             elif left < 0 and right < 0:
                 back += 1
-            sleep_us(STEP_US)
+            sleep_us(gap)
     finally:
         motors.off()
     return fwd, back

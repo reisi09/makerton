@@ -1,0 +1,35 @@
+/* Pico 직접 조작. 흑백 디자인이라 강조는 반전으로 한다(끊김·눌림 = 검정 바탕에 흰 글씨). */
+.pad { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+.head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 6px; }
+.head h2 { margin: 0; font-size: 16px; font-weight: 800; white-space: nowrap; }
+
+/* 상태 칩: 누르는 것처럼 보이지 않게 각진 모양. Pico가 없으면 반전으로 가장 먼저 눈에 띈다 */
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  color: var(--ink); background: var(--soft); }
+.chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 2px currentColor; }
+.chipOn::before { background: var(--ink); box-shadow: none; }
+.chipOff { background: var(--ink); color: var(--bright-snow); }
+
+.hint { margin: 6px 0 10px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.note { margin: 6px 0; padding: 12px 16px; border-radius: 10px; background: var(--soft); font-size: 14px; line-height: 1.6; color: var(--ink); }
+.err { margin: 10px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--line); font-size: 14px; line-height: 1.5; color: var(--ink); }
+
+.bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 96px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 14px; font-weight: 700; cursor: pointer; }
+.btnDark { background: var(--ink); color: var(--bright-snow); border-color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+/* 십자 버튼: 길게 눌러도 확대·선택·메뉴가 뜨지 않게 한다 */
+.cross { display: grid; grid-template-columns: repeat(3, minmax(64px, 88px)); grid-auto-rows: 72px; gap: 8px; margin: 4px 0 6px;
+  grid-template-areas: ". F ." "L S R" ". B ."; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.key { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 64px; min-height: 64px; padding: 0;
+  border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 12px; font-weight: 700; cursor: pointer;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.key span { font-size: 22px; line-height: 1; }
+.key[aria-pressed="true"] { background: var(--ink); color: var(--bright-snow); border-color: var(--ink); }
+.key:disabled { opacity: .45; cursor: default; }
+.keyF { grid-area: F; } .keyL { grid-area: L; } .keyS { grid-area: S; border: 2px solid var(--ink); } .keyR { grid-area: R; } .keyB { grid-area: B; }
+
+.btn:focus-visible, .key:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

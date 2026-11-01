@@ -48,8 +48,8 @@ class RouteTest(unittest.TestCase):
 
     def test_path_leaves_and_returns_to_the_garage(self):
         p = route.plan(arms(S=400))
-        self.assertEqual(p["path"][0], [775, 250, 270])
-        self.assertEqual(p["path"][-1], [775, 250, 270])
+        self.assertEqual(p["path"][0], [764, 250, 270])
+        self.assertEqual(p["path"][-1], [764, 250, 270])
         self.assertGreater(max(y for _, y, _ in p["path"]), 480 + 300)   # S 갈래 끝까지 내려갔다
 
     def test_vague_amount_or_unsure_photo_sweeps_every_arm(self):

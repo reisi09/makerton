@@ -6,6 +6,7 @@
 짧게 생각한 사진은 비어 있다(서버 경로 42장 중 5장). 화면에 올리는 한국어 문장은 note다.
 2026-11-01 모형 사진 42장 시험(규칙과 같은 1200px, effort medium): 눈 사진 19장을 원본·25% 어둡게·노란 조명·흐리게
 모두에서 놓치지 않았다(규칙은 같은 조건에서 최대 3장 놓침). 장당 평균 6.5초, 약 2센트. 갈래별 정답은 아직 없다.
+boxes()는 판정 대신 눈이 있는 자리를 상자로 돌려준다(웹 화면 표시용, 규칙·출동과 무관).
 """
 
 import base64
@@ -24,12 +25,14 @@ MODEL = "claude-opus-5-5"
 TIMEOUT_S = 60
 ARMS = ("C", "N", "E", "S", "W")
 
-SYSTEM = """You judge photos of a tabletop model city used in a snow-removal robot demo.
-
-The board is about 925 x 910 mm. Black roads 135 mm wide form one plus-shaped intersection. The roads have yellow dashed centerlines and the intersection square has a yellow outline. Clear tape covers the paint.
+BOARD = """The board is about 925 x 910 mm. Black roads 135 mm wide form one plus-shaped intersection. The roads have yellow dashed centerlines and the intersection square has a yellow outline. Clear tape covers the paint.
 
 Snow is small white styrofoam beads, a few millimetres across, lying on the black road surface. Count it even when there are only a few beads.
-Not snow: bright glare streaks from the tape over the yellow paint (thin, long, along a centerline or the intersection outline), white buildings and roofs, signs, the floor or table outside the board, and anything off the black road.
+Not snow: bright glare streaks from the tape over the yellow paint (thin, long, along a centerline or the intersection outline), white buildings and roofs, signs, the floor or table outside the board, and anything off the black road."""
+
+SYSTEM = """You judge photos of a tabletop model city used in a snow-removal robot demo.
+
+""" + BOARD + """
 
 Road parts: orient the board so the yellow sports court (yellow rectangle with two small goals) is at the lower left of the intersection. The photo is usually already turned this way. Then N is the road going up from the intersection, toward the park and the four towers with blue windows. S goes down, E goes right, W goes left, and C is the intersection square itself.
 
@@ -48,6 +51,27 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
+MAX_BOXES = 30
+BOXES_SYSTEM = """You mark where the snow is on photos of a tabletop model city used in a snow-removal robot demo.
+
+""" + BOARD + """
+
+Task: draw bounding boxes around the snow, one box per cluster of beads. Merge beads that lie within about 20 mm of each other (roughly a seventh of the road width) into one box. Put boxes only around beads on the black road, never around glare, buildings, signs or the floor. At most 30 boxes; when there is more snow than that, merge the nearest clusters. When there is no snow, return an empty list.
+Coordinates are fractions of the photo exactly as you see it, without rotating it: x is 0 at the left edge and 1 at the right edge, y is 0 at the top edge and 1 at the bottom edge. x0,y0 is the top-left corner and x1,y1 the bottom-right corner. Fit each box tightly around its beads with a small margin.
+Think in Korean. note: one or two short Korean sentences on where you found snow, for display to the operator."""
+
+BOXES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "boxes": {"type": "array", "items": {
+            "type": "object", "properties": {k: {"type": "number"} for k in ("x0", "y0", "x1", "y1")},
+            "required": ["x0", "y0", "x1", "y1"], "additionalProperties": False}},
+        "note": {"type": "string"},
+    },
+    "required": ["boxes", "note"],
+    "additionalProperties": False,
+}
+
 
 def enabled():
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
@@ -59,15 +83,15 @@ def _jpeg_b64(img, turns):
     return base64.standard_b64encode(buf.getvalue()).decode("ascii")
 
 
-def _request(img, turns):
+def _request(img, turns=0, system=SYSTEM, schema=SCHEMA, ask="어느 도로에 눈이 있나요? 생각은 한국어로 해 주세요."):
     body = {
-        "model": MODEL, "max_tokens": 16000, "stream": True, "system": SYSTEM,
+        "model": MODEL, "max_tokens": 16000, "stream": True, "system": system,
         "thinking": {"type": "adaptive", "display": "summarized"},
-        "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": SCHEMA}},
+        "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
         "fallbacks": "default",
         "messages": [{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": _jpeg_b64(img, turns)}},
-            {"type": "text", "text": "어느 도로에 눈이 있나요? 생각은 한국어로 해 주세요."}]}],
+            {"type": "text", "text": ask}]}],
     }
     return urllib.request.Request(URL, data=json.dumps(body).encode("utf-8"), method="POST", headers={
         "content-type": "application/json",
@@ -99,11 +123,11 @@ def read_stream(lines, on_thinking):
     return thinking, text, stop
 
 
-def judge(img, turns=0, on_thinking=lambda text: None):
-    """RGB 배열과 vision.analyze의 turns → {"usable", "arms": {갈래: 눈 있음}, "note", "thinking", "secs"}. 실패하면 예외."""
+def _run(req, on_thinking):
+    """요청 하나를 스트리밍으로 보내 → (JSON 본문, 사고 요약, 걸린 초). 실패하면 RuntimeError."""
     t0 = time.time()
     try:
-        with urllib.request.urlopen(_request(img, turns), timeout=TIMEOUT_S) as resp:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
             thinking, text, stop = read_stream(resp, on_thinking)
     except urllib.error.HTTPError as e:
         try:
@@ -113,5 +137,29 @@ def judge(img, turns=0, on_thinking=lambda text: None):
         raise RuntimeError("HTTP %d %s" % (e.code, msg))
     if stop != "end_turn":
         raise RuntimeError("응답이 끝나지 않음(%s)" % stop)
-    out = json.loads(text)
-    return dict(out, thinking=thinking, secs=round(time.time() - t0, 1))
+    return json.loads(text), thinking, round(time.time() - t0, 1)
+
+
+def judge(img, turns=0, on_thinking=lambda text: None):
+    """RGB 배열과 vision.analyze의 turns → {"usable", "arms": {갈래: 눈 있음}, "note", "thinking", "secs"}. 실패하면 예외."""
+    out, thinking, secs = _run(_request(img, turns), on_thinking)
+    return dict(out, thinking=thinking, secs=secs)
+
+
+def _frac(v):
+    v = float(v)
+    return 0.0 if v != v else min(1.0, max(0.0, v))      # NaN은 0, 범위 밖은 0..1로 자른다
+
+
+def boxes(img, on_thinking=lambda text: None):
+    """RGB 배열(돌리지 않은 원본 방향) → {"boxes": [{"x0","y0","x1","y1"}], "note", "thinking", "secs"}.
+
+    좌표는 사진 너비·높이에 대한 0..1 비율이고 x0<=x1, y0<=y1이다. 눈이 없으면 boxes는 빈 목록. 실패하면 예외."""
+    ask = "눈이 있는 곳을 상자로 표시해 주세요. 생각은 한국어로 해 주세요."
+    out, thinking, secs = _run(_request(img, 0, BOXES_SYSTEM, BOXES_SCHEMA, ask), on_thinking)
+    found = []
+    for b in out["boxes"][:MAX_BOXES]:
+        x0, x1 = sorted((_frac(b["x0"]), _frac(b["x1"])))
+        y0, y1 = sorted((_frac(b["y0"]), _frac(b["y1"])))
+        found.append({"x0": x0, "y0": y0, "x1": x1, "y1": y1})
+    return {"boxes": found, "note": out["note"], "thinking": thinking, "secs": secs}

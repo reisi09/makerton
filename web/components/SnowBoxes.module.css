@@ -1,0 +1,25 @@
+/* 보안키 입력: 알약 모양 버튼과 같은 높이(44px)로 맞춘다. 16px 글자는 iOS가 포커스 때 화면을 확대하지 않는 최소 크기다 */
+.keyForm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.keyLabel { font-size: 14px; font-weight: 700; }
+.keyInput { flex: 1 1 180px; min-width: 0; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); font: inherit; font-size: 16px; }
+.keyInput:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.keyInput[aria-invalid="true"] { border-color: var(--ink); }
+.keyRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+
+/* 결과 줄: 눈이 있으면 반전(어두운 바탕)으로 가장 먼저 눈에 띄게 한다 */
+.head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0; padding: 12px 16px; border-radius: 10px;
+  background: var(--soft); color: var(--ink); }
+.head b { font-size: 17px; font-weight: 800; }
+.found { background: var(--ink); color: var(--bright-snow); }
+.note { font-size: 15px; }
+
+/* 사진과 같은 크기의 틀 위에 상자를 퍼센트로 얹는다. img가 block이라 틀 높이 = 사진 높이이고, 사진이 줄어도 상자가 함께 줄어든다 */
+.frame { position: relative; width: fit-content; max-width: 100%; margin: 12px auto; }
+.photo { display: block; width: auto; height: auto; max-width: 100%; max-height: 70vh; }
+/* 검정 선 양옆에 흰 테두리를 둬서 어두운 도로와 흰 눈 위에서 모두 보인다. 선은 상자 안쪽으로 그려져 위치가 변하지 않는다 */
+.box { position: absolute; border: 3px solid var(--ink); pointer-events: none;
+  box-shadow: 0 0 0 2px var(--bright-snow), inset 0 0 0 2px var(--bright-snow); }
+.tag { position: absolute; top: 0; left: 0; min-width: 22px; height: 22px; padding: 0 6px; display: grid; place-items: center;
+  background: var(--ink); color: var(--bright-snow); font-size: 13px; font-weight: 800; line-height: 22px;
+  font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--bright-snow); }

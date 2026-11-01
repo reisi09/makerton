@@ -143,8 +143,8 @@ class GeometryTest(unittest.TestCase):
 
     def test_dock_is_in_the_northeast_garage(self):
         pose = car_core.Pose()
-        self.assertEqual((pose.x, pose.y, pose.h), (775.0, 250.0, 270.0))   # 출입구(서쪽)를 본다
-        self.assertAlmostEqual(car_core.DOOR_MM, 193.0)                      # 차고 → N 도로 가운데
+        self.assertEqual((pose.x, pose.y, pose.h), (764.0, 250.0, 270.0))   # 출입구(서쪽)를 본다
+        self.assertAlmostEqual(car_core.DOOR_MM, 182.0)                      # 차고 → N 도로 가운데
         self.assertAlmostEqual(car_core.DOOR_TO_CENTER_MM, 230.0)            # 출입구 → 교차로 중심
 
     def test_shortest_delta(self):
@@ -195,7 +195,7 @@ class PlanTest(unittest.TestCase):
     def test_garage_depart_one_arm_and_return(self):
         mm, deg = car_core.mm_to_steps, car_core.deg_to_steps
         self.assertEqual(legs(["E"]), [
-            ("depart", "drive", 1, mm(193)),          # 차고에서 서쪽으로 나와 N 도로 가운데까지
+            ("depart", "drive", 1, mm(182)),          # 차고에서 서쪽으로 나와 N 도로 가운데까지
             ("turn", "turn", -1, deg(90)),            # 남쪽으로 돈다
             ("depart", "drive", 1, mm(230)),          # 교차로 중심까지
             ("turn", "turn", -1, deg(90)),            # 동쪽
@@ -204,7 +204,7 @@ class PlanTest(unittest.TestCase):
             ("home", "turn", -1, deg(90)),            # 북쪽
             ("home", "drive", 1, mm(230)),            # 출입구 높이까지
             ("home", "turn", -1, deg(90)),            # 출입구(서쪽)를 보고
-            ("home", "drive", -1, mm(193)),           # 후진으로 차고에 들어간다
+            ("home", "drive", -1, mm(182)),           # 후진으로 차고에 들어간다
         ])
 
     def test_every_route_stays_on_roads(self):
@@ -233,7 +233,7 @@ class PlanTest(unittest.TestCase):
     def test_blade_stops_inside_the_board(self):
         ends = {"N": 480, "E": 343, "S": 430, "W": 582}       # 중심 → 보드 끝(실측)
         for arm, end in ends.items():
-            self.assertLessEqual(config.ARM_OUT_MM[arm] + 85, end, arm)     # 차 앞 75 + 날 10
+            self.assertLessEqual(config.ARM_OUT_MM[arm] + config.CAR_FRONT_MM, end, arm)     # 범퍼가 보드 끝을 넘지 않는다
 
     def test_pose_resets_to_dock(self):
         for order in (["S"], ["E"], ["N", "E"], ["E", "W"], ["N", "E", "S", "W"]):
@@ -268,11 +268,32 @@ class PlanTest(unittest.TestCase):
         w_turn = [s for s in segs if s["arm"] == "W" and s["kind"] == "turn"][0]
         self.assertEqual(w_turn["steps"], car_core.deg_to_steps(180))
 
-    def test_estimate_seconds(self):
-        # 차고 출발 193+230, 갈래 왕복, 귀환 230+193과 그 사이 회전. 값이 바뀌면 경로나 기구 상수가 바뀐 것이다
-        for order, want in ((["N"], 84977), (["E"], 73068), (["S"], 80631), (["W"], 93842),
-                            (["N", "E", "S", "W"], 192725)):
-            self.assertAlmostEqual(car_core.estimate_seconds(order), want * config.STEP_US / 1000000.0)
+    def test_plan_steps(self):
+        # 차고 출발 182+230, 갈래 왕복, 귀환 230+182와 그 사이 회전. 값이 바뀌면 경로나 기구 상수가 바뀐 것이다
+        for order, want in ((["N"], 83151), (["E"], 71242), (["S"], 78805), (["W"], 92016),
+                            (["N", "E", "S", "W"], 188289)):
+            self.assertEqual(car_core.plan_steps(car_core.plan_for_order(order, car_core.Pose())), want)
+
+    def test_every_segment_starts_and_stops_slow_and_cruises_fast(self):
+        n = config.RAMP_STEPS * 3
+        gaps = [car_core.ramp_us(i, n - i) for i in range(n)]
+        self.assertEqual((gaps[0], gaps[-1]), (config.START_US, config.START_US), "정지에서 출발해 정지로 끝난다")
+        self.assertEqual(gaps[n // 2], config.STEP_US)
+        self.assertEqual(gaps, gaps[::-1], "가속과 감속이 같은 모양이다")
+        self.assertTrue(all(a >= b for a, b in zip(gaps, gaps[1:n // 2])), "출발하면 빨라지기만 한다")
+        short = [car_core.ramp_us(i, 10 - i) for i in range(10)]
+        self.assertGreater(min(short), config.STEP_US, "짧은 구간은 최고 속도까지 못 간다")
+
+    def test_estimate_matches_the_steps_the_firmware_times(self):
+        # 펌웨어가 실제로 기다리는 간격을 스텝마다 더한 값과 같아야 화면의 예상 시간이 맞다
+        for order in (["N"], ["E", "W"]):
+            segs = car_core.plan_for_order(order, car_core.Pose())
+            mission = car_core.Mission(segs, car_core.Pose())
+            total = 0
+            while not mission.done:
+                total += car_core.ramp_us(*mission.ramp_pos())
+                mission.step()
+            self.assertAlmostEqual(car_core.estimate_seconds(order), total / 1e6, delta=0.05)
 
     def test_plan_home_from_mid_arm(self):
         pose = car_core.Pose(x=config.CENTER_X + config.ARM_OUT_MM["E"], y=config.CENTER_Y, h=90.0)
@@ -711,8 +732,8 @@ class DeviceTest(unittest.TestCase):
                 sweep.main()
             mm = core_mod.mm_to_steps
             # 전진: 차고 → N 도로 → 교차로 → N 끝, 귀환 때 출입구 높이까지. 후진: N 끝에서 교차로, 차고로
-            self.assertEqual(fwd, mm(193) + mm(230) + mm(cfg.ARM_OUT_MM["N"]) + mm(230))
-            self.assertEqual(back, mm(cfg.ARM_OUT_MM["N"]) + mm(193))
+            self.assertEqual(fwd, mm(182) + mm(230) + mm(cfg.ARM_OUT_MM["N"]) + mm(230))
+            self.assertEqual(back, mm(cfg.ARM_OUT_MM["N"]) + mm(182))
             self.assertTrue(world.coils_off(cfg.PIN_LEFT))
             self.assertTrue(world.coils_off(cfg.PIN_RIGHT))
 
