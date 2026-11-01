@@ -95,8 +95,8 @@ def system_svg():
     W, H, NW, NH = 885, 532, 224, 140
     cols, rows = (9, 331, 653), (21, 281)
     nodes = {
-        "app": (0, 0, "웹 화면 /app", ["아이패드·맥 브라우저", "사진 찍기 · 보안키 입력", "전체 청소 · 정지 버튼", "수동 조작 패드"], False),
-        "srv": (1, 0, "맥 서버 (Python)", [":8000 · /app · /monitor", "최적 경로: 순서 24가지 비교", "펌웨어 경로 계획 그대로", "보안키 확인 뒤 Claude 호출"], True),
+        "app": (0, 0, "웹 화면 /app", ["맥 브라우저", "사진 고르기 · Claude 직접 호출", "전체 청소 · 정지 버튼", "수동 조작 패드"], False),
+        "srv": (1, 0, "맥 서버 (Python)", [":8000 · /app · /monitor", "최적 경로: 순서 24가지 비교", "펌웨어 경로 계획 그대로", "HEIC 변환 · Claude 호출"], True),
         "ai": (2, 0, "Claude API", ["claude-opus-5-5", "사진 → 도로 위 눈 상자", "화면 표시만 (차는 그대로)", "키는 저장소에 두지 않음"], False),
         "mon": (0, 1, "모니터 /monitor", ["1920×1080 흑백 화면", "지도 · 경로 · 차 위치", "1초마다 갱신", "조작 버튼 없음"], False),
         "car": (1, 1, "제설차 Pico 2 W", ["MicroPython 1.29", "28BYJ-48 ×2 + ULN2003 ×2", "기지 → 갈래 밀기 → 후진", "전원: 맥 USB"], True),
@@ -115,7 +115,7 @@ def system_svg():
     gap = lambda a, b: (a + b) / 2
     # 웹 ⇄ 서버
     o.append(arrow([(L1 + 4, 58), (R1 - 4, 58)]))
-    o.append(t(gap(L1, R1), 30, "사진·보안키", 12, MID, 700, "middle"))
+    o.append(t(gap(L1, R1), 30, "사진", 12, MID, 700, "middle"))
     o.append(t(gap(L1, R1), 46, "전체 청소·정지", 12, MID, 700, "middle"))
     o.append(arrow([(R1 - 4, 112), (L1 + 4, 112)]))
     o.append(t(gap(L1, R1), 86, "눈 상자·지도", 12, LINE, 600, "middle"))

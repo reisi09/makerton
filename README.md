@@ -3,7 +3,7 @@
 사거리 모형의 북동쪽 **제설 기지**에서 제설차가 나와 네 갈래를 **가장 빠른 순서(최적 경로)**로 밀고 돌아오는 메이커톤 작품이다. 패드로 보드를 찍으면 Claude(`claude-opus-5-5`)가 **도로 위 눈 자리를 상자로 표시**한다(표시만 하고 차는 움직이지 않는다). 출동은 '전체 청소' 버튼으로 한다. 경로는 펌웨어 경로 계획으로 모든 순서를 비교해 정한다. 사진을 규칙 기반 영상 처리로 판정해 출동하는 `/api/vision/detect`는 서버 API로 남아 있지만 패드 화면에서는 뺐다.
 
 - 조작 화면(눈 위치 표시·전체 청소·정지): 맥 서버를 켜고 같은 핫스팟에서 `http://<맥 IP>:8000/app/`. 맥에서 `http://localhost:8000/app/`을 Chrome·Edge로 열면 'Pico 직접 조작'(USB)도 보인다.
-- GitHub Pages(https://reisi09.github.io/makerton/)는 같은 화면이지만 맥 서버에 닿지 못해 안내와 지도만 보인다.
+- GitHub Pages(https://reisi09.github.io/makerton/)는 같은 화면이지만 맥 서버에 닿지 못해 안내와 지도만 보인다. 다만 '눈 위치 표시'는 그 기기에 Claude API 키를 넣으면 서버 없이 쓸 수 있다.
 
 ![모니터 화면](docs/img/monitor.png)
 
@@ -11,10 +11,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 자동 시험 | Python 254개(`env -u ANTHROPIC_API_KEY -u MAKERTON_KEY python3 -m unittest discover -s tests`, 가상 제설차 통합 시험 포함), 웹 14개(`cd web && npm test`) 통과 |
+| 자동 시험 | Python 254개(`env -u ANTHROPIC_API_KEY python3 -m unittest discover -s tests`, 가상 제설차 통합 시험 포함), 웹 16개(`cd web && npm test`) 통과 |
 | 출동 판단 | 패드의 '전체 청소'(`/api/sweep`) + 최적 경로(`server/route.py`). 사진 판정 출동(`/api/vision/detect`: `server/vision.py`, Claude가 켜져 있으면 `server/claude_vision.py`도)은 API로만 남았다. 날씨 예보 모델은 화면 참고용이고 출동을 정하지 않는다 |
 | 조작 화면 | Next.js 정적 사이트 한 장. 맥 서버가 `/app`에서 낸다. '눈 위치 표시'(사진 → Claude 눈 상자, 표시 전용), 'Pico 직접 조작'(맥 localhost에서만), 네 갈래를 최적 순서로 도는 '전체 청소'(유일한 출동 버튼), 정지 버튼, 실측 지도 위 경로와 차의 실시간 위치(텔레메트리, 1초 갱신). 새로고침해도 마지막 판정을 서버에서 다시 받는다 |
-| 눈 위치 표시 | 사진 한 장 → `POST /api/vision/boxes`(헤더 `X-Makerton-Key`) → Claude가 눈 자리를 상자(사진 대비 0~1 비율)로 돌려주고 화면이 사진 위에 그린다. 차는 움직이지 않는다. 보안키는 화면에서 한 번 입력하고 그 탭(sessionStorage)에만 둔다. 실제 사진에서 상자 정확도는 아직 재지 않았다 |
+| 눈 위치 표시 | 사진 한 장 → Claude가 눈 자리를 상자(사진 대비 0~1 비율)로 돌려주고 화면이 사진 위에 그린다. 차는 움직이지 않는다. 길이 둘이다. (가) 그 기기의 브라우저에 Claude API 키를 한 번 넣어 두었으면 화면이 Claude API를 직접 부른다(`web/lib/claudeBoxes.ts`, `@anthropic-ai/sdk`의 `dangerouslyAllowBrowser`). 키는 그 브라우저의 localStorage에만 있고 코드·저장소·서버에는 없다. 맥 서버나 같은 Wi-Fi가 없어도 되지만 화면 자체는 어딘가(맥 서버, GitHub Pages 등)에서 열려 있어야 한다. 그 브라우저를 쓰는 사람은 누구나 키를 쓸 수 있으니 여럿이 쓰는 기기에서는 '키 지우기'를 누른다. (나) 키가 없으면 `POST /api/vision/boxes`로 맥 서버를 거치며 서버에 `ANTHROPIC_API_KEY`가 있어야 한다. 브라우저가 사진을 열지 못하면(맥 Chrome의 HEIC) 원본을 맥 서버로 보내 macOS `sips`로 JPEG로 바꾸고, 서버가 돌려준 `photo`(분석한 JPEG) 위에 상자를 그린다. 서버 없이 맥 Chrome에서 HEIC를 고르면 Safari나 서버 화면을 쓰라는 오류가 뜬다. 실제 사진에서 상자 정확도는 아직 재지 않았다 |
 | 사진 판정(API) | 사진 한 장 → 검은 도로 위 흰 알갱이를 갈래별로 센다 → 눈이 100mm² 이상인 갈래를 최적 순서로 출동. 판단이 애매하면(30~100mm², 비스듬한 사진, Claude와 규칙의 판단이 다름) 네 갈래를 모두 치운다. 실제 모형 사진 42장 결과는 아래 '4. 패드로 출동' |
 | 제설차 Pico | 실물로 확인: 펌웨어 업로드(SHA-256 일치), 모터 방향(T3), 서버↔차 UDP 양방향(T5), 바퀴를 돌리지 않은 출동 드라이런(N 갈래 104.2초, 계산 101.8초). 2026-11-01 보드 위 시험에서 0.6ms로 바로 출발하면 떨기만 해 가감속을 넣었다. 수리로 범퍼가 반대쪽 끝으로 가서 좌우 모터 핀을 바꿨다(왼쪽 GP6~9, 오른쪽 GP2~5). Pico 2 W, MicroPython 1.29. 전원은 맥 USB, 명령은 Wi-Fi UDP. 바퀴 보정(T4·T6)은 아직 |
 | 기지(센서) Pico | 코드와 시험만 있다. 눈 감지는 패드 사진이 대신할 수 있어 시연에는 선택이다 |
@@ -98,7 +98,7 @@ makerton/
 맥북 Python 3.9에 pandas·numpy·scipy·Pillow·xgboost·scikit-learn·pyserial, 웹에는 Node 24가 필요하다.
 
 ```
-env -u ANTHROPIC_API_KEY -u MAKERTON_KEY python3 -m unittest discover -s tests
+env -u ANTHROPIC_API_KEY python3 -m unittest discover -s tests
 cd web && npm ci && npm test
 ```
 
@@ -118,14 +118,14 @@ python3 -m model.icezero.train --stn 119 --force
 python3 server/gosaek_server.py --car udp --sensors-serial none --auto
 ```
 
-Claude('눈 위치 표시'와 사진 판정의 두 번째 의견)를 쓰려면 Claude API 키와 보안키 두 개를 숨김 입력으로 받아 그 셸에만 두고 서버를 켠다(zsh).
+Claude(서버를 거치는 '눈 위치 표시'와 사진 판정의 두 번째 의견)를 쓰려면 Claude API 키를 숨김 입력으로 받아 그 셸에만 두고 서버를 켠다(zsh).
 
 ```
-read -s "?Anthropic API key: " ANTHROPIC_API_KEY && echo && read -s "?Makerton key: " MAKERTON_KEY && echo && export ANTHROPIC_API_KEY MAKERTON_KEY && python3 server/gosaek_server.py --car udp --sensors-serial none --auto
+read -s "?Anthropic API key: " ANTHROPIC_API_KEY && echo && export ANTHROPIC_API_KEY && python3 server/gosaek_server.py --car udp --sensors-serial none --auto
 ```
 
-- Claude는 `ANTHROPIC_API_KEY`와 `MAKERTON_KEY`가 **둘 다** 있을 때만 켜진다. 하나라도 없으면 규칙만 쓰고, `/api/vision/boxes`('눈 위치 표시')는 503을 돌려준다. 서버가 시작할 때 '사진 판정:' 줄에 어느 쪽인지(빠진 이름까지) 출력한다.
-- 보안키(`MAKERTON_KEY`)는 직접 정하는 영문·숫자 문자열이다(화면은 ASCII만 받는다). 패드 화면에서 같은 값을 입력하면 요청마다 `X-Makerton-Key` 헤더로 실려 간다. 없거나 틀리면 401이다.
+- Claude는 `ANTHROPIC_API_KEY`가 있을 때 켜진다. 없으면 규칙만 쓰고, `/api/vision/boxes`('눈 위치 표시'의 서버 경로)는 503을 돌려준다. 서버가 시작할 때 '사진 판정:' 줄에 `규칙 + Claude(claude-opus-5-5)` 또는 `규칙 만(ANTHROPIC_API_KEY 없음)`이라고 출력한다.
+- 서버 API(`/api/vision/boxes`·`/api/vision/detect`)에는 접근 키가 없다. 서버에 닿는 기기는 누구나 서버의 Claude 키로 사진을 보낼 수 있으니 같은 핫스팟에서만 켠다.
 - 키 값은 파일·로그·문서에 쓰지 않는다.
 - `--sensors-serial auto|PORT|none|fake`(기지 Pico와 차 Pico가 둘 다 USB에 꽂혀 있으면 기지 포트를 직접 준다), `--car udp|fake|none`, `--no-auto`, `--mode live`, `--night YYYY-MM-DD`.
 - 브라우저에서 `http://localhost:8000/`(조작) 또는 `/monitor`(모니터 전용)를 연다. 서버는 시작할 때 접속 주소를 출력한다.
@@ -151,10 +151,10 @@ cd web && npm run build:app      # 서버가 /app 에서 내는 패드용 화면
 
 - 패드를 맥과 같은 핫스팟에 붙이고 `http://<맥 IP>:8000/app/`을 연다(맥에서 열면 QR이 나온다).
 - 화면은 세 부분이다.
-  - **눈 위치 표시**: 처음 한 번 보안키(`MAKERTON_KEY`와 같은 값)를 넣고 사진을 찍거나 고른다. 화면이 긴 변 1600px로 줄여 `POST /api/vision/boxes`로 보내고, Claude가 돌려준 눈 상자를 사진 위에 그린다. 표시만 하고 차는 움직이지 않는다. 키가 틀리면(401) 다시 묻는다. 서버에 키가 없으면 503 안내가 뜬다. 맥 서버에 닿지 않으면(GitHub Pages 등) 이 칸의 버튼이 꺼진다.
+  - **눈 위치 표시**: 사진을 찍거나 고른다. 그 기기에 Claude API 키를 한 번 넣어 두면(입력칸에 붙여 넣고 '저장', 그 브라우저의 localStorage에만 남는다) 브라우저가 Claude API를 직접 불러 맥 서버나 같은 Wi-Fi 없이도 된다. 키가 없으면 화면이 긴 변 1600px로 줄여 `POST /api/vision/boxes`로 맥 서버에 보낸다(서버에 `ANTHROPIC_API_KEY`가 없으면 503 안내). 어느 쪽이든 Claude가 돌려준 눈 상자를 사진 위에 그리고, 표시만 하고 차는 움직이지 않는다. 브라우저가 사진을 열지 못하면(맥 Chrome의 HEIC) 원본을 서버로 보내 `sips`로 JPEG로 바꾸고 서버가 돌려준 사진 위에 그린다(서버가 없으면 Safari나 서버 화면을 쓰라는 오류가 뜬다). API 키가 틀리면 저장한 키를 지우고 다시 받는다. 그 브라우저를 쓰는 사람은 누구나 저장된 키를 쓸 수 있으니 여럿이 쓰는 기기에서는 '키 지우기'를 누른다. 키도 서버도 없으면(GitHub Pages 등) 이 칸의 버튼이 꺼진다.
   - **Pico 직접 조작**: 맥에서 `http://localhost:8000/app/`을 Chrome·Edge로 열었을 때만 보인다(Web Serial, Safari·아이패드는 안 됨). USB로 꽂힌 Pico의 `main.py`를 끊고 raw REPL로 작은 조작 프로그램을 올린다. 버튼이나 방향키를 누르고 있는 동안만 움직이고(300ms 동안 글자가 없으면 선다), 토크를 가장 크게 하려고 2상 풀스텝을 6.0ms 간격에서 출발해 4.0ms로 민다(초당 약 11mm). 연결을 끊으면 Pico를 다시 켜 `main.py`가 다시 돈다. 연결돼 있는 동안 화면이 5초마다 살아 있다는 글자를 보내고, 조작 프로그램은 20초 동안 아무 글자도 못 받으면 코일을 끄고 스스로 Pico를 다시 켠다. 탭을 닫거나 새로 고치면 Ctrl-C·B·D를 보낸다. 서버 경로·좌표와 무관한 수동 이동이다.
   - **전체 청소**: 화면에서 차를 출동시키는 유일한 버튼이다. 사진 없이 네 갈래를 모두 최적 순서로 돈다(`POST /api/sweep`, 출동 중이면 409). 출동 중에는 화면 위쪽 '정지' 버튼으로 멈춘다.
-- 예전의 '사진 → 판정 → 바로 출동' 흐름과 '바로 출동' 스위치는 화면에서 뺐다. 서버 API `POST /api/vision/detect {"image","go"}`로는 그대로 쓸 수 있고, Claude가 켜져 있으면 `X-Makerton-Key` 헤더가 필요하다. 아래는 그 API의 동작과 기록이다.
+- 예전의 '사진 → 판정 → 바로 출동' 흐름과 '바로 출동' 스위치는 화면에서 뺐다. 서버 API `POST /api/vision/detect {"image","go"}`로는 그대로 쓸 수 있고, Claude는 서버에 `ANTHROPIC_API_KEY`가 있을 때 켜진다. 아래는 그 API의 동작과 기록이다.
 - 보드 전체가 보이게 **위에서 내려다보며** 사진 한 장을 찍는다. 기준 사진·모서리 찍기는 없고, 방향은 노란 코트로 맞춘다.
 - 서버는 검은 도로만 찾아 그 위 흰 알갱이를 교차로·N·S·E·W 갈래별로 센다. 노란 페인트(중앙선 점선·교차로 테두리) 위 투명 테이프의 반사, 도로 가운데 띠, 길쭉한 반사는 뺀다.
 - 눈이 100mm² 이상인 갈래를 기지에서 도는 모든 순서(최대 24가지)를 비교해 가장 빠른 순서로 보낸다. 결과 화면에 순서, 예상 시간, 지도 위 경로가 나온다.
@@ -210,6 +210,6 @@ open -a "Google Chrome" --args --kiosk http://localhost:8000/monitor
 1. **결빙을 확정하지 않는다.** 화면·로그·발표 모두 '예측 동결확률', '상대 우선순위'라고 쓴다.
 2. **자동이어도 멈출 수 있어야 한다.** 대시보드와 패드의 정지 버튼이 항상 동작한다. 서버 신호가 5초 끊기면 차가 선다(차 버튼은 달지 않았다).
 3. **LLM 혼자 출동을 정하지 않는다.** 예보는 학습 모델, 출동은 코드 규칙('전체 청소', 사진 판정 API는 규칙 기반 영상 처리)이 정한다. Claude는 '눈 위치 표시'에서 눈 자리를 보여 주기만 하고, 사진 판정 API에서는 두 번째 의견이라 규칙과 다르면 전체 청소, 호출이 실패하면 규칙만 쓴다.
-4. **비밀값은 저장소에 넣지 않는다.** Wi-Fi 비밀번호는 업로드할 때 입력하고, 기상청 키·Claude API 키(`ANTHROPIC_API_KEY`)·보안키(`MAKERTON_KEY`)는 환경변수로만 준다.
+4. **비밀값은 저장소에 넣지 않는다.** Wi-Fi 비밀번호는 업로드할 때 입력하고, 기상청 키·서버의 Claude API 키(`ANTHROPIC_API_KEY`)는 환경변수로만 준다. 화면에서 입력하는 Claude API 키는 그 브라우저의 localStorage에만 두고 코드·저장소·서버에는 두지 않는다.
 5. **센서는 보정해서 쓴다.** 시작 30초 평균 또는 `/api/sensors/baseline`으로 기준값을 잡는다.
 6. **주석·UI·로그는 한국어, 식별자는 영어.**

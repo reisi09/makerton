@@ -99,10 +99,9 @@ export default function Vision() {
 
         {api === "missing" && (
           <section className="vcard">
-            <h2>AI 눈 찾기와 자동 출동은 맥 서버에 접속해야 쓸 수 있습니다.</h2>
-            <p>GitHub 페이지(https)에서는 브라우저가 같은 핫스팟에 연결된 맥으로 사진을 보내는 것을 차단합니다.
-              맥에서 서버를 켠 뒤 <b>http://localhost:8000/app/</b>(맥) 또는 <b>http://&lt;맥 IP&gt;:8000/app/</b>(아이패드)에 접속하면 됩니다.
-              Pico 수동 조작은 맥에서 <b>http://localhost:8000/app/</b>으로 열었을 때만 보입니다.</p>
+            <h2>맥 서버에 닿지 않습니다.</h2>
+            <p>자동 출동(전체 청소)과 HEIC 사진 변환은 맥 서버가 필요합니다. 맥에서 서버를 켠 뒤 <b>http://localhost:8000/app/</b>을 여세요.
+              눈 위치 표시는 아래에 Claude API 키를 넣으면 서버 없이도 됩니다.</p>
           </section>
         )}
 

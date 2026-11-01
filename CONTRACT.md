@@ -12,8 +12,10 @@
 - Pico는 두 대다.
   - **센서 Pico**(#1, USB): 온습도·젖음·조도 관리
   - **제설차 Pico**(#2, Wi-Fi UDP 명령, 전원은 맥 USB): 스텝모터 이동만 한다. 서보·초음파·버튼·LED·부저는 config에 핀만 있고 달지 않았다(선택).
-- **LLM(Claude)은 사진을 보는 데만 쓴다.** 서버에 `ANTHROPIC_API_KEY`와 `MAKERTON_KEY`가 둘 다 있을 때만 켜지고, Claude를 부르는 요청은 `X-Makerton-Key` 헤더가 `MAKERTON_KEY`와 같아야 한다.
-  - 패드 화면의 '눈 위치 표시'(`/api/vision/boxes`)는 Claude가 찾은 눈 자리를 상자로 보여 주기만 한다. 차는 움직이지 않는다.
+- **LLM(Claude)은 사진을 보는 데만 쓴다.** 서버는 `ANTHROPIC_API_KEY`가 있으면 Claude를 쓴다(접근 키·헤더는 없다). 패드 화면의 '눈 위치 표시'는 서버 없이 브라우저가 Claude API를 직접 부를 수도 있다.
+  - 패드 화면의 '눈 위치 표시'는 Claude가 찾은 눈 자리를 상자로 보여 주기만 한다. 차는 움직이지 않는다.
+    - 그 기기의 브라우저에 입력해 둔 Claude API 키가 있으면 브라우저가 Claude API를 직접 부른다(`web/lib/claudeBoxes.ts`, 서버·같은 Wi-Fi 불필요). 키는 그 브라우저의 localStorage에만 두고 코드·저장소·서버에는 두지 않는다. 브라우저를 쓰는 누구나 그 키를 쓸 수 있으니 여럿이 쓰는 기기에서는 '키 지우기'를 누른다. 지시문·스키마는 `server/claude_vision.py`와 같아야 하고 `web/lib/claudeBoxes.test.ts`가 확인한다.
+    - 키가 없으면 `/api/vision/boxes`로 서버를 거친다(서버에 `ANTHROPIC_API_KEY` 필요).
   - 패드 화면에서 빠진 `/api/vision/detect`는 Claude를 규칙의 두 번째 의견으로 쓰고, 규칙과 다르면 전체 청소한다.
   - 출동 여부는 코드 규칙이 정한다. 패드 화면에서 출동시키는 버튼은 '전체 청소' 하나다.
 - 원칙
@@ -50,7 +52,7 @@ makerton/
   - `~/Library/Python/3.9/bin/mpy-cross`로 컴파일 오류가 없어야 한다.
   - 하드웨어 import가 없는 `*_core.py`에 로직을 모으고, CPython 시험에서 직접 import한다.
 - 비밀값(Wi-Fi 비밀번호 등)은 저장소에 넣지 않는다. config에는 빈 문자열만 두고, 업로드할 때 채운다.
-  - Claude API 키(`ANTHROPIC_API_KEY`)와 보안키(`MAKERTON_KEY`)는 서버를 켜는 셸의 환경변수로만 준다. 파일·로그·스냅숏에 남기지 않는다.
+  - 서버의 Claude API 키(`ANTHROPIC_API_KEY`)는 서버를 켜는 셸의 환경변수로만 준다. 파일·로그·스냅숏에 남기지 않는다. 화면에서 입력하는 Claude API 키는 그 브라우저의 localStorage에만 두고 코드·저장소·서버에는 두지 않는다.
 - 글꼴은 Pretendard다(사용자 지정). 웹은 `server/static/fonts/PretendardVariable.woff2`를 @font-face로 쓰고 CDN은 쓰지 않는다. SVG·PDF도 "Pretendard Variable"을 쓴다.
 
 ## 3. 모델(model/icezero)
@@ -131,8 +133,8 @@ makerton/
   - `--car udp|fake|none`, `--udp-port 9200`, `--car-port 9201`
   - `--auto/--no-auto`(기본 auto), `--events`
 - 환경변수
-  - `ANTHROPIC_API_KEY`와 `MAKERTON_KEY`가 둘 다 있을 때만 Claude를 쓴다. 하나라도 없으면 규칙만 쓰고, 시작할 때 '사진 판정:' 줄에 빠진 이름을 출력한다.
-  - Claude를 부르는 요청은 `X-Makerton-Key` 헤더가 `MAKERTON_KEY`와 같아야 한다(`hmac.compare_digest`로 비교, 값은 기록하지 않는다).
+  - `ANTHROPIC_API_KEY`가 있으면 Claude를 쓴다. 없으면 규칙만 쓰고, 시작할 때 '사진 판정:' 줄에 `규칙 + Claude(claude-opus-5-5)` 또는 `규칙 만(ANTHROPIC_API_KEY 없음)`을 출력한다.
+  - `/api/vision/boxes`·`/api/vision/detect`에는 접근 키나 별도 헤더가 필요 없다(401은 없다).
 - API
   - `GET / · /monitor · /app/ · /api/state`(`/app/`은 `web/out-app`의 패드용 화면)
   - `POST /api/replay {"night"}`
@@ -141,7 +143,7 @@ makerton/
   - `/api/auto {"on"}`
   - `/api/dispatch`(수동 1회)
   - `/api/vision/boxes {"image"}`(사진 → Claude가 찾은 눈 상자, 표시 전용. 아래)
-  - `/api/vision/detect {"image","go"}`(사진 → 규칙(+Claude) 판정·출동. 패드 화면에서는 빠졌고 API로만 남았다. Claude가 켜져 있으면 `X-Makerton-Key`가 필요하다)
+  - `/api/vision/detect {"image","go"}`(사진 → 규칙(+Claude) 판정·출동. 패드 화면에서는 빠졌고 API로만 남았다)
   - `/api/sweep`(전체 청소: 네 갈래를 최적 순서로 1회, 출동 중이면 409)
   - `/api/car/stop`(비상 정지 → 자동 끔)
   - `/api/car/home`
@@ -149,13 +151,13 @@ makerton/
   - `/api/sensors/baseline`(센서 기준값 다시 잡기)
   - `/api/reset`
 - `POST /api/vision/boxes`(패드 '눈 위치 표시')
-  - 요청: 헤더 `X-Makerton-Key: <MAKERTON_KEY>`, 본문 `{"image":"data:image/jpeg;base64,…"}`. 화면은 긴 변 1600px로 줄여 보낸다.
-  - 200: `{"boxes":[{"x0":0.12,"y0":0.40,"x1":0.31,"y1":0.52}],"note":"…","secs":6.5,"width":1600,"height":1200,"time":"HH:MM:SS"}`
+  - 요청: 헤더 요구 없음, 본문 `{"image":"data:image/jpeg;base64,…"}`(JPEG·PNG·HEIC). 화면은 긴 변 1600px로 줄여 보낸다. 브라우저가 사진을 열지 못하면(맥 Chrome의 HEIC) 원본 파일을 그대로 보내고, 서버가 macOS `sips`로 JPEG로 바꾼다. 읽을 때 EXIF 방향을 적용한다.
+  - 200: `{"boxes":[{"x0":0.12,"y0":0.40,"x1":0.31,"y1":0.52}],"note":"…","secs":6.5,"width":1200,"height":900,"time":"HH:MM:SS","photo":"data:image/jpeg;base64,…"}`
     - 좌표는 사진 너비·높이에 대한 0~1 비율이고 x0≤x1, y0≤y1이다. 눈이 없으면 빈 목록, 최대 30개.
     - 규칙 판정·출동·`vision_last`와 무관하다. 차는 움직이지 않는다.
-  - 503: 서버에 `MAKERTON_KEY`가 없음(헤더 확인 전), 또는 키는 맞는데 `ANTHROPIC_API_KEY`가 없음
-  - 401: 헤더가 없거나 `MAKERTON_KEY`와 다름
-  - 400: 사진을 읽지 못함(JPEG base64가 아님)
+    - `photo`는 분석한 사진이다(EXIF 방향 적용, 긴 변 1200px 이하 JPEG data URL). `width`·`height`는 이 사진의 크기이고, 화면은 이 사진 위에 상자를 그린다.
+  - 503: 서버에 `ANTHROPIC_API_KEY`가 없음
+  - 400: 사진을 읽지 못함(JPEG·PNG·HEIC가 아니거나 HEIC를 `sips`로 바꾸지 못함)
   - 502: Claude 호출 실패
   - 오류 본문은 `{"error":"…"}`다.
 - 센서 융합
@@ -165,7 +167,7 @@ makerton/
 - 자동 출동
   - 조건: auto가 켜져 있고, 차가 idle이고, 실행 중인 계획이 없다. 기지 링크가 살아 있으면 `dock`도 참이어야 한다(도킹 스위치가 없으면 기지 Pico GP14를 GND에 점퍼로 잇는다).
   - 출동은 눈을 봤을 때만 한다(2026-10-31 변경). 날씨 예보 모델(step의 recommend)은 화면 참고용이고 출동을 정하지 않는다.
-    - 사진(API만, 패드 화면에서는 빠짐): `POST /api/vision/detect` → `server/vision.py`가 검은 도로 위 흰 알갱이를 갈래별로 센다 → `server/route.py`가 눈이 `ARM_MIN_MM2`(100) 넘는 갈래를 기지에서 도는 모든 순서를 펌웨어 `plan_for_order`로 만들어 가감속을 넣은 시간 모형(`car_core.estimate_seconds`)으로 가장 빠른 순서를 고른다(1ms 안으로 같으면 눈 많은 갈래 먼저. 구간마다 가감속하므로 스텝이 가장 적은 순서와 다를 수 있다. 전체 청소는 S→E→W→N 약 140초, 계산값) → 그 순서로 plan. 판단이 애매하면(어느 갈래든 `ARM_VAGUE_MM2`(30) 이상 100 미만, 또는 vision `sure`=False: 노란 코트가 안 보이거나 비스듬한 사진) 네 갈래 모두의 최적 순서로 plan. Claude가 켜져 있으면(`ANTHROPIC_API_KEY`·`MAKERTON_KEY` 둘 다, 요청에 `X-Makerton-Key`) `server/claude_vision.py`가 규칙이 돌린 사진을 Claude(`claude-opus-5-5`)에게 보여 갈래별 눈 여부를 받는다. 규칙(100mm² 이상)과 한 갈래라도 다르거나 `usable`=False면 네 갈래 모두. 호출이 실패하면 규칙만. 판정 중 사고 요약은 `/api/state`의 `vision_live.thinking`, 끝난 판정은 `vision.eye`(`usable`·`arms`·`note`·`thinking`·`secs` 또는 `error`).
+    - 사진(API만, 패드 화면에서는 빠짐): `POST /api/vision/detect` → `server/vision.py`가 검은 도로 위 흰 알갱이를 갈래별로 센다 → `server/route.py`가 눈이 `ARM_MIN_MM2`(100) 넘는 갈래를 기지에서 도는 모든 순서를 펌웨어 `plan_for_order`로 만들어 가감속을 넣은 시간 모형(`car_core.estimate_seconds`)으로 가장 빠른 순서를 고른다(1ms 안으로 같으면 눈 많은 갈래 먼저. 구간마다 가감속하므로 스텝이 가장 적은 순서와 다를 수 있다. 전체 청소는 S→E→W→N 약 140초, 계산값) → 그 순서로 plan. 판단이 애매하면(어느 갈래든 `ARM_VAGUE_MM2`(30) 이상 100 미만, 또는 vision `sure`=False: 노란 코트가 안 보이거나 비스듬한 사진) 네 갈래 모두의 최적 순서로 plan. Claude가 켜져 있으면(`ANTHROPIC_API_KEY`가 있을 때) `server/claude_vision.py`가 규칙이 돌린 사진을 Claude(`claude-opus-5-5`)에게 보여 갈래별 눈 여부를 받는다. 규칙(100mm² 이상)과 한 갈래라도 다르거나 `usable`=False면 네 갈래 모두. 호출이 실패하면 규칙만. 판정 중 사고 요약은 `/api/state`의 `vision_live.thinking`, 끝난 판정은 `vision.eye`(`usable`·`arms`·`note`·`thinking`·`secs` 또는 `error`).
     - 전체 청소: `POST /api/sweep` → 사진 없이 네 갈래를 `route.plan`의 최적 순서로 돈다.
     - 기지 조도센서 `wet`: 어느 갈래인지 모르니 네 갈래를 최적 순서로 돈다. 쿨다운 10초.
     - `order`는 받은 순서 그대로 쓴다(서버가 다시 정렬하지 않는다).
